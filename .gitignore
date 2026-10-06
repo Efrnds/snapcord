@@ -1,5 +1,9 @@
 build/
+build-flatpak/
+dist/
 out/
+.flatpak-builder/
+.vcpkg-cache/
 .vs/
 .vscode/
 .idea/

@@ -11,6 +11,12 @@ FetchContent_Declare(libdave
     EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable(libdave)
+# libdave builds its own code with warnings as errors; a newer compiler than Discord's must not break our build.
+if(MSVC)
+    target_compile_options(libdave PRIVATE /WX-)
+else()
+    target_compile_options(libdave PRIVATE -Wno-error)
+endif()
 
 # --- RNNoise: neural network noise suppression ------------------------------------------------------
 # The vcpkg port does not support Windows, so the release tarball is compiled directly. The release

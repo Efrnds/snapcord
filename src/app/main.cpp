@@ -38,6 +38,8 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("Snapcord"));
     QApplication::setOrganizationName(QStringLiteral("Snapcord"));
     QApplication::setApplicationVersion(QStringLiteral(SNAPCORD_VERSION));
+    // Matches the .desktop file, so Linux desktops (Wayland especially) show the right icon in the taskbar.
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.pedrordgsr.Snapcord"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/snapcord.svg")));
 
     Log::installFileHandler();

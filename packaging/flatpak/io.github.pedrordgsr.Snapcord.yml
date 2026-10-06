@@ -1,0 +1,49 @@
+# Flatpak manifest. Build locally with:
+#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.pedrordgsr.Snapcord.yml
+# The dependencies are built with vcpkg like on the other platforms, so the build step needs network access.
+id: io.github.pedrordgsr.Snapcord
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+command: Snapcord
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+modules:
+  - name: snapcord
+    buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
+      env:
+        VCPKG_DISABLE_METRICS: '1'
+    build-commands:
+      - ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+      - >-
+        cmake -S . -B build -G Ninja
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_INSTALL_PREFIX=/app
+        -DCMAKE_TOOLCHAIN_FILE=vcpkg/scripts/buildsystems/vcpkg.cmake
+        -DVCPKG_TARGET_TRIPLET=x64-linux
+        -DSNAPCORD_BUILD_TESTS=OFF
+      - cmake --build build
+      - cmake --install build
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - build
+          - dist
+          - .flatpak-builder
+      - type: git
+        url: https://github.com/microsoft/vcpkg.git
+        commit: 434307da09bc05b2c86996dccc8b2351fc0d5d37
+        dest: vcpkg

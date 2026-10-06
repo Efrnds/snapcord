@@ -324,6 +324,38 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Build com o app aberto:** `scripts\build.ps1 -Target <alvo>` compila só um alvo, útil quando o
   `Snapcord.exe` está aberto e não pode ser sobrescrito.
 
+### Fase 4 (lançamento)
+
+- **Fora de escopo por decisão do dono:** atualização automática, testes de áudio por plataforma e
+  push-to-talk global no macOS/Linux.
+- **Login guardado no sistema:** Windows Credential Manager, macOS Keychain e Linux Secret Service
+  (libsecret), em `src/platform/CredentialStore*.cpp`.
+- **Ícones:** gerados a partir do SVG pela ferramenta `snapcord_render_icons`
+  (`tools/render_icons.cpp`, fora do build padrão). Os resultados ficam em `packaging/icons/` e vão
+  para o repositório.
+- **Metadados:**
+  - `packaging/windows/snapcord.rc.in`: ícone e versão do `.exe`.
+  - `packaging/macos/Info.plist.in`: inclui `NSMicrophoneUsageDescription`, obrigatório para o
+    microfone funcionar no macOS.
+  - `packaging/linux/*.desktop` e `*.metainfo.xml`.
+  - ID do app: `io.github.pedrordgsr.Snapcord`.
+- **Pacotes:**
+  - Windows: `packaging/windows/package.ps1` gera o `.zip` portátil e o instalador Inno Setup
+    (`snapcord.iss`).
+  - macOS: `packaging/macos/package.sh` usa macdeployqt, assinatura ad-hoc e gera o `.dmg`.
+  - Linux: `packaging/linux/package.sh` gera o AppImage com linuxdeploy e o plugin Qt.
+  - Flatpak: manifesto em `packaging/flatpak/`, runtime KDE 6.8, dependências via vcpkg com rede
+    liberada no build.
+- **CI (`.github/workflows/build.yml`):**
+  - Compila, testa e empacota nas três plataformas, mais o Flatpak.
+  - Uma tag `v*` cria uma Release **rascunho** com todos os pacotes.
+  - Quando falha, o passo "Report errors" publica as linhas de erro como anotações, que são
+    públicas. Assim dá para ler pela API sem login:
+    `GET /repos/pedrordgsr/snapcord/check-runs/{job_id}/annotations`.
+- **Verificado localmente:**
+  - O `.zip` do Windows tem 15 MB, roda sem o Qt instalado e ocupa ~34 MB de RAM em Release.
+  - Linux, macOS e Flatpak só podem ser verificados pelo CI.
+
 ## Próximo passo
 
 1. O dono do projeto testa a Fase 2:

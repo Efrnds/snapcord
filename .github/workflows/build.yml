@@ -3,16 +3,23 @@ name: Build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write # creating the draft release on tags
+
 jobs:
   build:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - { name: windows, os: windows-latest }
+          - { name: linux, os: ubuntu-24.04 }
+          - { name: macos, os: macos-latest }
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
@@ -32,7 +39,18 @@ jobs:
 
       - name: Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev
+        run: |
+          sudo apt-get update
+          # Build tools for vcpkg ports (libsodium uses autotools), libsecret for the keyring, and the
+          # X11/OpenGL libraries Qt's plugins link to (linuxdeploy checks them while packaging).
+          sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config \
+            libsecret-1-dev libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
+
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf autoconf-archive automake libtool
 
       - name: Set up vcpkg
         shell: bash
@@ -59,12 +77,105 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure
-        run: cmake --preset release
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --preset release 2>&1 | tee configure.log
 
       - name: Build
-        run: cmake --build --preset release
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build --preset release 2>&1 | tee build.log
 
       - name: Test
         run: ctest --test-dir build/release --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./packaging/windows/package.ps1 -BuildDir build/release -OutDir dist
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: bash packaging/linux/package.sh build/release dist
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: bash packaging/macos/package.sh build/release dist
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapcord-${{ matrix.name }}
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+          if-no-files-found: error
+
+      # Job logs need a GitHub login to read; annotations are public. Publish the relevant error lines so
+      # failures can be diagnosed from the run page (or the API) by anyone.
+      - name: Report errors
+        if: failure()
+        shell: bash
+        run: |
+          report() {
+            local title="$1" file="$2"
+            [ -f "$file" ] || return 0
+            local lines
+            lines="$(grep -iE 'error|failed|could not|not found|undefined reference' "$file" | grep -viE 'warning|-Werror|error_code|errors? = 0' | tail -n 25)"
+            [ -n "$lines" ] || lines="$(tail -n 25 "$file")"
+            lines="${lines//'%'/'%25'}"
+            lines="${lines//$'\r'/}"
+            lines="${lines//$'\n'/'%0A'}"
+            echo "::error title=$title::$lines"
+          }
+          report "Configure" configure.log
+          report "Build" build.log
+          # vcpkg keeps the logs of the port that failed in its buildtrees folder.
+          if [ -n "${VCPKG_ROOT:-}" ] && [ -d "$VCPKG_ROOT/buildtrees" ]; then
+            find "$VCPKG_ROOT/buildtrees" -name '*-err.log' -size +0 -mmin -120 | head -n 4 | while read -r log; do
+              report "vcpkg: $(basename "$(dirname "$log")")/$(basename "$log")" "$log"
+            done
+          fi
+
+  flatpak:
+    name: flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.8
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Snapcord-linux-x86_64.flatpak
+          manifest-path: packaging/flatpak/io.github.pedrordgsr.Snapcord.yml
+          cache-key: flatpak-builder-${{ hashFiles('vcpkg.json', 'packaging/flatpak/*.yml') }}
+          upload-artifact: true
+
+  release:
+    name: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Name the Flatpak bundle after the version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          find artifacts -name '*.flatpak' -exec mv {} "artifacts/Snapcord-$version-linux-x86_64.flatpak" \;
+          ls -la artifacts
+      # A draft: the release is published by hand after a final check.
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: artifacts/*

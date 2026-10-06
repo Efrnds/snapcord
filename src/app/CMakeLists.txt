@@ -59,13 +59,38 @@ target_link_libraries(snapcord PRIVATE
 )
 target_compile_definitions(snapcord PRIVATE SNAPCORD_VERSION="${PROJECT_VERSION}")
 
-set_target_properties(snapcord PROPERTIES
-    OUTPUT_NAME "Snapcord"
-    MACOSX_BUNDLE_BUNDLE_NAME "Snapcord"
-    MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.snapcord"
-    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-)
+set(packaging_dir "${PROJECT_SOURCE_DIR}/packaging")
+set_target_properties(snapcord PROPERTIES OUTPUT_NAME "Snapcord")
+
+if(WIN32)
+    # Executable icon and version information.
+    set(SNAPCORD_ICO "${packaging_dir}/icons/snapcord.ico")
+    configure_file("${packaging_dir}/windows/snapcord.rc.in" "${CMAKE_CURRENT_BINARY_DIR}/snapcord.rc" @ONLY)
+    target_sources(snapcord PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/snapcord.rc")
+elseif(APPLE)
+    # Bundle metadata (including the microphone permission prompt) and icon.
+    set(icns "${packaging_dir}/icons/snapcord.icns")
+    set_source_files_properties("${icns}" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    target_sources(snapcord PRIVATE "${icns}")
+    configure_file("${packaging_dir}/macos/Info.plist.in" "${CMAKE_CURRENT_BINARY_DIR}/Info.plist" @ONLY)
+    set_target_properties(snapcord PROPERTIES MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist")
+endif()
+
+# Installation layout, used by the Linux packages (AppImage, Flatpak).
+include(GNUInstallDirs)
+install(TARGETS snapcord
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+if(UNIX AND NOT APPLE)
+    set(app_id "io.github.pedrordgsr.Snapcord")
+    install(FILES "${packaging_dir}/linux/${app_id}.desktop" DESTINATION "${CMAKE_INSTALL_DATADIR}/applications")
+    install(FILES "${packaging_dir}/linux/${app_id}.metainfo.xml" DESTINATION "${CMAKE_INSTALL_DATADIR}/metainfo")
+    foreach(size 16 32 48 64 128 256 512)
+        install(FILES "${packaging_dir}/icons/snapcord-${size}.png"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/${size}x${size}/apps"
+            RENAME "${app_id}.png")
+    endforeach()
+endif()
 
 # On Windows, copy the Qt DLLs next to the executable so it can be opened with a double click.
 if(WIN32)

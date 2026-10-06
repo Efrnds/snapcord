@@ -1,12 +1,12 @@
 #include "platform/CredentialStore.h"
 
-#ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #include <windows.h>
 #include <wincred.h>
 
+// Windows Credential Manager ("Generic credentials", visible in the Control Panel).
 namespace {
 
 const wchar_t* const TargetName = L"Snapcord/token";
@@ -50,29 +50,3 @@ void clearToken()
 }
 
 } // namespace CredentialStore
-
-#else
-
-// macOS Keychain and Linux Secret Service support arrive with the multi-platform release (Phase 4).
-namespace CredentialStore {
-
-bool isPersistent()
-{
-    return false;
-}
-
-QString loadToken()
-{
-    return {};
-}
-
-bool saveToken(const QString&)
-{
-    return false;
-}
-
-void clearToken() {}
-
-} // namespace CredentialStore
-
-#endif
