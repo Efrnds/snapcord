@@ -13,29 +13,19 @@ class UserPanel : public QWidget
 public:
     explicit UserPanel(QWidget* parent = nullptr);
 
-    void setUser(const QString& displayName, const QString& status);
-
-    bool isMuted() const { return m_muted; }
-    bool isDeafened() const { return m_deafened; }
+    void setUser(const QString& displayName, const QString& status, const QPixmap& avatar);
+    void setVoiceState(bool muted, bool deafened);
 
 signals:
-    void muteChanged(bool muted);
-    void deafenChanged(bool deafened);
+    void muteClicked();
+    void deafenClicked();
     void settingsRequested();
 
 private:
-    void toggleMute();
-    void toggleDeafen();
-    void setState(bool muted, bool deafened);
-    void updateButtons();
-
     QLabel* m_avatar;
     QLabel* m_name;
     QLabel* m_status;
     QToolButton* m_mute;
     QToolButton* m_deafen;
     QToolButton* m_settings;
-    bool m_muted = false;
-    bool m_deafened = false;
-    bool m_mutedBeforeDeafen = false;
 };

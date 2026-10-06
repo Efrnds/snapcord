@@ -1,11 +1,18 @@
 qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     main.cpp
+    AppController.cpp AppController.h
     Avatar.cpp Avatar.h
     ChannelSidebar.cpp ChannelSidebar.h
+    ImageCache.cpp ImageCache.h
     Language.cpp Language.h
+    LoginWindow.cpp LoginWindow.h
     MainWindow.cpp MainWindow.h
     ServerRail.cpp ServerRail.h
+    SettingsDialog.cpp SettingsDialog.h
     UserPanel.cpp UserPanel.h
+    VoiceChannelView.cpp VoiceChannelView.h
+    VoiceController.cpp VoiceController.h
+    VoicePanel.cpp VoicePanel.h
 )
 
 set(resource_dir "${PROJECT_SOURCE_DIR}/resources")
@@ -24,15 +31,21 @@ qt_add_resources(snapcord "app_resources"
         "${resource_dir}/icons/headphones.svg"
         "${resource_dir}/icons/headphones-off.svg"
         "${resource_dir}/icons/settings.svg"
+        "${resource_dir}/icons/disconnect.svg"
 )
 
 # Interface translations. English is the source language; each .ts file adds another language.
 qt_add_translations(snapcord
     TS_FILES "${PROJECT_SOURCE_DIR}/translations/snapcord_pt_BR.ts"
+    SOURCE_TARGETS snapcord snapcord_core snapcord_voice snapcord_platform
     RESOURCE_PREFIX "/i18n"
 )
 
-target_link_libraries(snapcord PRIVATE Qt6::Widgets Qt6::Svg)
+target_link_libraries(snapcord PRIVATE
+    Qt6::Widgets Qt6::Svg
+    snapcord_core snapcord_voice snapcord_platform
+    unofficial::nayuki-qr-code-generator::nayuki-qr-code-generator
+)
 target_compile_definitions(snapcord PRIVATE SNAPCORD_VERSION="${PROJECT_VERSION}")
 
 set_target_properties(snapcord PROPERTIES

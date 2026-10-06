@@ -11,7 +11,8 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $env:QT_ROOT_DIR) { $env:QT_ROOT_DIR = Join-Path $HOME 'Qt\6.8.3\msvc2022_64' }
-if (-not $env:VCPKG_ROOT) { $env:VCPKG_ROOT = Join-Path $HOME 'vcpkg' }
+# The Visual Studio developer shell points VCPKG_ROOT at its own bundled (older) vcpkg, so remember ours first.
+$vcpkgRoot = if ($env:VCPKG_ROOT -and $env:VCPKG_ROOT -notmatch 'Microsoft Visual Studio') { $env:VCPKG_ROOT } else { Join-Path $HOME 'vcpkg' }
 
 # Load the Visual Studio (MSVC) compiler into this session if it isn't loaded yet.
 if (-not $env:VSCMD_VER) {
@@ -23,6 +24,8 @@ if (-not $env:VSCMD_VER) {
     Import-Module (Join-Path $vsPath 'Common7\Tools\Microsoft.VisualStudio.DevShell.dll')
     Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
 }
+
+$env:VCPKG_ROOT = $vcpkgRoot
 
 # CMake and Ninja installed with pip live in the user's Python scripts folder.
 $pythonScripts = python -c "import sysconfig; print(sysconfig.get_path('scripts', 'nt_user'))"

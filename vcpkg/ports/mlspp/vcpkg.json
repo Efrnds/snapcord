@@ -1,0 +1,22 @@
+{
+  "name": "mlspp",
+  "version-string": "1cc50a124a3bc4e143a787ec934280dc70c1034d",
+  "description": "Cisco MLS C++ library (configured as required by Discord's libdave)",
+  "homepage": "https://github.com/cisco/mlspp",
+  "license": "BSD-2-Clause",
+  "dependencies": [
+    {
+      "name": "openssl",
+      "version>=": "3.0.7"
+    },
+    "nlohmann-json",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

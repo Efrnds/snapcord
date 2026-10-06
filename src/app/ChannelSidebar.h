@@ -1,39 +1,66 @@
 #pragma once
 
+#include <QPixmap>
+#include <QSet>
 #include <QWidget>
 
 class QLabel;
 class QTreeWidget;
 class QTreeWidgetItem;
 class UserPanel;
+class VoicePanel;
 
-// Channel column: server name on top, channels grouped by category and the user panel at the bottom.
+// Channel column: server name on top, channels grouped by category (with the people in each voice
+// channel listed under it), then the voice connection panel and the user panel at the bottom.
 class ChannelSidebar : public QWidget
 {
     Q_OBJECT
 
 public:
-    enum class ChannelKind { Text, Voice };
-    Q_ENUM(ChannelKind)
+    enum class ItemKind { Category, TextChannel, VoiceChannel, VoiceMember };
+
+    struct Member
+    {
+        QString userId;
+        QString name;
+        QPixmap avatar;
+        bool speaking = false;
+        bool muted = false;
+        bool deafened = false;
+    };
 
     explicit ChannelSidebar(QWidget* parent = nullptr);
 
     void setTitle(const QString& title);
-    void clear();
-    void addCategory(const QString& name);
-    void addChannel(const QString& id, const QString& name, ChannelKind kind);
-    void selectFirstTextChannel();
+
+    // Rebuilding keeps the scroll position and collapsed categories.
+    void beginRebuild();
+    void addCategory(const QString& id, const QString& name);
+    void addChannel(const QString& id, const QString& name, ItemKind kind);
+    void addVoiceMember(const Member& member); // listed under the last added voice channel
+    void endRebuild();
+
+    void setSelectedChannel(const QString& channelId);
+    // Updates one member row in place (cheaper than a rebuild, since speaking changes are frequent).
+    void setMemberSpeaking(const QString& userId, bool speaking, const QPixmap& avatar);
 
     UserPanel* userPanel() const { return m_userPanel; }
+    VoicePanel* voicePanel() const { return m_voicePanel; }
 
 signals:
-    void channelActivated(const QString& id, const QString& name, ChannelSidebar::ChannelKind kind);
+    void channelClicked(const QString& channelId, ChannelSidebar::ItemKind kind);
+    void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
 
 private:
     void onItemClicked(QTreeWidgetItem* item);
 
     QLabel* m_title;
     QTreeWidget* m_tree;
-    QTreeWidgetItem* m_currentCategory = nullptr;
+    VoicePanel* m_voicePanel;
     UserPanel* m_userPanel;
+    QTreeWidgetItem* m_currentCategory = nullptr;
+    QTreeWidgetItem* m_currentVoiceChannel = nullptr;
+    QSet<QString> m_collapsedCategories;
+    QString m_selectedChannel;
+    int m_savedScroll = 0;
 };

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <QColor>
+#include <QImage>
 #include <QPixmap>
 #include <QString>
 
-// Placeholder avatar: a colored circle with the name's initial.
-// If `statusRing` is valid, an "online" dot is drawn with a ring of that color.
-QPixmap makeAvatar(const QString& name, int size, qreal devicePixelRatio, const QColor& statusRing = {});
+// Draws a round avatar: the user's picture if loaded, otherwise a colored circle with their initial.
+// `speakingRing` adds Discord's green "speaking" ring; a valid `statusRing` color adds an online dot.
+QPixmap makeAvatar(const QString& name, const QImage& picture, int size, qreal devicePixelRatio,
+                   bool speakingRing = false, const QColor& statusRing = {});

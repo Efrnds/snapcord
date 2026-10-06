@@ -14,41 +14,57 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Instalar Qt
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
           modules: 'qtwebsockets qtimageformats'
           cache: true
 
-      - name: Instalar CMake e Ninja
+      - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
 
-      - name: Preparar vcpkg
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev
+
+      - name: Set up vcpkg
         shell: bash
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          # Full clone: the manifest pins a baseline commit that must be in the history.
+          git clone https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
           if [ "$RUNNER_OS" = "Windows" ]; then
             "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.bat" -disableMetrics
           else
             "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
           fi
           echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
 
-      - name: Configurar MSVC
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json', 'vcpkg/ports/**') }}
+          restore-keys: vcpkg-${{ runner.os }}-
+
+      - name: Set up MSVC
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Dependências do Linux
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev
-
-      - name: Configurar
+      - name: Configure
         run: cmake --preset release
 
-      - name: Compilar
+      - name: Build
         run: cmake --build --preset release
+
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen

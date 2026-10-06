@@ -53,22 +53,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 #serverRail, #serverRailContent, #serverRail QScrollArea {
     background: #1e1f22;
 }
-#serverRail QPushButton {
-    background: #313338;
-    color: #dbdee1;
-    border: none;
-    border-radius: 24px;
-    font-size: 15px;
-    font-weight: 600;
-}
-#serverRail QPushButton:hover, #serverRail QPushButton:checked {
-    background: #5865f2;
-    color: #ffffff;
-    border-radius: 16px;
-}
-#serverRail #addServerButton:hover {
-    background: #23a559;
-}
 #railSeparator {
     background: #35363c;
     border-radius: 1px;
@@ -92,23 +76,39 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     outline: 0;
     padding-top: 8px;
 }
-#channelTree::item {
-    color: #949ba4;
-    border-radius: 4px;
-    margin: 1px 8px;
-    padding-left: 4px;
-}
-#channelTree::item:hover {
-    background: #35373c;
-    color: #dbdee1;
-}
-#channelTree::item:selected {
-    background: #404249;
-    color: #f2f3f5;
+/* Rows are painted by ChannelDelegate; keep the view itself from drawing row backgrounds. */
+#channelTree::item, #channelTree::item:hover, #channelTree::item:selected {
+    background: transparent;
 }
 #channelTree::branch {
     background: transparent;
     image: none;
+}
+
+/* Voice connection panel */
+#voicePanel {
+    background: #232428;
+    border-bottom: 1px solid #2e2f34;
+}
+#voiceStatus {
+    color: #f0b232;
+    font-size: 14px;
+    font-weight: 700;
+}
+#voiceStatus[connected="true"] {
+    color: #23a559;
+}
+#voiceLocation {
+    color: #949ba4;
+    font-size: 12px;
+}
+#voicePanel QToolButton {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+}
+#voicePanel QToolButton:hover {
+    background: #3a3c41;
 }
 
 /* User panel */
@@ -152,19 +152,219 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     font-size: 15px;
 }
 
-/* Member list */
-#memberList {
+/* Voice channel view */
+#voiceChannelView {
+    background: #000000;
+}
+#voiceChannelView #chatHeader {
+    background: #313338;
+}
+#voiceChannelView #welcomeSubtitle {
+    color: #b5bac1;
+}
+
+/* Buttons */
+#joinVoiceButton, #primaryButton {
+    background: #248046;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 600;
+}
+#joinVoiceButton:hover, #primaryButton:hover {
+    background: #1a6334;
+}
+#joinVoiceButton:disabled {
+    background: #4e5058;
+    color: #949ba4;
+}
+#secondaryButton {
+    background: #4e5058;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+#secondaryButton:hover {
+    background: #6d6f78;
+}
+#dangerButton {
+    background: transparent;
+    color: #f23f43;
+    border: none;
+    border-radius: 4px;
+    padding: 8px;
+    text-align: left;
+    font-size: 15px;
+}
+#dangerButton:hover {
+    background: #35373c;
+}
+
+#brandButton {
+    background: #5865f2;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 16px;
+    font-size: 15px;
+    font-weight: 600;
+}
+#brandButton:hover {
+    background: #4752c4;
+}
+#brandButton:disabled {
+    background: #3c4270;
+    color: #b5bac1;
+}
+#linkButton {
+    background: transparent;
+    color: #00a8fc;
+    border: none;
+    padding: 0;
+    font-size: 14px;
+    text-align: left;
+}
+#linkButton:hover {
+    text-decoration: underline;
+}
+
+/* Login */
+#tokenInput {
+    background: #1e1f22;
+    color: #dbdee1;
+    border: none;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 15px;
+}
+#tokenError {
+    color: #fa777c;
+    font-size: 13px;
+}
+#loginWindow {
+    background: #1e1f22;
+}
+#loginCard {
+    background: #313338;
+    border-radius: 8px;
+}
+#loginTitle {
+    color: #f2f3f5;
+    font-size: 24px;
+    font-weight: 600;
+}
+#loginSubtitle {
+    color: #b5bac1;
+    font-size: 16px;
+}
+#loginSteps {
+    color: #dbdee1;
+    font-size: 15px;
+}
+#loginWarning {
+    color: #949ba4;
+    font-size: 12px;
+}
+#qrTitle {
+    color: #f2f3f5;
+    font-size: 24px;
+    font-weight: 600;
+}
+#qrHint {
+    color: #b5bac1;
+    font-size: 15px;
+}
+
+/* Settings */
+#settingsSide {
     background: #2b2d31;
+}
+#settingsContent {
+    background: #313338;
+}
+#settingsNavigation {
+    background: transparent;
     border: none;
     outline: 0;
-    padding: 0 8px;
 }
-#memberList::item {
-    color: #949ba4;
+#settingsNavigation::item {
+    color: #b5bac1;
+    padding: 6px 10px;
     border-radius: 4px;
-    padding-left: 8px;
+    margin: 1px 0;
 }
-#memberList::item:hover {
+#settingsNavigation::item:hover {
     background: #35373c;
     color: #dbdee1;
+}
+#settingsNavigation::item:selected {
+    background: #404249;
+    color: #ffffff;
+}
+#settingsTitle {
+    color: #f2f3f5;
+    font-size: 20px;
+    font-weight: 600;
+}
+#settingsSection {
+    color: #b5bac1;
+    font-size: 12px;
+    font-weight: 700;
+}
+#settingsHint {
+    color: #949ba4;
+    font-size: 13px;
+}
+QComboBox {
+    background: #1e1f22;
+    color: #dbdee1;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 10px;
+    min-height: 20px;
+}
+QComboBox QAbstractItemView {
+    background: #2b2d31;
+    color: #dbdee1;
+    border: 1px solid #1e1f22;
+    selection-background-color: #404249;
+}
+QRadioButton {
+    color: #dbdee1;
+    spacing: 10px;
+    padding: 4px 0;
+}
+QSlider::groove:horizontal {
+    height: 8px;
+    background: #4e5058;
+    border-radius: 4px;
+}
+QSlider::sub-page:horizontal {
+    background: #5865f2;
+    border-radius: 4px;
+}
+QSlider::handle:horizontal {
+    background: #ffffff;
+    width: 10px;
+    height: 24px;
+    margin: -8px 0;
+    border-radius: 3px;
+}
+QMessageBox {
+    background: #313338;
+}
+QMessageBox QPushButton {
+    background: #5865f2;
+    color: #ffffff;
+    border: none;
+    border-radius: 3px;
+    padding: 6px 16px;
+    min-width: 60px;
+}
+QMessageBox QPushButton:hover {
+    background: #4752c4;
 }

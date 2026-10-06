@@ -1,5 +1,6 @@
+#include "AppController.h"
 #include "Language.h"
-#include "MainWindow.h"
+#include "core/Log.h"
 
 #include <QApplication>
 #include <QFile>
@@ -39,6 +40,7 @@ int main(int argc, char* argv[])
     QApplication::setApplicationVersion(QStringLiteral(SNAPCORD_VERSION));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/snapcord.svg")));
 
+    Log::installFileHandler();
     Language::install(app);
 
     // Fusion looks the same on all three platforms; the dark theme is applied on top of it.
@@ -53,7 +55,7 @@ int main(int argc, char* argv[])
     if (theme.open(QIODevice::ReadOnly))
         app.setStyleSheet(QString::fromUtf8(theme.readAll()));
 
-    MainWindow window;
-    window.show();
+    AppController controller;
+    controller.start();
     return app.exec();
 }

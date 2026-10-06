@@ -1,0 +1,151 @@
+#pragma once
+
+#include "voice/AudioEngine.h"
+#include "voice/JitterBuffer.h"
+#include "voice/OpusCodec.h"
+#include "voice/UdpSocket.h"
+#include "voice/VoiceGateway.h"
+#include "voice/VoiceSettings.h"
+
+#include <QHash>
+#include <QObject>
+#include <QTimer>
+
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+
+class DaveSession;
+class TransportCipher;
+
+// One voice call: signaling, UDP media transport, encryption and the audio pipeline.
+//
+// Threads: signaling runs on the main thread; microphone frames are encoded and sent from the capture
+// callback; a receive thread decrypts incoming packets into per-speaker jitter buffers; the playback
+// callback decodes and mixes them.
+class VoiceConnection : public QObject
+{
+    Q_OBJECT
+
+public:
+    enum class State { Disconnected, Connecting, Connected };
+    Q_ENUM(State)
+
+    explicit VoiceConnection(QObject* parent = nullptr);
+    ~VoiceConnection() override;
+
+    void connectTo(const VoiceGateway::Credentials& credentials, const QString& channelId);
+    void disconnect();
+    State state() const { return m_state; }
+
+    void setSelfMuted(bool muted);
+    void setSelfDeafened(bool deafened);
+    void applySettings(const VoiceSettings& settings);
+    void setUserVolume(const QString& userId, float volume);
+
+    float inputLevelDb() const { return m_inputLevelDb.load(std::memory_order_relaxed); }
+    AudioEngine& audio() { return m_audio; }
+
+signals:
+    void stateChanged(VoiceConnection::State state);
+    void speakingChanged(const QString& userId, bool speaking);
+    void pingChanged(int milliseconds);
+    void failed(const QString& reason);
+
+private:
+    struct Stream;
+
+    void setState(State state);
+    void onReady(quint32 ssrc, const QString& ip, quint16 port, const QStringList& modes);
+    void onSessionDescription(const QString& mode, const QByteArray& secretKey, int daveProtocolVersion);
+    void onSpeaking(const QString& userId, quint32 ssrc, int flags);
+    void onClientDisconnected(const QString& userId);
+    void onClosed(int code);
+    void startMedia();
+    void stopMedia();
+    bool startAudioDevices();
+    void updateSpeakingIndicators();
+
+    // Audio and network threads.
+    void captureSamples(const float* samples, int count);
+    void processCaptureFrame();
+    void sendFrame(const uint8_t* opus, size_t size, bool endToEndEncrypt);
+    void renderPlayback(float* output, int frameCount);
+    void mixNextFrame();
+    void receiveLoop();
+    void handlePacket(const uint8_t* data, size_t size);
+
+    VoiceGateway m_gateway;
+    AudioEngine m_audio;
+    UdpSocket m_udp;
+    std::unique_ptr<TransportCipher> m_cipher;
+    std::unique_ptr<DaveSession> m_dave;
+    std::thread m_receiveThread;
+    std::thread m_discoveryThread;
+    std::atomic<bool> m_receiving{false};
+
+    State m_state = State::Disconnected;
+    VoiceGateway::Credentials m_credentials;
+    QString m_channelId;
+    quint32 m_ssrc = 0;
+    QString m_encryptionMode;
+    bool m_mediaRunning = false;
+
+    // Settings shared with the audio threads.
+    std::atomic<bool> m_selfMuted{false};
+    std::atomic<bool> m_selfDeafened{false};
+    std::atomic<bool> m_pushToTalk{false};
+    std::atomic<float> m_thresholdDb{-50.0f};
+    std::atomic<int> m_pushToTalkKey{0};
+    std::atomic<int> m_pushToTalkReleaseMs{200};
+    std::atomic<float> m_inputGain{1.0f};
+    std::atomic<float> m_outputGain{1.0f};
+    QString m_inputDevice;
+    QString m_outputDevice;
+
+    // Capture state (capture thread only).
+    std::vector<float> m_captureFrame;
+    size_t m_captureFill = 0;
+    std::vector<float> m_stereoFrame;
+    std::vector<uint8_t> m_opusPacket;
+    std::vector<uint8_t> m_davePacket;
+    std::vector<uint8_t> m_udpPacket;
+    std::unique_ptr<OpusEncoderWrapper> m_encoder;
+    uint16_t m_sequence = 0;
+    uint32_t m_timestamp = 0;
+    bool m_transmitting = false;
+    int m_voiceHangoverFrames = 0;
+    int64_t m_pushToTalkUntilMs = 0;
+    int m_silenceFramesToSend = 0;
+    std::atomic<float> m_inputLevelDb{-100.0f};
+    std::atomic<bool> m_selfSpeaking{false};
+
+    // Remote speakers.
+    std::mutex m_streamsMutex;
+    std::unordered_map<quint32, std::shared_ptr<Stream>> m_streams; // by SSRC
+    QHash<QString, float> m_userVolumes;                            // main thread copy
+    std::vector<std::shared_ptr<Stream>> m_mixStreams;              // playback thread scratch
+    std::vector<float> m_mixFrame;
+    std::vector<float> m_decodeFrame;
+    size_t m_mixReadOffset = 0;
+
+    QTimer m_speakingTimer;
+    QHash<QString, bool> m_speaking;
+    bool m_selfWasSpeaking = false;
+
+    // Media statistics, logged periodically to help diagnose call problems.
+    struct Statistics
+    {
+        std::atomic<uint32_t> sent{0};
+        std::atomic<uint32_t> received{0};
+        std::atomic<uint32_t> transportFailures{0};
+        std::atomic<uint32_t> encryptFailures{0};
+        std::atomic<uint32_t> decryptFailures{0};
+        std::atomic<uint32_t> unknownSsrc{0};
+    };
+    Statistics m_stats;
+    int m_statisticsTicks = 0;
+};

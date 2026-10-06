@@ -1,7 +1,5 @@
 #include "UserPanel.h"
 
-#include "Avatar.h"
-
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -9,8 +7,6 @@
 #include <QVBoxLayout>
 
 namespace {
-
-constexpr int AvatarSize = 32;
 
 QToolButton* makePanelButton()
 {
@@ -37,7 +33,7 @@ UserPanel::UserPanel(QWidget* parent)
     setAttribute(Qt::WA_StyledBackground);
     setFixedHeight(52);
 
-    m_avatar->setFixedSize(AvatarSize, AvatarSize);
+    m_avatar->setFixedSize(32, 32);
     m_name->setObjectName(QStringLiteral("userName"));
     m_status->setObjectName(QStringLiteral("userStatus"));
 
@@ -66,58 +62,25 @@ UserPanel::UserPanel(QWidget* parent)
     layout->addLayout(names, 1);
     layout->addLayout(buttons);
 
-    connect(m_mute, &QToolButton::clicked, this, &UserPanel::toggleMute);
-    connect(m_deafen, &QToolButton::clicked, this, &UserPanel::toggleDeafen);
+    connect(m_mute, &QToolButton::clicked, this, &UserPanel::muteClicked);
+    connect(m_deafen, &QToolButton::clicked, this, &UserPanel::deafenClicked);
     connect(m_settings, &QToolButton::clicked, this, &UserPanel::settingsRequested);
 
-    updateButtons();
+    setVoiceState(false, false);
 }
 
-void UserPanel::setUser(const QString& displayName, const QString& status)
+void UserPanel::setUser(const QString& displayName, const QString& status, const QPixmap& avatar)
 {
-    m_name->setText(displayName);
+    m_name->setText(m_name->fontMetrics().elidedText(displayName, Qt::ElideRight, 90));
     m_status->setText(status);
-    m_avatar->setPixmap(makeAvatar(displayName, AvatarSize, devicePixelRatioF(), QColor(0x23, 0x24, 0x28)));
+    m_avatar->setPixmap(avatar);
 }
 
-// Same behavior as Discord: unmuting while deafened also undeafens.
-void UserPanel::toggleMute()
+void UserPanel::setVoiceState(bool muted, bool deafened)
 {
-    if (m_deafened)
-        setState(false, false);
-    else
-        setState(!m_muted, false);
-}
-
-// Deafening also mutes; undeafening restores the previous mute state.
-void UserPanel::toggleDeafen()
-{
-    if (m_deafened) {
-        setState(m_mutedBeforeDeafen, false);
-    } else {
-        m_mutedBeforeDeafen = m_muted;
-        setState(true, true);
-    }
-}
-
-void UserPanel::setState(bool muted, bool deafened)
-{
-    const bool muteChangedNow = muted != m_muted;
-    const bool deafenChangedNow = deafened != m_deafened;
-    m_muted = muted;
-    m_deafened = deafened;
-    updateButtons();
-    if (muteChangedNow)
-        emit muteChanged(m_muted);
-    if (deafenChangedNow)
-        emit deafenChanged(m_deafened);
-}
-
-void UserPanel::updateButtons()
-{
-    m_mute->setIcon(QIcon(m_muted ? QStringLiteral(":/icons/mic-off.svg") : QStringLiteral(":/icons/mic.svg")));
-    m_mute->setToolTip(m_muted ? tr("Unmute") : tr("Mute"));
-    m_deafen->setIcon(QIcon(m_deafened ? QStringLiteral(":/icons/headphones-off.svg")
-                                       : QStringLiteral(":/icons/headphones.svg")));
-    m_deafen->setToolTip(m_deafened ? tr("Undeafen") : tr("Deafen"));
+    m_mute->setIcon(QIcon(muted ? QStringLiteral(":/icons/mic-off.svg") : QStringLiteral(":/icons/mic.svg")));
+    m_mute->setToolTip(muted ? tr("Unmute") : tr("Mute"));
+    m_deafen->setIcon(QIcon(deafened ? QStringLiteral(":/icons/headphones-off.svg")
+                                     : QStringLiteral(":/icons/headphones.svg")));
+    m_deafen->setToolTip(deafened ? tr("Undeafen") : tr("Deafen"));
 }

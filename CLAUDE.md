@@ -175,9 +175,10 @@ snapcord/
 > clientes abertos como Abaddon e Discordo.
 
 **Login por QR (Remote Auth):**
-1. Conectar em `wss://remote-auth-gateway.discord.gg/?v=2` com o header `Origin: https://discord.com`.
+1. Conectar em `wss://remote-auth-gateway.discord.gg/?v=2` com o header `Origin: https://discord.com`
+   (no Qt, o origin precisa ir no construtor do `QWebSocket`; header manual é ignorado e o Discord responde 403).
 2. Gerar um par RSA-2048 e enviar a chave pública. O servidor responde com um nonce criptografado.
-3. Descriptografar o nonce (RSA-OAEP/SHA-256) e enviar a prova.
+3. Descriptografar o nonce (RSA-OAEP/SHA-256) e enviar o nonce decifrado em base64url (não o hash).
 4. Receber o `fingerprint` e mostrar o QR com `https://discord.com/ra/<fingerprint>`.
 5. Após o scan, mostrar a prévia do usuário.
 6. Após a confirmação no celular, receber o ticket.
@@ -207,24 +208,81 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
     liberar o app manualmente.
   - É possível lançar sem assinar no início.
 
-## Estado do ambiente (Windows, levantado em 2026-10-06)
+## Estado do ambiente (Windows)
 
-| Ferramenta | Situação |
+| Ferramenta | Onde |
 |---|---|
-| Visual Studio 2022 Build Tools (MSVC) | Instalado |
-| Git | Instalado |
-| Python 3.14 + pip | Instalado |
-| Rust/cargo | Instalado (não será usado) |
-| Qt 6 | **Não instalado** |
-| CMake | **Não instalado** |
-| Ninja | **Não instalado** |
-| vcpkg | **Não instalado** |
-| Espaço livre em C: | ~33 GB |
+| Visual Studio 2022 Build Tools (MSVC) | Instalado no sistema |
+| Qt 6.8.3 (MSVC 64-bit, com WebSockets e ImageFormats) | `C:\Users\Pedro\Qt\6.8.3\msvc2022_64` (via `aqtinstall`) |
+| CMake e Ninja | Via pip, em `%APPDATA%\Python\Python314\Scripts` |
+| vcpkg | `C:\Users\Pedro\vcpkg` (o baseline do `vcpkg.json` é o commit desse clone) |
 
-Sugestão para a Fase 0: instalar o Qt via `aqtinstall` (pip), e o CMake e o Ninja via
-pip ou winget, tudo na pasta do usuário. **Confirmar com o usuário antes de instalar.**
+- **Compilar:** `scripts\build.ps1` (Debug), `-Config release`, `-Run` para abrir.
+  - O script entra no ambiente do MSVC e força o nosso vcpkg: o Developer Shell do VS troca
+    `VCPKG_ROOT` pelo vcpkg embutido dele, que é antigo e quebra o build.
+- **Executável:** `build\<config>\Snapcord.exe`.
+- **Testes:** `build\<config>\snapcord_tests.exe` (Qt Test).
+  - É um app de janela no Windows, então use `-o arquivo.txt,txt` para ver o relatório.
+- **Log do app:** `%LOCALAPPDATA%\Snapcord\Snapcord\snapcord.log`.
+  - A execução anterior fica em `snapcord.old.log`.
+  - Nunca registrar tokens nem chaves.
+- **Traduções:** depois de mudar textos, rode o alvo `Snapcord_lupdate` e confira se não
+  sobrou `type="unfinished"` no `.ts`.
+
+## Estado do projeto
+
+- **Fase 0:** concluída.
+- **Fase 1:** código completo, compila sem avisos e os testes automáticos passam.
+  **Ainda falta o teste real com uma conta do Discord.** Já foi verificado de verdade:
+  - o login por QR até a exibição do código (o handshake com o Discord funciona);
+  - a criptografia de transporte, o RTP, o jitter buffer, o Opus e o zlib-stream, nos testes.
+
+### Arquitetura implementada
+
+- **`src/core`**
+  - `RemoteAuth`: login por QR.
+  - `Gateway`: zlib-stream, heartbeat, resume, backoff.
+  - `Session`: READY, guilds, canais, permissões e voice states.
+  - `RestClient`, `ClientProperties`, `Log`.
+- **`src/voice`**
+  - `VoiceConnection`: orquestra a chamada.
+  - `VoiceGateway`: v8, com DAVE binário.
+  - `DaveSession`: port do `DaveSessionManager.ts` da libdave.
+  - `TransportCipher`: AES-GCM via OpenSSL e XChaCha via libsodium.
+  - `UdpSocket`: sockets nativos e IP discovery.
+  - `JitterBuffer`, `OpusCodec`, `AudioEngine` (miniaudio), `VoiceSettings`.
+- **`src/platform`**
+  - `CredentialStore`: Windows Credential Manager; stub nos outros sistemas.
+  - `KeyState`: `GetAsyncKeyState` para o push-to-talk; stub nos outros sistemas.
+- **`src/app`**
+  - Telas: `LoginWindow`, `MainWindow`, `SettingsDialog`.
+  - Componentes: `ServerRail`, `ChannelSidebar` (com delegate próprio), `VoiceChannelView`,
+    `VoicePanel`, `UserPanel`.
+  - Lógica: `VoiceController` (entrar, sair, mutar, ensurdecer), `ImageCache` (CDN com cache
+    em disco), `AppController` (troca entre login e janela principal).
+- **Threads da voz:**
+  - O áudio do microfone é codificado e enviado direto no callback de captura.
+  - Uma thread dedicada recebe o UDP e preenche jitter buffers por SSRC.
+  - O callback de saída decodifica e mixa.
+  - A sinalização roda na thread principal.
+- **libdave:** entra via `FetchContent`, fixada no commit `8de72b1f`. A `mlspp` vem de um
+  overlay port em `vcpkg/ports/mlspp`.
+
+### Manutenção conhecida
+
+- **Identificação do cliente:** `ClientProperties.cpp` imita o cliente desktop oficial
+  (`client_version`, versões do Electron e do Chrome, `client_build_number`).
+  - Esses valores foram definidos sem conferência e precisam ser atualizados de tempos em tempos.
+  - O build number pode ser trocado sem recompilar pela chave `discord/clientBuildNumber`
+    do QSettings.
+- **Captcha no login por QR:** não é suportado e acontece na prática.
+  - A alternativa é o **login por token**, na própria tela de login ("Log in with a token instead").
+  - O token é validado com `GET /users/@me` antes de ser salvo.
 
 ## Próximo passo
 
-Começar pela **Fase 0**. Antes de qualquer instalação, apresente o plano ao usuário e
-peça confirmação.
+1. O dono do projeto testa a Fase 1 com uma conta secundária: login por QR, lista de
+   servidores, entrar num canal de voz, falar e ouvir alguém, mutar e ensurdecer, volume
+   por usuário, push-to-talk.
+2. Se algo falhar, ler o `snapcord.log` para diagnosticar.
+3. Depois, seguir para a Fase 2.

@@ -1,18 +1,137 @@
 #include "ChannelSidebar.h"
 
 #include "UserPanel.h"
+#include "VoicePanel.h"
 
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPainter>
+#include <QScrollBar>
+#include <QStyledItemDelegate>
 #include <QTreeWidget>
 #include <QTreeWidgetItemIterator>
 #include <QVBoxLayout>
 
 namespace {
 
-constexpr int IdRole = Qt::UserRole;
-constexpr int KindRole = Qt::UserRole + 1;
+enum Role {
+    IdRole = Qt::UserRole,
+    KindRole,
+    SpeakingRole,
+    MutedRole,
+    DeafenedRole,
+};
+
+using ItemKind = ChannelSidebar::ItemKind;
+
+ItemKind kindOf(const QModelIndex& index)
+{
+    return static_cast<ItemKind>(index.data(KindRole).toInt());
+}
+
+// Paints every row of the channel list the way Discord does, since the rows differ a lot by kind.
+class ChannelDelegate : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex& index) const override
+    {
+        switch (kindOf(index)) {
+        case ItemKind::Category:
+            return {0, 40};
+        case ItemKind::VoiceMember:
+            return {0, 32};
+        default:
+            return {0, 34};
+        }
+    }
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+    {
+        painter->save();
+        painter->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform | QPainter::TextAntialiasing);
+        const bool hovered = option.state & QStyle::State_MouseOver;
+        const bool selected = option.state & QStyle::State_Selected;
+        const QRect rect = option.rect;
+        QFont font = option.font;
+
+        switch (kindOf(index)) {
+        case ItemKind::Category: {
+            const bool expanded = option.state & QStyle::State_Open;
+            const QColor color = hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4);
+            // Chevron: down when expanded, right when collapsed.
+            painter->setPen(QPen(color, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+            const QPointF center(rect.left() + 12, rect.bottom() - 13);
+            QPolygonF chevron = expanded
+                ? QPolygonF{center + QPointF(-3, -1.5), center + QPointF(0, 1.5), center + QPointF(3, -1.5)}
+                : QPolygonF{center + QPointF(-1.5, -3), center + QPointF(1.5, 0), center + QPointF(-1.5, 3)};
+            painter->drawPolyline(chevron);
+            font.setPixelSize(12);
+            font.setWeight(QFont::DemiBold);
+            painter->setFont(font);
+            painter->setPen(color);
+            painter->drawText(rect.adjusted(20, 0, -8, -6), Qt::AlignLeft | Qt::AlignBottom,
+                              index.data(Qt::DisplayRole).toString().toUpper());
+            break;
+        }
+        case ItemKind::TextChannel:
+        case ItemKind::VoiceChannel: {
+            const QRect row = rect.adjusted(8, 1, -8, -1);
+            if (selected || hovered) {
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(selected ? QColor(0x40, 0x42, 0x49) : QColor(0x35, 0x37, 0x3c));
+                painter->drawRoundedRect(row, 4, 4);
+            }
+            const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
+            icon.paint(painter, QRect(row.left() + 8, row.center().y() - 10, 20, 20));
+            font.setPixelSize(15);
+            font.setWeight(selected ? QFont::DemiBold : QFont::Medium);
+            painter->setFont(font);
+            painter->setPen(selected ? QColor(0xf2, 0xf3, 0xf5)
+                                     : hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4));
+            const QRect textRect = row.adjusted(36, 0, -8, 0);
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
+                                                                Qt::ElideRight, textRect.width()));
+            break;
+        }
+        case ItemKind::VoiceMember: {
+            const QRect row = rect.adjusted(36, 1, -8, -1);
+            if (hovered) {
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(QColor(0x35, 0x37, 0x3c));
+                painter->drawRoundedRect(row, 4, 4);
+            }
+            const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
+            painter->drawPixmap(QRect(row.left() + 8, row.center().y() - 12, 24, 24), avatar);
+
+            int right = row.right() - 6;
+            auto drawStatusIcon = [&](const QString& path) {
+                QIcon(path).paint(painter, QRect(right - 16, row.center().y() - 8, 16, 16));
+                right -= 20;
+            };
+            if (index.data(DeafenedRole).toBool())
+                drawStatusIcon(QStringLiteral(":/icons/headphones-off.svg"));
+            if (index.data(MutedRole).toBool())
+                drawStatusIcon(QStringLiteral(":/icons/mic-off.svg"));
+
+            font.setPixelSize(14);
+            font.setWeight(QFont::Medium);
+            painter->setFont(font);
+            const bool speaking = index.data(SpeakingRole).toBool();
+            painter->setPen(speaking || hovered ? QColor(0xf2, 0xf3, 0xf5) : QColor(0x94, 0x9b, 0xa4));
+            const QRect textRect(row.left() + 40, row.top(), right - row.left() - 40, row.height());
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
+                                                                Qt::ElideRight, textRect.width()));
+            break;
+        }
+        }
+        painter->restore();
+    }
+};
 
 } // namespace
 
@@ -20,6 +139,7 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
     : QWidget(parent)
     , m_title(new QLabel)
     , m_tree(new QTreeWidget)
+    , m_voicePanel(new VoicePanel)
     , m_userPanel(new UserPanel)
 {
     setObjectName(QStringLiteral("channelSidebar"));
@@ -38,16 +158,24 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
     m_tree->setHeaderHidden(true);
     m_tree->setRootIsDecorated(false);
     m_tree->setIndentation(0);
-    m_tree->setIconSize({20, 20});
+    m_tree->setItemDelegate(new ChannelDelegate(m_tree));
+    m_tree->setMouseTracking(true);
     m_tree->setFocusPolicy(Qt::NoFocus);
     m_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_tree, &QTreeWidget::itemClicked, this, &ChannelSidebar::onItemClicked);
+    connect(m_tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint& position) {
+        QTreeWidgetItem* item = m_tree->itemAt(position);
+        if (item && static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::VoiceMember)
+            emit memberContextMenuRequested(item->data(0, IdRole).toString(), m_tree->viewport()->mapToGlobal(position));
+    });
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(header);
     layout->addWidget(m_tree, 1);
+    layout->addWidget(m_voicePanel);
     layout->addWidget(m_userPanel);
 }
 
@@ -56,55 +184,97 @@ void ChannelSidebar::setTitle(const QString& title)
     m_title->setText(title);
 }
 
-void ChannelSidebar::clear()
+void ChannelSidebar::beginRebuild()
 {
+    m_savedScroll = m_tree->verticalScrollBar()->value();
+    m_tree->setUpdatesEnabled(false);
     m_tree->clear();
     m_currentCategory = nullptr;
+    m_currentVoiceChannel = nullptr;
 }
 
-void ChannelSidebar::addCategory(const QString& name)
+void ChannelSidebar::addCategory(const QString& id, const QString& name)
 {
-    auto* item = new QTreeWidgetItem(m_tree, {name.toUpper()});
+    auto* item = new QTreeWidgetItem(m_tree, {name});
     item->setFlags(Qt::ItemIsEnabled);
-    QFont font = item->font(0);
-    font.setPixelSize(12);
-    font.setWeight(QFont::DemiBold);
-    item->setFont(0, font);
-    item->setSizeHint(0, {0, 40});
-    item->setExpanded(true);
+    item->setData(0, IdRole, id);
+    item->setData(0, KindRole, static_cast<int>(ItemKind::Category));
     m_currentCategory = item;
+    m_currentVoiceChannel = nullptr;
 }
 
-void ChannelSidebar::addChannel(const QString& id, const QString& name, ChannelKind kind)
+void ChannelSidebar::addChannel(const QString& id, const QString& name, ItemKind kind)
 {
-    auto* item = m_currentCategory ? new QTreeWidgetItem(m_currentCategory, {name})
-                                   : new QTreeWidgetItem(m_tree, {name});
-    item->setIcon(0, QIcon(kind == ChannelKind::Voice ? QStringLiteral(":/icons/speaker.svg")
-                                                      : QStringLiteral(":/icons/hash.svg")));
+    auto* item = m_currentCategory ? new QTreeWidgetItem(m_currentCategory, {name}) : new QTreeWidgetItem(m_tree, {name});
+    item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setData(0, IdRole, id);
     item->setData(0, KindRole, static_cast<int>(kind));
-    item->setSizeHint(0, {0, 34});
+    item->setIcon(0, QIcon(kind == ItemKind::VoiceChannel ? QStringLiteral(":/icons/speaker.svg")
+                                                          : QStringLiteral(":/icons/hash.svg")));
+    m_currentVoiceChannel = kind == ItemKind::VoiceChannel ? item : nullptr;
+    if (id == m_selectedChannel)
+        item->setSelected(true);
 }
 
-void ChannelSidebar::selectFirstTextChannel()
+void ChannelSidebar::addVoiceMember(const Member& member)
+{
+    if (!m_currentVoiceChannel)
+        return;
+    auto* item = new QTreeWidgetItem(m_currentVoiceChannel, {member.name});
+    item->setFlags(Qt::ItemIsEnabled);
+    item->setData(0, IdRole, member.userId);
+    item->setData(0, KindRole, static_cast<int>(ItemKind::VoiceMember));
+    item->setData(0, Qt::DecorationRole, member.avatar);
+    item->setData(0, SpeakingRole, member.speaking);
+    item->setData(0, MutedRole, member.muted);
+    item->setData(0, DeafenedRole, member.deafened);
+}
+
+void ChannelSidebar::endRebuild()
 {
     for (QTreeWidgetItemIterator it(m_tree); *it; ++it) {
         QTreeWidgetItem* item = *it;
-        if (!item->data(0, IdRole).isNull()
-            && item->data(0, KindRole).toInt() == static_cast<int>(ChannelKind::Text)) {
-            m_tree->setCurrentItem(item);
-            onItemClicked(item);
-            return;
+        const bool isCategory = static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::Category;
+        item->setExpanded(!isCategory || !m_collapsedCategories.contains(item->data(0, IdRole).toString()));
+    }
+    m_tree->setUpdatesEnabled(true);
+    m_tree->verticalScrollBar()->setValue(m_savedScroll);
+}
+
+void ChannelSidebar::setSelectedChannel(const QString& channelId)
+{
+    m_selectedChannel = channelId;
+    for (QTreeWidgetItemIterator it(m_tree); *it; ++it)
+        (*it)->setSelected((*it)->data(0, IdRole).toString() == channelId);
+}
+
+void ChannelSidebar::setMemberSpeaking(const QString& userId, bool speaking, const QPixmap& avatar)
+{
+    for (QTreeWidgetItemIterator it(m_tree); *it; ++it) {
+        QTreeWidgetItem* item = *it;
+        if (static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::VoiceMember
+            && item->data(0, IdRole).toString() == userId) {
+            item->setData(0, SpeakingRole, speaking);
+            item->setData(0, Qt::DecorationRole, avatar);
         }
     }
 }
 
 void ChannelSidebar::onItemClicked(QTreeWidgetItem* item)
 {
-    const QVariant id = item->data(0, IdRole);
-    if (id.isNull()) {
-        item->setExpanded(!item->isExpanded());
+    const auto kind = static_cast<ItemKind>(item->data(0, KindRole).toInt());
+    const QString id = item->data(0, IdRole).toString();
+    if (kind == ItemKind::Category) {
+        const bool collapse = item->isExpanded();
+        item->setExpanded(!collapse);
+        if (collapse)
+            m_collapsedCategories.insert(id);
+        else
+            m_collapsedCategories.remove(id);
         return;
     }
-    emit channelActivated(id.toString(), item->text(0), static_cast<ChannelKind>(item->data(0, KindRole).toInt()));
+    if (kind == ItemKind::VoiceMember)
+        return;
+    setSelectedChannel(id);
+    emit channelClicked(id, kind);
 }
