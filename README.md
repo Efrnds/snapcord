@@ -3,6 +3,15 @@
 A **native, lightweight, open-source** Discord client focused on **voice calls**.
 Built with C++ and Qt 6, with no embedded browser, so it uses little memory and almost no CPU while idle.
 
+![Snapcord: voice, chat and servers in a familiar layout](docs/screenshots/features.png)
+
+<p align="center">
+  <img src="docs/screenshots/performance.png" width="49%" alt="36 MB of RAM, 0% CPU while idle, 15 MB download">
+  <img src="docs/screenshots/getting-started.png" width="49%" alt="Download, scan the QR code, talk">
+</p>
+
+<sub>Images from the promo video. The names in the interface are made up.</sub>
+
 ## ⚠️ Disclaimer
 
 Snapcord is **not affiliated with Discord**. Using third-party clients violates the
