@@ -301,6 +301,29 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   - A alternativa é o **login por token**, na própria tela de login ("Log in with a token instead").
   - O token é validado com `GET /users/@me` antes de ser salvo.
 
+### Fase 3 (chat)
+
+- **Dados:**
+  - `core/Message` é o modelo de mensagem.
+  - `core/MessageStore` guarda no máximo 8 canais em memória (LRU) e carrega 50 mensagens por
+    vez, mais o histórico sob demanda.
+  - Mensagens enviadas aparecem na hora como "pendentes" e são trocadas pela versão do servidor
+    quando o eco chega pelo gateway (casamento pelo `nonce`).
+- **Markdown:** `core/Markdown` converte o markdown do Discord para o HTML que o QTextDocument
+  entende. Fragmentos protegidos por marcadores Unicode de uso privado evitam formatar dentro de
+  código, links e menções. Tem testes em `tests/MarkdownTest.cpp`.
+- **Não lidas:** read states do READY, comparando o `last_message_id` do canal com o ID lido.
+  - Ack com `POST /channels/{c}/messages/{m}/ack`, também pelo evento `MESSAGE_ACK`.
+  - Menções contadas localmente.
+  - `user_guild_settings` define o que está silenciado.
+- **Interface:** `app/MessageView` traz o modelo, o delegate (layout cacheado por mensagem e
+  largura) e a lista com hit-test. `app/ChatView` traz o cabeçalho, a lista e o compositor.
+  Ainda há `EmojiPicker` e `Notifier` (bandeja do sistema mais o som `Message`).
+- **Diagnóstico do microfone:** o log de voz traz quadros de voz enviados, quadros mutados, pico
+  de nível e pico de probabilidade de voz, para investigar quando "ninguém me ouve".
+- **Build com o app aberto:** `scripts\build.ps1 -Target <alvo>` compila só um alvo, útil quando o
+  `Snapcord.exe` está aberto e não pode ser sobrescrito.
+
 ## Próximo passo
 
 1. O dono do projeto testa a Fase 2:

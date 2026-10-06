@@ -21,39 +21,49 @@ RestClient::RestClient(QObject* parent)
 
 void RestClient::get(const QString& path, Callback callback)
 {
-    QNetworkRequest request(QUrl(QLatin1String(ApiBase) + path));
-    request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
-    request.setRawHeader("X-Super-Properties", ClientProperties::superPropertiesHeader());
-    request.setRawHeader("X-Discord-Locale", ClientProperties::systemLocale().toLatin1());
-    if (!m_token.isEmpty())
-        request.setRawHeader("Authorization", m_token.toUtf8());
-
-    QNetworkReply* reply = m_network->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, callback] { finish(reply, callback); });
+    send("GET", path, {}, false, std::move(callback));
 }
 
 void RestClient::post(const QString& path, const QJsonDocument& body, Callback callback)
 {
+    send("POST", path, body.toJson(QJsonDocument::Compact), true, std::move(callback));
+}
+
+void RestClient::patch(const QString& path, const QJsonDocument& body, Callback callback)
+{
+    send("PATCH", path, body.toJson(QJsonDocument::Compact), true, std::move(callback));
+}
+
+void RestClient::put(const QString& path, Callback callback)
+{
+    send("PUT", path, {}, false, std::move(callback));
+}
+
+void RestClient::deleteResource(const QString& path, Callback callback)
+{
+    send("DELETE", path, {}, false, std::move(callback));
+}
+
+void RestClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback)
+{
     QNetworkRequest request(QUrl(QLatin1String(ApiBase) + path));
     request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     request.setRawHeader("X-Super-Properties", ClientProperties::superPropertiesHeader());
     request.setRawHeader("X-Discord-Locale", ClientProperties::systemLocale().toLatin1());
+    if (hasBody)
+        request.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     if (!m_token.isEmpty())
         request.setRawHeader("Authorization", m_token.toUtf8());
 
-    QNetworkReply* reply = m_network->post(request, body.toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, callback] { finish(reply, callback); });
-}
-
-void RestClient::finish(QNetworkReply* reply, const Callback& callback)
-{
-    reply->deleteLater();
-    Response response;
-    response.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    response.body = QJsonDocument::fromJson(reply->readAll());
-    if (reply->error() != QNetworkReply::NoError && response.status == 0)
-        response.networkError = reply->errorString();
-    if (callback)
-        callback(response);
+    QNetworkReply* reply = m_network->sendCustomRequest(request, verb, body);
+    connect(reply, &QNetworkReply::finished, this, [reply, callback = std::move(callback)] {
+        reply->deleteLater();
+        Response response;
+        response.status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        response.body = QJsonDocument::fromJson(reply->readAll());
+        if (reply->error() != QNetworkReply::NoError && response.status == 0)
+            response.networkError = reply->errorString();
+        if (callback)
+            callback(response);
+    });
 }

@@ -2,6 +2,9 @@ add_library(snapcord_core STATIC
     ClientProperties.cpp ClientProperties.h
     Gateway.cpp Gateway.h
     Log.cpp Log.h
+    Markdown.cpp Markdown.h
+    Message.cpp Message.h
+    MessageStore.cpp MessageStore.h
     Models.cpp Models.h
     Permissions.cpp Permissions.h
     RemoteAuth.cpp RemoteAuth.h

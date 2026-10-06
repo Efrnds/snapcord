@@ -4,15 +4,16 @@
 #include <QTimer>
 
 class ChannelSidebar;
+class ChatView;
 class ImageCache;
 class IncomingCallWindow;
-struct PrivateChannel;
-class QLabel;
+class Notifier;
 class QStackedWidget;
 class ServerRail;
 class Session;
 class VoiceChannelView;
 class VoiceController;
+struct PrivateChannel;
 
 class MainWindow : public QMainWindow
 {
@@ -24,15 +25,19 @@ public:
 signals:
     void logoutRequested();
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private:
     QWidget* buildPlaceholderPage(const QString& title, const QString& subtitle);
     void rebuildServerRail();
+    void refreshUnreadBadges();
     void selectGuild(const QString& guildId);
+    void openChannel(const QString& channelId);
     void refreshChannels();
-    void refreshVoiceView();
+    void refreshCenter();
     void refreshVoicePanel();
     void refreshUserPanel();
-    void onChannelClicked(const QString& channelId, bool isVoice);
     void onSpeakingChanged(const QString& userId, bool speaking);
     void showUserMenu(const QString& userId, const QPoint& globalPosition);
     void openSettings();
@@ -50,11 +55,13 @@ private:
     ChannelSidebar* m_sidebar;
     QStackedWidget* m_pages;
     QWidget* m_homePage;
-    QWidget* m_textPage;
+    ChatView* m_chatView;
     VoiceChannelView* m_voiceView;
     IncomingCallWindow* m_incomingCall;
+    Notifier* m_notifier;
 
     QString m_guildId;   // guild shown in the sidebar (empty = direct messages)
     QString m_channelId; // channel shown in the center area
     QTimer m_refreshTimer;
+    QTimer m_badgeTimer;
 };

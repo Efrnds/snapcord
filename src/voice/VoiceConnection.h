@@ -174,6 +174,12 @@ private:
         std::atomic<uint32_t> encryptFailures{0};
         std::atomic<uint32_t> decryptFailures{0};
         std::atomic<uint32_t> unknownSsrc{0};
+        // Microphone side, to diagnose "nobody hears me": frames sent as voice, loudest level, highest
+        // voice probability, and frames dropped because of mute/deafen.
+        std::atomic<uint32_t> transmittedFrames{0};
+        std::atomic<uint32_t> mutedFrames{0};
+        std::atomic<float> peakLevelDb{-100.0f};
+        std::atomic<float> peakVoiceProbability{-1.0f};
     };
     Statistics m_stats;
     int m_statisticsTicks = 0;

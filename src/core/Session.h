@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/Message.h"
+#include "core/MessageStore.h"
 #include "core/Models.h"
 
 #include <QHash>
@@ -50,6 +52,22 @@ public:
     // an empty guildId targets a private channel call.
     void updateVoiceState(const QString& guildId, const QString& channelId, bool selfMute, bool selfDeaf);
 
+    MessageStore* messages() const { return m_messages; }
+
+    // Unread messages and mentions. `guildId` is empty for private channels.
+    bool isUnread(const QString& guildId, const QString& channelId) const;
+    int mentionCount(const QString& channelId) const;
+    bool guildHasUnread(const QString& guildId) const;
+    int guildMentionCount(const QString& guildId) const;
+    int privateMentionCount() const;
+    bool isMuted(const QString& guildId, const QString& channelId) const;
+    // Marks a channel as read up to its latest message.
+    void markRead(const QString& guildId, const QString& channelId);
+    // Tells others that the user is typing (lasts ~10 seconds on their side).
+    void sendTyping(const QString& channelId);
+    // Custom emojis of every guild, for the emoji picker.
+    QList<CustomEmoji> customEmojis(const QString& guildId) const;
+
 signals:
     void ready();
     void guildListChanged();
@@ -64,6 +82,10 @@ signals:
                             const QString& token);
     void connectionStateChanged(bool connected);
     void authenticationFailed();
+    void readStateChanged(const QString& guildId, const QString& channelId);
+    void typingStarted(const QString& channelId, const QString& userId);
+    // A message that deserves a notification: a direct message or a mention.
+    void notificationMessage(const Message& message);
 
 private:
     void onDispatch(const QString& event, const QJsonObject& data);
@@ -71,6 +93,11 @@ private:
     void loadGuild(const QJsonObject& data);
     void applyVoiceState(const VoiceState& state);
     void applyCallVoiceState(const VoiceState& state);
+    void onMessageCreate(const QJsonObject& data);
+    void loadReadStates(const QJsonValue& value);
+    void loadGuildSettings(const QJsonObject& json);
+    bool mentionsSelf(const Message& message) const;
+    QString lastMessageId(const QString& guildId, const QString& channelId) const;
     void loadCall(const QJsonObject& data);
     void storeUser(const QJsonObject& json);
     void storeMember(const QString& guildId, const QJsonObject& member);
@@ -78,8 +105,13 @@ private:
 
     Gateway* m_gateway;
     RestClient* m_rest;
+    MessageStore* m_messages;
     QHash<QString, PrivateChannel> m_privateChannels;
     QHash<QString, Call> m_calls; // by private channel ID
+    QHash<QString, ReadState> m_readStates; // by channel ID
+    QHash<QString, GuildSettings> m_guildSettings; // by guild ID ("" = direct messages)
+    qint64 m_lastTypingSent = 0;
+    QString m_lastTypingChannel;
     QString m_token;
     User m_self;
     QHash<QString, Guild> m_guilds;

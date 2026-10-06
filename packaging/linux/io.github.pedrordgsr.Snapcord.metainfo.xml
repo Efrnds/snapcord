@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.pedrordgsr.Snapcord</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Snapcord</name>
+  <summary>Lightweight, voice-focused Discord client</summary>
+  <summary xml:lang="pt-BR">Cliente leve de Discord focado em voz</summary>
+  <developer id="io.github.pedrordgsr">
+    <name>Snapcord contributors</name>
+  </developer>
+  <description>
+    <p>
+      Snapcord is a native Discord client built with C++ and Qt, without an embedded browser, so it uses
+      little memory and almost no CPU while idle. It focuses on voice calls, with end-to-end encryption,
+      noise suppression and echo cancellation, and also supports text chat and direct messages.
+    </p>
+    <p>
+      Snapcord is not affiliated with Discord. Using third-party clients goes against Discord's Terms of
+      Service and may get your account suspended.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.pedrordgsr.Snapcord.desktop</launchable>
+  <url type="homepage">https://github.com/pedrordgsr/snapcord</url>
+  <url type="bugtracker">https://github.com/pedrordgsr/snapcord/issues</url>
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+  </content_rating>
+  <releases>
+    <release version="0.1.0" date="2026-10-06">
+      <description>
+        <p>First release: voice channels and calls, text chat, direct messages and notifications.</p>
+      </description>
+    </release>
+  </releases>
+</component>

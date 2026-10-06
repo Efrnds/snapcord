@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 
 #include "Language.h"
+#include "Notifier.h"
 #include "VoiceController.h"
 #include "platform/KeyState.h"
 #include "voice/AudioEngine.h"
@@ -227,6 +228,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     navigation->setFixedWidth(200);
     navigation->setFocusPolicy(Qt::NoFocus);
     navigation->addItem(tr("Voice & Audio"));
+    navigation->addItem(tr("Notifications"));
     navigation->addItem(tr("Language"));
 
     auto* logout = new QPushButton(tr("Log Out"));
@@ -247,6 +249,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
 
     auto* pages = new QStackedWidget;
     pages->addWidget(buildVoicePage());
+    pages->addWidget(buildNotificationsPage());
     pages->addWidget(buildLanguagePage());
     connect(navigation, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
     navigation->setCurrentRow(0);
@@ -430,6 +433,32 @@ QWidget* SettingsDialog::buildVoicePage()
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     return scroll;
+}
+
+QWidget* SettingsDialog::buildNotificationsPage()
+{
+    auto* content = new QWidget;
+    content->setObjectName(QStringLiteral("settingsContent"));
+    content->setAttribute(Qt::WA_StyledBackground);
+    auto* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(40, 32, 40, 32);
+    layout->setSpacing(12);
+    auto* title = new QLabel(tr("Notifications"));
+    title->setObjectName(QStringLiteral("settingsTitle"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+
+    auto* desktop = new QCheckBox(tr("Enable desktop notifications"));
+    desktop->setChecked(Notifier::desktopNotificationsEnabled());
+    connect(desktop, &QCheckBox::toggled, this, &Notifier::setDesktopNotificationsEnabled);
+    layout->addWidget(option(desktop, tr("Direct messages and mentions show a notification while Snapcord is in the background.")));
+
+    auto* sound = new QCheckBox(tr("Play a sound for new messages"));
+    sound->setChecked(Notifier::soundEnabled());
+    connect(sound, &QCheckBox::toggled, this, &Notifier::setSoundEnabled);
+    layout->addWidget(option(sound, tr("Only for direct messages and mentions, like the notifications.")));
+    layout->addStretch();
+    return content;
 }
 
 QWidget* SettingsDialog::buildLanguagePage()

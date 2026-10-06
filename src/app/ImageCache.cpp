@@ -10,9 +10,14 @@
 
 namespace {
 
-constexpr int ImageSize = 128;
-// Memory cache budget in bytes of decoded pixels (128x128 RGBA images are 64 KiB each).
-constexpr int MemoryBudget = 8 * 1024 * 1024;
+constexpr int SquareSize = 128;
+// Memory budget in bytes of decoded pixels. Attachment previews are the largest items (400x300 ≈ 470 KiB).
+constexpr int MemoryBudget = 24 * 1024 * 1024;
+
+QString cacheKey(const QUrl& url, const QSize& bounds)
+{
+    return url.toString() + QStringLiteral("#%1x%2").arg(bounds.width()).arg(bounds.height());
+}
 
 } // namespace
 
@@ -24,35 +29,48 @@ ImageCache::ImageCache(QObject* parent)
     auto* diskCache = new QNetworkDiskCache(this);
     diskCache->setCacheDirectory(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
                                  + QStringLiteral("/images"));
-    diskCache->setMaximumCacheSize(32 * 1024 * 1024);
+    diskCache->setMaximumCacheSize(128 * 1024 * 1024);
     m_network->setCache(diskCache);
 }
 
 QImage ImageCache::image(const QUrl& url)
 {
+    return fetch(url, QSize(SquareSize, SquareSize), true);
+}
+
+QImage ImageCache::image(const QUrl& url, const QSize& bounds)
+{
+    return fetch(url, bounds, false);
+}
+
+QImage ImageCache::fetch(const QUrl& url, const QSize& bounds, bool square)
+{
     if (url.isEmpty())
         return {};
-    if (const QImage* cached = m_images.object(url))
+    const QString key = cacheKey(url, bounds);
+    if (const QImage* cached = m_images.object(key))
         return *cached;
-    if (m_pending.contains(url))
+    if (m_pending.contains(key))
         return {};
 
-    m_pending.insert(url);
+    m_pending.insert(key);
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
     request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
     QNetworkReply* reply = m_network->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, url] {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, url, key, bounds, square] {
         reply->deleteLater();
-        m_pending.remove(url);
+        m_pending.remove(key);
         QImage image;
-        if (reply->error() == QNetworkReply::NoError && image.loadFromData(reply->readAll())) {
-            if (image.width() != ImageSize)
-                image = image.scaled(ImageSize, ImageSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-            image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            m_images.insert(url, new QImage(image), static_cast<int>(image.sizeInBytes()));
-            emit imageLoaded(url);
-        }
+        if (reply->error() != QNetworkReply::NoError || !image.loadFromData(reply->readAll()))
+            return;
+        if (square)
+            image = image.scaled(bounds, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        else if (image.width() > bounds.width() || image.height() > bounds.height())
+            image = image.scaled(bounds, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        m_images.insert(key, new QImage(image), static_cast<int>(image.sizeInBytes()));
+        emit imageLoaded(url);
     });
     return {};
 }
@@ -68,12 +86,12 @@ QUrl ImageCache::avatarUrl(const User& user)
     }
     return QUrl(QStringLiteral("https://cdn.discordapp.com/avatars/%1/%2.png?size=%3")
                     .arg(user.id, user.avatar)
-                    .arg(ImageSize));
+                    .arg(SquareSize));
 }
 
 QUrl ImageCache::guildIconUrl(const QString& guildId, const QString& iconHash)
 {
     if (iconHash.isEmpty())
         return {};
-    return QUrl(QStringLiteral("https://cdn.discordapp.com/icons/%1/%2.png?size=%3").arg(guildId, iconHash).arg(ImageSize));
+    return QUrl(QStringLiteral("https://cdn.discordapp.com/icons/%1/%2.png?size=%3").arg(guildId, iconHash).arg(SquareSize));
 }

@@ -93,6 +93,7 @@ protected:
 
 private:
     QWidget* buildVoicePage();
+    QWidget* buildNotificationsPage();
     QWidget* buildLanguagePage();
     void apply();
     void updateModeWidgets();

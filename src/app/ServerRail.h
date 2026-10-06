@@ -22,6 +22,7 @@ public:
     void setLabel(const QString& label) { m_label = label; update(); }
     void setIconImage(const QIcon& icon) { m_icon = icon; update(); }
     void setAccent(const QColor& color) { m_accent = color; update(); }
+    void setUnreadState(bool unread, int mentions);
 
     QSize sizeHint() const override { return {72, 56}; }
 
@@ -36,6 +37,8 @@ private:
     QIcon m_icon;
     QColor m_accent;
     bool m_hovered = false;
+    bool m_unread = false;
+    int m_mentions = 0;
 };
 
 // Vertical server bar on the left: direct messages button, separator and the user's servers.
@@ -49,6 +52,8 @@ public:
     void clearServers();
     void addServer(const QString& id, const QString& name, const QImage& icon);
     void setServerIcon(const QString& id, const QImage& icon);
+    void setServerUnread(const QString& id, bool unread, int mentions);
+    void setHomeMentions(int mentions);
     void select(const QString& id); // empty = direct messages
 
 signals:

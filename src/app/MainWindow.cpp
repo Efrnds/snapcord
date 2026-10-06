@@ -2,9 +2,11 @@
 
 #include "Avatar.h"
 #include "ChannelSidebar.h"
+#include "ChatView.h"
 #include "ConnectionInfoPopup.h"
 #include "ImageCache.h"
 #include "IncomingCallWindow.h"
+#include "Notifier.h"
 #include "ServerRail.h"
 #include "SettingsDialog.h"
 #include "UserPanel.h"
@@ -13,7 +15,7 @@
 #include "VoicePanel.h"
 #include "core/Session.h"
 
-#include <QCheckBox>
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
@@ -27,6 +29,7 @@
 namespace {
 
 constexpr auto LastGuildKey = "ui/lastGuild";
+constexpr auto LastChannelKey = "ui/lastChannel/";
 
 } // namespace
 
@@ -38,20 +41,18 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     , m_rail(new ServerRail)
     , m_sidebar(new ChannelSidebar)
     , m_pages(new QStackedWidget)
+    , m_chatView(new ChatView(session, m_images, voice))
     , m_voiceView(new VoiceChannelView)
     , m_incomingCall(new IncomingCallWindow(this))
+    , m_notifier(new Notifier(session, voice->sounds(), this, this))
 {
     setWindowTitle(QStringLiteral("Snapcord"));
     resize(1280, 720);
     setMinimumSize(940, 500);
 
-    m_homePage = buildPlaceholderPage(tr("Direct Messages"),
-                                      tr("Pick a conversation on the left to start a voice call. "
-                                         "Text chat arrives in Phase 3."));
-    m_textPage = buildPlaceholderPage(tr("Text Channels"), tr("Text chat arrives in Phase 3. For now, Snapcord "
-                                                              "focuses on voice channels."));
+    m_homePage = buildPlaceholderPage(tr("Direct Messages"), tr("Pick a conversation on the left."));
     m_pages->addWidget(m_homePage);
-    m_pages->addWidget(m_textPage);
+    m_pages->addWidget(m_chatView);
     m_pages->addWidget(m_voiceView);
 
     auto* central = new QWidget;
@@ -65,21 +66,31 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
 
     m_sidebar->setTitle(tr("Connecting…"));
 
-    // Several Gateway events often arrive together; refresh the lists once per burst.
+    // Several Gateway events often arrive together; refresh once per burst.
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(30);
     connect(&m_refreshTimer, &QTimer::timeout, this, [this] {
         refreshChannels();
-        refreshVoiceView();
+        refreshCenter();
         refreshVoicePanel();
         refreshUserPanel();
     });
     auto scheduleRefresh = [this] { m_refreshTimer.start(); };
+    // Unread badges of all servers are recomputed less often: busy servers produce many messages.
+    m_badgeTimer.setSingleShot(true);
+    m_badgeTimer.setInterval(250);
+    connect(&m_badgeTimer, &QTimer::timeout, this, &MainWindow::refreshUnreadBadges);
+
+    m_notifier->setCurrentChannelProvider([this] { return m_pages->currentWidget() == m_chatView ? m_chatView->channelId() : QString(); });
+    connect(m_notifier, &Notifier::openChannelRequested, this, [this](const QString& guildId, const QString& channelId) {
+        selectGuild(guildId);
+        openChannel(channelId);
+    });
 
     connect(m_session, &Session::ready, this, [this] {
         rebuildServerRail();
         const QString lastGuild = QSettings().value(QLatin1String(LastGuildKey)).toString();
-        selectGuild(m_session->guild(lastGuild) ? lastGuild : m_session->guildOrder().value(0));
+        selectGuild(lastGuild.isEmpty() || m_session->guild(lastGuild) ? lastGuild : m_session->guildOrder().value(0));
         refreshUserPanel();
     });
     connect(m_session, &Session::guildListChanged, this, &MainWindow::rebuildServerRail);
@@ -96,23 +107,15 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         if (m_guildId.isEmpty())
             scheduleRefresh();
     });
+    connect(m_session, &Session::readStateChanged, this, [this, scheduleRefresh](const QString& guildId, const QString& channelId) {
+        m_badgeTimer.start();
+        if (guildId == m_guildId || (m_guildId.isEmpty() && m_session->privateChannel(channelId)))
+            scheduleRefresh();
+    });
     connect(m_session, &Session::callChanged, this, [this, scheduleRefresh](const QString& channelId) {
         updateIncomingCall(channelId);
         if (m_guildId.isEmpty() || channelId == m_voice->channelId())
             scheduleRefresh();
-    });
-
-    connect(m_incomingCall, &IncomingCallWindow::accepted, this, [this](const QString& channelId) {
-        m_incomingCall->hide();
-        m_voice->sounds()->stopRinging();
-        m_voice->join(QString(), channelId);
-        selectGuild(QString());
-        onChannelClicked(channelId, false);
-    });
-    connect(m_incomingCall, &IncomingCallWindow::declined, this, [this](const QString& channelId) {
-        m_incomingCall->hide();
-        m_voice->sounds()->stopRinging();
-        m_session->declineCall(channelId);
     });
     connect(m_images, &ImageCache::imageLoaded, this, [this, scheduleRefresh](const QUrl& url) {
         for (const QString& guildId : m_session->guildOrder()) {
@@ -125,20 +128,31 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         scheduleRefresh();
     });
 
+    connect(m_incomingCall, &IncomingCallWindow::accepted, this, [this](const QString& channelId) {
+        m_incomingCall->hide();
+        m_voice->sounds()->stopRinging();
+        m_voice->join(QString(), channelId);
+        selectGuild(QString());
+        openChannel(channelId);
+    });
+    connect(m_incomingCall, &IncomingCallWindow::declined, this, [this](const QString& channelId) {
+        m_incomingCall->hide();
+        m_voice->sounds()->stopRinging();
+        m_session->declineCall(channelId);
+    });
+
     connect(m_rail, &ServerRail::serverSelected, this, &MainWindow::selectGuild);
     connect(m_rail, &ServerRail::homeSelected, this, [this] { selectGuild(QString()); });
 
     connect(m_sidebar, &ChannelSidebar::channelClicked, this, [this](const QString& id, ChannelSidebar::ItemKind kind) {
-        onChannelClicked(id, kind == ChannelSidebar::ItemKind::VoiceChannel);
+        // Discord joins a guild voice channel on a single click.
+        if (kind == ChannelSidebar::ItemKind::VoiceChannel && m_session->canConnect(m_guildId, id))
+            m_voice->join(m_guildId, id);
+        openChannel(id);
     });
     connect(m_sidebar, &ChannelSidebar::memberContextMenuRequested, this, &MainWindow::showUserMenu);
     connect(m_voiceView, &VoiceChannelView::participantContextMenuRequested, this, &MainWindow::showUserMenu);
-    connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] {
-        if (m_guildId.isEmpty())
-            m_voice->startCall(m_channelId);
-        else
-            m_voice->join(m_guildId, m_channelId);
-    });
+    connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] { m_voice->join(m_guildId, m_channelId); });
     connect(m_sidebar->voicePanel(), &VoicePanel::detailsRequested, this, [this] {
         auto* popup = new ConnectionInfoPopup(m_voice, this);
         popup->showAbove(m_sidebar->voicePanel());
@@ -162,6 +176,14 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     });
 
     refreshUserPanel();
+}
+
+void MainWindow::changeEvent(QEvent* event)
+{
+    QMainWindow::changeEvent(event);
+    // Coming back to the window reads the conversation on screen.
+    if (event->type() == QEvent::ActivationChange && isActiveWindow() && m_pages->currentWidget() == m_chatView)
+        m_chatView->markReadIfVisible();
 }
 
 QWidget* MainWindow::buildPlaceholderPage(const QString& title, const QString& subtitle)
@@ -196,30 +218,40 @@ void MainWindow::rebuildServerRail()
         m_rail->addServer(id, guild->name, m_images->image(ImageCache::guildIconUrl(id, guild->icon)));
     }
     m_rail->select(m_guildId);
+    refreshUnreadBadges();
+}
+
+void MainWindow::refreshUnreadBadges()
+{
+    for (const QString& id : m_session->guildOrder())
+        m_rail->setServerUnread(id, m_session->guildHasUnread(id), m_session->guildMentionCount(id));
+    m_rail->setHomeMentions(m_session->privateMentionCount());
 }
 
 void MainWindow::selectGuild(const QString& guildId)
 {
     m_guildId = guildId;
-    m_channelId.clear();
     m_rail->select(guildId);
-    QSettings().setValue(QLatin1String(LastGuildKey), guildId);
+    QSettings settings;
+    settings.setValue(QLatin1String(LastGuildKey), guildId);
+
+    // Reopen the channel last viewed in this guild, or the call we are in, or a sensible default.
+    m_channelId = settings.value(QLatin1String(LastChannelKey) + (guildId.isEmpty() ? QStringLiteral("@me") : guildId)).toString();
+    if (m_voice->guildId() == guildId && !m_voice->channelId().isEmpty() && m_channelId.isEmpty())
+        m_channelId = m_voice->channelId();
 
     if (guildId.isEmpty()) {
         m_sidebar->setTitle(tr("Direct Messages"));
-        m_pages->setCurrentWidget(m_homePage);
-        // Show the private call we're in, if any.
-        if (!m_voice->channelId().isEmpty() && m_voice->guildId().isEmpty())
-            m_channelId = m_voice->channelId();
+        if (!m_session->privateChannel(m_channelId))
+            m_channelId.clear();
     } else {
         const Guild* guild = m_session->guild(guildId);
         m_sidebar->setTitle(guild ? guild->name : QString());
-        // Show the voice channel we're connected to, if it's in this guild; otherwise the first channel.
-        if (m_voice->guildId() == guildId) {
-            m_channelId = m_voice->channelId();
-        } else {
+        const Channel* remembered = m_session->channel(guildId, m_channelId);
+        if (!remembered) {
+            m_channelId.clear();
             for (const Channel& channel : m_session->visibleChannels(guildId)) {
-                if (channel.type != ChannelType::GuildCategory) {
+                if (channel.type != ChannelType::GuildCategory && !channel.isVoice()) {
                     m_channelId = channel.id;
                     break;
                 }
@@ -228,7 +260,15 @@ void MainWindow::selectGuild(const QString& guildId)
     }
     m_sidebar->setSelectedChannel(m_channelId);
     refreshChannels();
-    refreshVoiceView();
+    refreshCenter();
+}
+
+void MainWindow::openChannel(const QString& channelId)
+{
+    m_channelId = channelId;
+    m_sidebar->setSelectedChannel(channelId);
+    QSettings().setValue(QLatin1String(LastChannelKey) + (m_guildId.isEmpty() ? QStringLiteral("@me") : m_guildId), channelId);
+    refreshCenter();
 }
 
 void MainWindow::refreshChannels()
@@ -258,8 +298,8 @@ void MainWindow::refreshChannels()
             const Call* call = m_session->call(channel.id);
             const bool inCall = call && !call->voiceStates.isEmpty();
             m_sidebar->addDirectMessage(channel.id, m_session->privateChannelName(channel),
-                                        privateChannelAvatar(channel, 32, index++ < PicturesToLoad || inCall),
-                                        inCall);
+                                        privateChannelAvatar(channel, 32, index++ < PicturesToLoad || inCall), inCall,
+                                        m_session->mentionCount(channel.id));
             if (inCall)
                 addCallMembers(QString(), channel.id);
         }
@@ -270,7 +310,9 @@ void MainWindow::refreshChannels()
                 continue;
             }
             if (!channel.isVoice()) {
-                m_sidebar->addChannel(channel.id, channel.name, ChannelSidebar::ItemKind::TextChannel);
+                m_sidebar->addChannel(channel.id, channel.name, ChannelSidebar::ItemKind::TextChannel,
+                                      m_session->isUnread(m_guildId, channel.id), m_session->mentionCount(channel.id),
+                                      m_session->isMuted(m_guildId, channel.id));
                 continue;
             }
             m_sidebar->addChannel(channel.id, channel.name, ChannelSidebar::ItemKind::VoiceChannel);
@@ -280,27 +322,27 @@ void MainWindow::refreshChannels()
     m_sidebar->endRebuild();
 }
 
-void MainWindow::refreshVoiceView()
+void MainWindow::refreshCenter()
 {
-    QString title;
-    QString joinText;
     if (m_guildId.isEmpty()) {
-        const PrivateChannel* privateChannel = m_session->privateChannel(m_channelId);
-        if (!privateChannel) {
+        if (!m_session->privateChannel(m_channelId)) {
             m_pages->setCurrentWidget(m_homePage);
             return;
         }
-        const Call* call = m_session->call(m_channelId);
-        title = m_session->privateChannelName(*privateChannel);
-        joinText = call && !call->voiceStates.isEmpty() ? tr("Join Call") : tr("Start Call");
-    } else {
-        const Channel* channel = m_session->channel(m_guildId, m_channelId);
-        if (!channel || !channel->isVoice()) {
-            m_pages->setCurrentWidget(m_textPage);
-            return;
-        }
-        title = channel->name;
-        joinText = tr("Join Voice");
+        m_chatView->showChannel(QString(), m_channelId);
+        m_pages->setCurrentWidget(m_chatView);
+        return;
+    }
+
+    const Channel* channel = m_session->channel(m_guildId, m_channelId);
+    if (!channel) {
+        m_pages->setCurrentWidget(m_homePage);
+        return;
+    }
+    if (!channel->isVoice()) {
+        m_chatView->showChannel(m_guildId, m_channelId);
+        m_pages->setCurrentWidget(m_chatView);
+        return;
     }
 
     QList<ParticipantTile::Participant> participants;
@@ -316,11 +358,10 @@ void MainWindow::refreshVoiceView()
         participant.deafened = state.selfDeaf || state.deaf;
         participants.append(participant);
     }
-    m_voiceView->setChannelName(title);
-    m_voiceView->setJoinText(joinText);
+    m_voiceView->setChannelName(channel->name);
+    m_voiceView->setJoinText(tr("Join Voice"));
     m_voiceView->setParticipants(participants);
-    const bool joined = m_voice->channelId() == m_channelId;
-    m_voiceView->setJoinState(joined, m_session->canConnect(m_guildId, m_channelId));
+    m_voiceView->setJoinState(m_voice->channelId() == m_channelId, m_session->canConnect(m_guildId, m_channelId));
     m_pages->setCurrentWidget(m_voiceView);
 }
 
@@ -394,16 +435,6 @@ void MainWindow::refreshUserPanel()
                                     makeAvatar(name, userPicture(self.id), 32, devicePixelRatioF(), false,
                                                QColor(0x23, 0x24, 0x28)));
     m_sidebar->userPanel()->setVoiceState(m_voice->isSelfMuted(), m_voice->isSelfDeafened());
-}
-
-void MainWindow::onChannelClicked(const QString& channelId, bool isVoice)
-{
-    m_channelId = channelId;
-    m_sidebar->setSelectedChannel(channelId);
-    // Discord joins a guild voice channel on a single click; private calls start with the "Start Call" button.
-    if (isVoice && m_session->canConnect(m_guildId, channelId))
-        m_voice->join(m_guildId, channelId);
-    refreshVoiceView();
 }
 
 void MainWindow::onSpeakingChanged(const QString& userId, bool speaking)

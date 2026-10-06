@@ -36,6 +36,11 @@ add_subdirectory(src/voice)
 add_subdirectory(src/platform)
 add_subdirectory(src/app)
 
+# Developer tool that regenerates the packaging icons from the SVG (not built by default).
+qt_add_executable(snapcord_render_icons tools/render_icons.cpp)
+target_link_libraries(snapcord_render_icons PRIVATE Qt6::Gui Qt6::Svg)
+set_target_properties(snapcord_render_icons PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF EXCLUDE_FROM_ALL ON)
+
 option(SNAPCORD_BUILD_TESTS "Build the unit tests" ON)
 if(SNAPCORD_BUILD_TESTS)
     enable_testing()

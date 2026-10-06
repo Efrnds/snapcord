@@ -36,9 +36,11 @@ public:
     // Rebuilding keeps the scroll position and collapsed categories.
     void beginRebuild();
     void addCategory(const QString& id, const QString& name);
-    void addChannel(const QString& id, const QString& name, ItemKind kind);
+    // `unread` shows the channel in bold with a pill; `mentions` adds a red counter; muted channels are dimmed.
+    void addChannel(const QString& id, const QString& name, ItemKind kind, bool unread = false, int mentions = 0,
+                    bool muted = false);
     // A direct message or group DM; `inCall` shows the call indicator. Call members can be added under it.
-    void addDirectMessage(const QString& id, const QString& name, const QPixmap& avatar, bool inCall);
+    void addDirectMessage(const QString& id, const QString& name, const QPixmap& avatar, bool inCall, int mentions = 0);
     void addVoiceMember(const Member& member); // listed under the last added voice channel or DM
     void endRebuild();
 

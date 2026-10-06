@@ -2,9 +2,11 @@
 #   .\scripts\build.ps1                  -> Debug build
 #   .\scripts\build.ps1 -Config release  -> Release build
 #   .\scripts\build.ps1 -Run             -> build and launch the app
+#   .\scripts\build.ps1 -Target snapcord_tests -> build a single target (e.g. while the app is open)
 param(
     [ValidateSet('debug', 'release')]
     [string]$Config = 'debug',
+    [string]$Target = '',
     [switch]$Run
 )
 
@@ -36,7 +38,7 @@ Push-Location $root
 try {
     cmake --preset $Config
     if ($LASTEXITCODE) { throw 'CMake configuration failed.' }
-    cmake --build --preset $Config
+    if ($Target) { cmake --build --preset $Config --target $Target } else { cmake --build --preset $Config }
     if ($LASTEXITCODE) { throw 'Build failed.' }
 } finally {
     Pop-Location

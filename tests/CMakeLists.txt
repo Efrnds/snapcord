@@ -1,7 +1,11 @@
 find_package(Qt6 REQUIRED COMPONENTS Test)
 
-qt_add_executable(snapcord_tests VoicePipelineTest.cpp)
-target_link_libraries(snapcord_tests PRIVATE Qt6::Test snapcord_core snapcord_voice ZLIB::ZLIB)
-set_target_properties(snapcord_tests PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+function(snapcord_add_test name source)
+    qt_add_executable(${name} ${source})
+    target_link_libraries(${name} PRIVATE Qt6::Test ${ARGN})
+    set_target_properties(${name} PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
 
-add_test(NAME snapcord_tests COMMAND snapcord_tests)
+snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_voice ZLIB::ZLIB)
+snapcord_add_test(snapcord_markdown_tests MarkdownTest.cpp snapcord_core)

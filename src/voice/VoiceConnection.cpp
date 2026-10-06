@@ -417,6 +417,11 @@ void VoiceConnection::updateSpeakingIndicators()
                                   << m_stats.encryptFailures.exchange(0) << ", E2EE decrypt failures "
                                   << m_stats.decryptFailures.exchange(0) << ", unknown SSRC "
                                   << m_stats.unknownSsrc.exchange(0);
+        qCInfo(lcVoice).nospace() << "microphone stats: voice frames " << m_stats.transmittedFrames.exchange(0)
+                                  << ", muted frames " << m_stats.mutedFrames.exchange(0) << ", peak level "
+                                  << qRound(m_stats.peakLevelDb.exchange(-100.0f)) << " dB, peak voice probability "
+                                  << m_stats.peakVoiceProbability.exchange(-1.0f) << ", mode "
+                                  << (m_pushToTalk ? "push to talk" : m_automaticSensitivity ? "automatic" : "threshold");
     }
 }
 
@@ -483,8 +488,16 @@ void VoiceConnection::processCaptureFrame()
     const float levelDb = rms > 1e-9 ? static_cast<float>(20.0 * std::log10(rms)) : -100.0f;
     m_inputLevelDb.store(levelDb, std::memory_order_relaxed);
 
+    if (levelDb > m_stats.peakLevelDb.load(std::memory_order_relaxed))
+        m_stats.peakLevelDb.store(levelDb, std::memory_order_relaxed);
+    if (m_frameVoiceProbability > m_stats.peakVoiceProbability.load(std::memory_order_relaxed))
+        m_stats.peakVoiceProbability.store(m_frameVoiceProbability, std::memory_order_relaxed);
+
     bool transmit = false;
-    if (!m_selfMuted.load(std::memory_order_relaxed) && !m_selfDeafened.load(std::memory_order_relaxed)) {
+    const bool muted = m_selfMuted.load(std::memory_order_relaxed) || m_selfDeafened.load(std::memory_order_relaxed);
+    if (muted)
+        m_stats.mutedFrames.fetch_add(1, std::memory_order_relaxed);
+    if (!muted) {
         if (m_pushToTalk.load(std::memory_order_relaxed)) {
             const int key = m_pushToTalkKey.load(std::memory_order_relaxed);
             const int64_t now = nowMs();
@@ -505,6 +518,7 @@ void VoiceConnection::processCaptureFrame()
     }
 
     if (transmit) {
+        m_stats.transmittedFrames.fetch_add(1, std::memory_order_relaxed);
         if (!m_transmitting) {
             m_transmitting = true;
             m_silenceFramesToSend = 0;

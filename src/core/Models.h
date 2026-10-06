@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QList>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -45,6 +46,8 @@ struct Channel
     QString guildId;
     QString parentId;
     QString name;
+    QString topic;
+    QString lastMessageId;
     ChannelType type = ChannelType::GuildText;
     int position = 0;
     int userLimit = 0;
@@ -57,6 +60,7 @@ struct Channel
 struct Role
 {
     QString id;
+    QString name;
     quint64 permissions = 0;
     int position = 0;
 
@@ -102,6 +106,13 @@ struct Call
     QHash<QString, VoiceState> voiceStates; // by user ID
 };
 
+struct CustomEmoji
+{
+    QString id;
+    QString name;
+    bool animated = false;
+};
+
 struct Guild
 {
     QString id;
@@ -113,6 +124,23 @@ struct Guild
     QHash<QString, Role> roles;
     QStringList selfRoleIds;
     QHash<QString, VoiceState> voiceStates; // by user ID
+    QList<CustomEmoji> emojis;
+};
+
+// Read position in a channel: messages after lastAckedId are unread.
+struct ReadState
+{
+    QString lastAckedId;
+    int mentionCount = 0;
+};
+
+// Per-guild notification preferences (direct messages use an empty guild ID).
+struct GuildSettings
+{
+    bool muted = false;
+    bool suppressEveryone = false;
+    bool suppressRoles = false;
+    QSet<QString> mutedChannels;
 };
 
 // Snowflake IDs compare numerically; this keeps a stable order for equal positions.

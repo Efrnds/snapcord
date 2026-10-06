@@ -4,6 +4,7 @@
 #include "core/Permissions.h"
 #include "core/RestClient.h"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 
@@ -13,6 +14,7 @@ Session::Session(QObject* parent)
     : QObject(parent)
     , m_gateway(new Gateway(this))
     , m_rest(new RestClient(this))
+    , m_messages(new MessageStore(m_rest, this))
 {
     connect(m_gateway, &Gateway::dispatch, this, &Session::onDispatch);
     connect(m_gateway, &Gateway::authenticationFailed, this, &Session::authenticationFailed);
@@ -283,12 +285,39 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
                 it->recipientIds.append(userId);
             emit privateChannelsChanged();
         }
-    } else if (event == u"MESSAGE_CREATE" && guildId.isEmpty()) {
-        // Only used to keep the direct message list in "most recent first" order.
-        auto it = m_privateChannels.find(data.value(u"channel_id").toString());
-        if (it != m_privateChannels.end()) {
-            it->lastMessageId = data.value(u"id").toString();
-            emit privateChannelsChanged();
+    } else if (event == u"MESSAGE_CREATE") {
+        onMessageCreate(data);
+        m_messages->handleDispatch(event, data);
+    } else if (event.startsWith(u"MESSAGE_REACTION") || event == u"MESSAGE_UPDATE" || event == u"MESSAGE_DELETE"
+               || event == u"MESSAGE_DELETE_BULK") {
+        m_messages->handleDispatch(event, data);
+    } else if (event == u"MESSAGE_ACK") {
+        const QString channelId = data.value(u"channel_id").toString();
+        ReadState& state = m_readStates[channelId];
+        state.lastAckedId = data.value(u"message_id").toString();
+        if (data.value(u"mention_count").isDouble())
+            state.mentionCount = data.value(u"mention_count").toInt();
+        else
+            state.mentionCount = 0;
+        emit readStateChanged(m_privateChannels.contains(channelId) ? QString() : guildId, channelId);
+    } else if (event == u"TYPING_START") {
+        const QString userId = data.value(u"user_id").toString();
+        if (data.contains(u"member"))
+            storeMember(guildId, data.value(u"member").toObject());
+        if (userId != m_self.id)
+            emit typingStarted(data.value(u"channel_id").toString(), userId);
+    } else if (event == u"USER_GUILD_SETTINGS_UPDATE") {
+        loadGuildSettings(data);
+        emit readStateChanged(data.value(u"guild_id").toString(), QString());
+    } else if (event == u"GUILD_EMOJIS_UPDATE") {
+        auto it = m_guilds.find(guildId);
+        if (it != m_guilds.end()) {
+            it->emojis.clear();
+            for (const QJsonValue& value : data.value(u"emojis").toArray()) {
+                const QJsonObject emoji = value.toObject();
+                it->emojis.append({emoji.value(u"id").toString(), emoji.value(u"name").toString(),
+                                   emoji.value(u"animated").toBool()});
+            }
         }
     } else if (event == u"CALL_CREATE") {
         loadCall(data);
@@ -346,10 +375,20 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
 void Session::loadReady(const QJsonObject& data)
 {
     m_self = User::fromJson(data.value(u"user").toObject());
+    m_messages->setSelf(m_self);
     m_guilds.clear();
     m_guildOrder.clear();
     m_privateChannels.clear();
     m_calls.clear();
+    m_readStates.clear();
+    m_guildSettings.clear();
+    loadReadStates(data.value(u"read_state"));
+    // Without the versioned capability this is a plain array; with it, an object with "entries".
+    const QJsonValue guildSettings = data.value(u"user_guild_settings");
+    const QJsonArray settingsEntries = guildSettings.isArray() ? guildSettings.toArray()
+                                                               : guildSettings.toObject().value(u"entries").toArray();
+    for (const QJsonValue& entry : settingsEntries)
+        loadGuildSettings(entry.toObject());
 
     for (const QJsonValue& value : data.value(u"users").toArray())
         storeUser(value.toObject());
@@ -391,6 +430,197 @@ void Session::loadReady(const QJsonObject& data)
     emit ready();
     emit guildListChanged();
     emit privateChannelsChanged();
+}
+
+void Session::loadReadStates(const QJsonValue& value)
+{
+    // A plain array, or {"entries": [...]} with the versioned read states capability.
+    const QJsonArray entries = value.isArray() ? value.toArray() : value.toObject().value(u"entries").toArray();
+    for (const QJsonValue& entry : entries) {
+        const QJsonObject json = entry.toObject();
+        if (json.value(u"read_state_type").toInt(0) != 0)
+            continue; // only channel read states matter here
+        ReadState state;
+        state.lastAckedId = json.value(u"last_message_id").isString()
+            ? json.value(u"last_message_id").toString()
+            : QString::number(json.value(u"last_message_id").toInteger());
+        state.mentionCount = json.value(u"mention_count").toInt();
+        m_readStates.insert(json.value(u"id").toString(), state);
+    }
+}
+
+void Session::loadGuildSettings(const QJsonObject& json)
+{
+    GuildSettings settings;
+    // A temporary mute ("mute_config" with an end time) still counts while it lasts; Snapcord treats it as muted.
+    settings.muted = json.value(u"muted").toBool();
+    settings.suppressEveryone = json.value(u"suppress_everyone").toBool();
+    settings.suppressRoles = json.value(u"suppress_roles").toBool();
+    for (const QJsonValue& value : json.value(u"channel_overrides").toArray()) {
+        const QJsonObject override = value.toObject();
+        if (override.value(u"muted").toBool())
+            settings.mutedChannels.insert(override.value(u"channel_id").toString());
+    }
+    m_guildSettings.insert(json.value(u"guild_id").toString(), settings);
+}
+
+QString Session::lastMessageId(const QString& guildId, const QString& channelId) const
+{
+    if (guildId.isEmpty()) {
+        const PrivateChannel* channel = privateChannel(channelId);
+        return channel ? channel->lastMessageId : QString();
+    }
+    const Channel* c = channel(guildId, channelId);
+    return c ? c->lastMessageId : QString();
+}
+
+bool Session::isUnread(const QString& guildId, const QString& channelId) const
+{
+    const QString last = lastMessageId(guildId, channelId);
+    if (last.isEmpty())
+        return false;
+    const auto it = m_readStates.constFind(channelId);
+    // Channels never opened have no read state; Discord only shows them as unread once a read state exists.
+    if (it == m_readStates.cend())
+        return false;
+    return snowflakeLess(it->lastAckedId, last);
+}
+
+int Session::mentionCount(const QString& channelId) const
+{
+    return m_readStates.value(channelId).mentionCount;
+}
+
+bool Session::isMuted(const QString& guildId, const QString& channelId) const
+{
+    const auto it = m_guildSettings.constFind(guildId);
+    if (it == m_guildSettings.cend())
+        return false;
+    if (it->muted && !guildId.isEmpty())
+        return true;
+    if (channelId.isEmpty())
+        return false;
+    if (it->mutedChannels.contains(channelId))
+        return true;
+    // A muted category mutes the channels inside it.
+    const Channel* c = guildId.isEmpty() ? nullptr : channel(guildId, channelId);
+    return c && !c->parentId.isEmpty() && it->mutedChannels.contains(c->parentId);
+}
+
+bool Session::guildHasUnread(const QString& guildId) const
+{
+    const Guild* g = guild(guildId);
+    if (!g || isMuted(guildId, QString()))
+        return false;
+    for (const Channel& c : g->channels) {
+        if (c.isVoice() || c.type == ChannelType::GuildCategory || isMuted(guildId, c.id))
+            continue;
+        if (isUnread(guildId, c.id) && (Permissions::compute(*g, c, m_self.id) & Permissions::ViewChannel))
+            return true;
+    }
+    return false;
+}
+
+int Session::guildMentionCount(const QString& guildId) const
+{
+    const Guild* g = guild(guildId);
+    if (!g)
+        return 0;
+    int total = 0;
+    for (const Channel& c : g->channels)
+        total += m_readStates.value(c.id).mentionCount;
+    return total;
+}
+
+int Session::privateMentionCount() const
+{
+    int total = 0;
+    for (const PrivateChannel& channel : m_privateChannels)
+        total += m_readStates.value(channel.id).mentionCount;
+    return total;
+}
+
+void Session::markRead(const QString& guildId, const QString& channelId)
+{
+    const QString last = lastMessageId(guildId, channelId);
+    if (last.isEmpty())
+        return;
+    ReadState& state = m_readStates[channelId];
+    if (!snowflakeLess(state.lastAckedId, last) && state.mentionCount == 0)
+        return;
+    state.lastAckedId = last;
+    state.mentionCount = 0;
+    m_rest->post(QStringLiteral("/channels/%1/messages/%2/ack").arg(channelId, last),
+                 QJsonDocument(QJsonObject{{QStringLiteral("token"), QJsonValue()}}), nullptr);
+    emit readStateChanged(guildId, channelId);
+}
+
+void Session::sendTyping(const QString& channelId)
+{
+    // Discord shows the indicator for about 10 seconds, so one request every 8 seconds is enough.
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (channelId == m_lastTypingChannel && now - m_lastTypingSent < 8000)
+        return;
+    m_lastTypingChannel = channelId;
+    m_lastTypingSent = now;
+    m_rest->post(QStringLiteral("/channels/%1/typing").arg(channelId), QJsonDocument(QJsonObject()), nullptr);
+}
+
+QList<CustomEmoji> Session::customEmojis(const QString& guildId) const
+{
+    const Guild* g = guild(guildId);
+    return g ? g->emojis : QList<CustomEmoji>();
+}
+
+bool Session::mentionsSelf(const Message& message) const
+{
+    if (message.mentionedUserIds.contains(m_self.id))
+        return true;
+    const GuildSettings settings = m_guildSettings.value(message.guildId);
+    if (message.mentionsEveryone && !settings.suppressEveryone)
+        return true;
+    if (!settings.suppressRoles && !message.guildId.isEmpty()) {
+        if (const Guild* g = guild(message.guildId)) {
+            for (const QString& role : message.mentionedRoleIds) {
+                if (g->selfRoleIds.contains(role))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Session::onMessageCreate(const QJsonObject& data)
+{
+    const Message message = Message::fromJson(data);
+    const QString channelId = message.channelId;
+    const bool isPrivate = message.guildId.isEmpty();
+
+    if (isPrivate) {
+        auto it = m_privateChannels.find(channelId);
+        if (it == m_privateChannels.end())
+            return;
+        it->lastMessageId = message.id;
+        emit privateChannelsChanged();
+    } else {
+        auto guildIt = m_guilds.find(message.guildId);
+        if (guildIt == m_guilds.end())
+            return;
+        auto channelIt = guildIt->channels.find(channelId);
+        if (channelIt != guildIt->channels.end())
+            channelIt->lastMessageId = message.id;
+    }
+
+    ReadState& state = m_readStates[channelId];
+    if (message.author.id == m_self.id) {
+        // Sending a message reads the channel up to it.
+        state.lastAckedId = message.id;
+        state.mentionCount = 0;
+    } else if (mentionsSelf(message) || (isPrivate && !isMuted(QString(), channelId))) {
+        ++state.mentionCount;
+        emit notificationMessage(message);
+    }
+    emit readStateChanged(message.guildId, channelId);
 }
 
 void Session::loadCall(const QJsonObject& data)
@@ -445,6 +675,13 @@ void Session::loadGuild(const QJsonObject& data)
     for (const QJsonValue& value : data.value(u"channels").toArray()) {
         const Channel channel = Channel::fromJson(value.toObject(), guild.id);
         guild.channels.insert(channel.id, channel);
+    }
+    const QJsonArray emojis = data.contains(u"emojis") ? data.value(u"emojis").toArray()
+                                                       : properties.value(u"emojis").toArray();
+    for (const QJsonValue& value : emojis) {
+        const QJsonObject emoji = value.toObject();
+        guild.emojis.append({emoji.value(u"id").toString(), emoji.value(u"name").toString(),
+                             emoji.value(u"animated").toBool()});
     }
     m_guilds.insert(guild.id, guild);
 

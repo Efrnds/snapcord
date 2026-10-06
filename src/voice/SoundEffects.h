@@ -18,7 +18,7 @@ class SoundEffects : public QObject
     Q_OBJECT
 
 public:
-    enum class Sound { Join, Leave, UserJoin, UserLeave, Mute, Unmute, Deafen, Undeafen, Ringtone, Count };
+    enum class Sound { Join, Leave, UserJoin, UserLeave, Mute, Unmute, Deafen, Undeafen, Ringtone, Message, Count };
 
     explicit SoundEffects(QObject* parent = nullptr);
     ~SoundEffects() override;

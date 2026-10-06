@@ -34,6 +34,8 @@ Channel Channel::fromJson(const QJsonObject& json, const QString& guildId)
     channel.guildId = json.contains(u"guild_id") ? string(json, u"guild_id") : guildId;
     channel.parentId = string(json, u"parent_id");
     channel.name = string(json, u"name");
+    channel.topic = string(json, u"topic");
+    channel.lastMessageId = string(json, u"last_message_id");
     channel.type = static_cast<ChannelType>(json.value(u"type").toInt());
     channel.position = json.value(u"position").toInt();
     channel.userLimit = json.value(u"user_limit").toInt();
@@ -53,6 +55,7 @@ Role Role::fromJson(const QJsonObject& json)
 {
     Role role;
     role.id = string(json, u"id");
+    role.name = string(json, u"name");
     role.permissions = permissionBits(json.value(u"permissions"));
     role.position = json.value(u"position").toInt();
     return role;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QJsonDocument>
 #include <QObject>
 #include <QString>
@@ -31,9 +32,12 @@ public:
 
     void get(const QString& path, Callback callback);
     void post(const QString& path, const QJsonDocument& body, Callback callback);
+    void patch(const QString& path, const QJsonDocument& body, Callback callback);
+    void put(const QString& path, Callback callback);
+    void deleteResource(const QString& path, Callback callback);
 
 private:
-    void finish(QNetworkReply* reply, const Callback& callback);
+    void send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback);
 
     QNetworkAccessManager* m_network;
     QString m_token;

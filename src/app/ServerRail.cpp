@@ -53,6 +53,15 @@ void ServerButton::leaveEvent(QEvent* event)
     QAbstractButton::leaveEvent(event);
 }
 
+void ServerButton::setUnreadState(bool unread, int mentions)
+{
+    if (unread == m_unread && mentions == m_mentions)
+        return;
+    m_unread = unread;
+    m_mentions = mentions;
+    update();
+}
+
 void ServerButton::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
@@ -62,9 +71,9 @@ void ServerButton::paintEvent(QPaintEvent*)
     const QRectF iconRect((width() - IconSize) / 2.0, (height() - IconSize) / 2.0, IconSize, IconSize);
     const qreal radius = active ? 16.0 : IconSize / 2.0;
 
-    // Selection pill on the left edge: tall when selected, short on hover.
-    if (isChecked() || m_hovered) {
-        const qreal pillHeight = isChecked() ? 40.0 : 20.0;
+    // Pill on the left edge: tall when selected, medium on hover, a small dot when there is something unread.
+    if (isChecked() || m_hovered || m_unread) {
+        const qreal pillHeight = isChecked() ? 40.0 : m_hovered ? 20.0 : 8.0;
         painter.setPen(Qt::NoPen);
         painter.setBrush(Qt::white);
         painter.drawRoundedRect(QRectF(-4, (height() - pillHeight) / 2, 8, pillHeight), 4, 4);
@@ -73,27 +82,42 @@ void ServerButton::paintEvent(QPaintEvent*)
     QPainterPath shape;
     shape.addRoundedRect(iconRect, radius, radius);
 
+    painter.save();
     if (!m_image.isNull()) {
         painter.setClipPath(shape);
         painter.drawImage(iconRect, m_image);
-        return;
+    } else {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(active ? m_accent : QColor(0x31, 0x33, 0x38));
+        painter.drawPath(shape);
+        if (!m_icon.isNull()) {
+            m_icon.paint(&painter, iconRect.adjusted(12, 12, -12, -12).toRect());
+        } else {
+            QFont font = painter.font();
+            font.setPixelSize(m_label.size() > 2 ? 14 : 16);
+            font.setWeight(QFont::DemiBold);
+            painter.setFont(font);
+            painter.setPen(active ? Qt::white : QColor(0xdb, 0xde, 0xe1));
+            painter.drawText(iconRect, Qt::AlignCenter, m_label);
+        }
     }
+    painter.restore();
 
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(active ? m_accent : QColor(0x31, 0x33, 0x38));
-    painter.drawPath(shape);
-
-    if (!m_icon.isNull()) {
-        const QRectF glyph = iconRect.adjusted(12, 12, -12, -12);
-        m_icon.paint(&painter, glyph.toRect());
-        return;
+    // Mention counter in the bottom-right corner, cut out of the rail background like Discord's.
+    if (m_mentions > 0) {
+        QFont font = painter.font();
+        font.setPixelSize(12);
+        font.setWeight(QFont::Bold);
+        painter.setFont(font);
+        const QString text = m_mentions > 99 ? QStringLiteral("99+") : QString::number(m_mentions);
+        const qreal badgeWidth = std::max(16, painter.fontMetrics().horizontalAdvance(text) + 10);
+        const QRectF badge(iconRect.right() - badgeWidth + 4, iconRect.bottom() - 12, badgeWidth, 16);
+        painter.setPen(QPen(QColor(0x1e, 0x1f, 0x22), 4));
+        painter.setBrush(QColor(0xf2, 0x3f, 0x43));
+        painter.drawRoundedRect(badge, 8, 8);
+        painter.setPen(Qt::white);
+        painter.drawText(badge, Qt::AlignCenter, text);
     }
-    QFont font = painter.font();
-    font.setPixelSize(m_label.size() > 2 ? 14 : 16);
-    font.setWeight(QFont::DemiBold);
-    painter.setFont(font);
-    painter.setPen(active ? Qt::white : QColor(0xdb, 0xde, 0xe1));
-    painter.drawText(iconRect, Qt::AlignCenter, m_label);
 }
 
 ServerRail::ServerRail(QWidget* parent)
@@ -166,6 +190,17 @@ void ServerRail::setServerIcon(const QString& id, const QImage& icon)
 {
     if (ServerButton* button = m_buttons.value(id))
         button->setImage(icon);
+}
+
+void ServerRail::setServerUnread(const QString& id, bool unread, int mentions)
+{
+    if (ServerButton* button = m_buttons.value(id))
+        button->setUnreadState(unread, mentions);
+}
+
+void ServerRail::setHomeMentions(int mentions)
+{
+    m_home->setUnreadState(false, mentions);
 }
 
 void ServerRail::select(const QString& id)

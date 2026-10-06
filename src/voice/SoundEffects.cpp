@@ -59,6 +59,8 @@ SoundEffects::SoundEffects(QObject* parent)
     set(Sound::Undeafen, synthesize({{C4, 90}, {F4, 220}}, 0.3f));
     // Ringtone: a short repeating motif followed by a pause; played in a loop while a call rings.
     set(Sound::Ringtone, synthesize({{E5, 120}, {B5, 120}, {E5, 120}, {B5, 240}, {0, 1400}}, 0.3f));
+    // New message: a short, soft high blip.
+    set(Sound::Message, synthesize({{B5, 60}, {E5 * 2, 160}}, 0.2f));
 
     // Close the output stream shortly after the last sound ends, so it doesn't keep the audio device busy.
     m_idleTimer.setInterval(1500);

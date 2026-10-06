@@ -21,9 +21,30 @@ enum Role {
     SpeakingRole,
     MutedRole,
     DeafenedRole,
+    UnreadRole,
+    MentionsRole,
+    ChannelMutedRole,
 };
 
 using ItemKind = ChannelSidebar::ItemKind;
+
+// Red rounded counter used for unread mentions, right-aligned at `right`. Returns its left edge.
+int drawMentionBadge(QPainter* painter, int right, int centerY, int count, const QFont& base)
+{
+    QFont font = base;
+    font.setPixelSize(12);
+    font.setWeight(QFont::Bold);
+    painter->setFont(font);
+    const QString text = count > 99 ? QStringLiteral("99+") : QString::number(count);
+    const int width = std::max(16, painter->fontMetrics().horizontalAdvance(text) + 10);
+    const QRect badge(right - width, centerY - 8, width, 16);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(0xf2, 0x3f, 0x43));
+    painter->drawRoundedRect(badge, 8, 8);
+    painter->setPen(Qt::white);
+    painter->drawText(badge, Qt::AlignCenter, text);
+    return badge.left();
+}
 
 ItemKind kindOf(const QModelIndex& index)
 {
@@ -86,14 +107,29 @@ public:
                 painter->setBrush(selected ? QColor(0x40, 0x42, 0x49) : QColor(0x35, 0x37, 0x3c));
                 painter->drawRoundedRect(row, 4, 4);
             }
+            const bool unread = index.data(UnreadRole).toBool();
+            const bool channelMuted = index.data(ChannelMutedRole).toBool();
+            const int mentions = index.data(MentionsRole).toInt();
+            // Unread pill hanging off the left edge of the column.
+            if (unread && !selected) {
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(QColor(0xf2, 0xf3, 0xf5));
+                painter->drawRoundedRect(QRectF(rect.left() - 4, row.center().y() - 4, 8, 8), 4, 4);
+            }
             const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
             icon.paint(painter, QRect(row.left() + 8, row.center().y() - 10, 20, 20));
+            int textRight = row.right() - 8;
+            if (mentions > 0)
+                textRight = drawMentionBadge(painter, row.right() - 8, row.center().y(), mentions, option.font) - 6;
             font.setPixelSize(15);
-            font.setWeight(selected ? QFont::DemiBold : QFont::Medium);
+            font.setWeight(selected || unread ? QFont::DemiBold : QFont::Medium);
             painter->setFont(font);
-            painter->setPen(selected ? QColor(0xf2, 0xf3, 0xf5)
-                                     : hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4));
-            const QRect textRect = row.adjusted(36, 0, -8, 0);
+            QColor color = selected ? QColor(0xf2, 0xf3, 0xf5)
+                : unread || hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4);
+            if (channelMuted && !selected)
+                color = QColor(0x4e, 0x50, 0x58);
+            painter->setPen(color);
+            const QRect textRect(row.left() + 36, row.top(), textRight - row.left() - 36, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
                                                                 Qt::ElideRight, textRect.width()));
@@ -109,6 +145,8 @@ public:
             const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
             painter->drawPixmap(QRect(row.left() + 8, row.center().y() - 16, 32, 32), avatar);
             int right = row.right() - 8;
+            if (const int mentions = index.data(MentionsRole).toInt(); mentions > 0)
+                right = drawMentionBadge(painter, right, row.center().y(), mentions, option.font) - 6;
             if (index.data(SpeakingRole).toBool()) { // call in progress
                 QIcon(QStringLiteral(":/icons/speaker-active.svg")).paint(painter, QRect(right - 18, row.center().y() - 9, 18, 18));
                 right -= 24;
@@ -230,12 +268,16 @@ void ChannelSidebar::addCategory(const QString& id, const QString& name)
     m_currentVoiceChannel = nullptr;
 }
 
-void ChannelSidebar::addChannel(const QString& id, const QString& name, ItemKind kind)
+void ChannelSidebar::addChannel(const QString& id, const QString& name, ItemKind kind, bool unread, int mentions,
+                                bool muted)
 {
     auto* item = m_currentCategory ? new QTreeWidgetItem(m_currentCategory, {name}) : new QTreeWidgetItem(m_tree, {name});
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setData(0, IdRole, id);
     item->setData(0, KindRole, static_cast<int>(kind));
+    item->setData(0, UnreadRole, unread);
+    item->setData(0, MentionsRole, mentions);
+    item->setData(0, ChannelMutedRole, muted);
     item->setIcon(0, QIcon(kind == ItemKind::VoiceChannel ? QStringLiteral(":/icons/speaker.svg")
                                                           : QStringLiteral(":/icons/hash.svg")));
     m_currentVoiceChannel = kind == ItemKind::VoiceChannel ? item : nullptr;
@@ -243,12 +285,14 @@ void ChannelSidebar::addChannel(const QString& id, const QString& name, ItemKind
         item->setSelected(true);
 }
 
-void ChannelSidebar::addDirectMessage(const QString& id, const QString& name, const QPixmap& avatar, bool inCall)
+void ChannelSidebar::addDirectMessage(const QString& id, const QString& name, const QPixmap& avatar, bool inCall,
+                                      int mentions)
 {
     auto* item = m_currentCategory ? new QTreeWidgetItem(m_currentCategory, {name}) : new QTreeWidgetItem(m_tree, {name});
     item->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     item->setData(0, IdRole, id);
     item->setData(0, KindRole, static_cast<int>(ItemKind::DirectMessage));
+    item->setData(0, MentionsRole, mentions);
     item->setData(0, Qt::DecorationRole, avatar);
     item->setData(0, SpeakingRole, inCall);
     m_currentVoiceChannel = item;
