@@ -9,6 +9,7 @@
 #include "Notifier.h"
 #include "ServerRail.h"
 #include "SettingsDialog.h"
+#include "Theme.h"
 #include "UserPanel.h"
 #include "VoiceChannelView.h"
 #include "VoiceController.h"
@@ -165,6 +166,7 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     connect(m_sidebar->voicePanel(), &VoicePanel::disconnectRequested, m_voice, &VoiceController::leave);
 
     connect(m_voice, &VoiceController::selfStateChanged, this, &MainWindow::refreshUserPanel);
+    connect(&Theme::instance(), &Theme::changed, this, &MainWindow::refreshUserPanel);
     connect(m_voice, &VoiceController::channelChanged, this, scheduleRefresh);
     connect(m_voice, &VoiceController::stateChanged, this, scheduleRefresh);
     connect(m_voice, &VoiceController::pingChanged, m_sidebar->voicePanel(), &VoicePanel::setPing);
@@ -439,7 +441,7 @@ void MainWindow::refreshUserPanel()
     const QString name = self.displayName().isEmpty() ? tr("Connecting…") : self.displayName();
     m_sidebar->userPanel()->setUser(name, tr("Online"),
                                     makeAvatar(name, userPicture(self.id), 32, devicePixelRatioF(), false,
-                                               QColor(0x23, 0x24, 0x28)));
+                                               Theme::instance().profilePrimary()));
     m_sidebar->userPanel()->setVoiceState(m_voice->isSelfMuted(), m_voice->isSelfDeafened());
 }
 

@@ -1,5 +1,6 @@
 #include "ChannelSidebar.h"
 
+#include "Theme.h"
 #include "UserPanel.h"
 #include "VoicePanel.h"
 
@@ -79,11 +80,12 @@ public:
         const bool selected = option.state & QStyle::State_Selected;
         const QRect rect = option.rect;
         QFont font = option.font;
+        const Theme::Palette& colors = Theme::instance().palette();
 
         switch (kindOf(index)) {
         case ItemKind::Category: {
             const bool expanded = option.state & QStyle::State_Open;
-            const QColor color = hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4);
+            const QColor color = hovered ? colors.text : colors.textMuted;
             // Chevron: down when expanded, right when collapsed.
             painter->setPen(QPen(color, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
             const QPointF center(rect.left() + 12, rect.bottom() - 13);
@@ -104,7 +106,7 @@ public:
             const QRect row = rect.adjusted(8, 1, -8, -1);
             if (selected || hovered) {
                 painter->setPen(Qt::NoPen);
-                painter->setBrush(selected ? QColor(0x40, 0x42, 0x49) : QColor(0x35, 0x37, 0x3c));
+                painter->setBrush(selected ? colors.selected : colors.hover);
                 painter->drawRoundedRect(row, 4, 4);
             }
             const bool unread = index.data(UnreadRole).toBool();
@@ -124,10 +126,10 @@ public:
             font.setPixelSize(15);
             font.setWeight(selected || unread ? QFont::DemiBold : QFont::Medium);
             painter->setFont(font);
-            QColor color = selected ? QColor(0xf2, 0xf3, 0xf5)
-                : unread || hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4);
+            QColor color = selected ? colors.textBright
+                : unread || hovered ? colors.text : colors.textMuted;
             if (channelMuted && !selected)
-                color = QColor(0x4e, 0x50, 0x58);
+                color = colors.button;
             painter->setPen(color);
             const QRect textRect(row.left() + 36, row.top(), textRight - row.left() - 36, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
@@ -139,7 +141,7 @@ public:
             const QRect row = rect.adjusted(8, 1, -8, -1);
             if (selected || hovered) {
                 painter->setPen(Qt::NoPen);
-                painter->setBrush(selected ? QColor(0x40, 0x42, 0x49) : QColor(0x35, 0x37, 0x3c));
+                painter->setBrush(selected ? colors.selected : colors.hover);
                 painter->drawRoundedRect(row, 4, 4);
             }
             const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
@@ -154,8 +156,8 @@ public:
             font.setPixelSize(15);
             font.setWeight(selected ? QFont::DemiBold : QFont::Medium);
             painter->setFont(font);
-            painter->setPen(selected ? QColor(0xf2, 0xf3, 0xf5)
-                                     : hovered ? QColor(0xdb, 0xde, 0xe1) : QColor(0x94, 0x9b, 0xa4));
+            painter->setPen(selected ? colors.textBright
+                                     : hovered ? colors.text : colors.textMuted);
             const QRect textRect(row.left() + 52, row.top(), right - row.left() - 52, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
@@ -166,7 +168,7 @@ public:
             const QRect row = rect.adjusted(36, 1, -8, -1);
             if (hovered) {
                 painter->setPen(Qt::NoPen);
-                painter->setBrush(QColor(0x35, 0x37, 0x3c));
+                painter->setBrush(colors.hover);
                 painter->drawRoundedRect(row, 4, 4);
             }
             const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
@@ -186,7 +188,7 @@ public:
             font.setWeight(QFont::Medium);
             painter->setFont(font);
             const bool speaking = index.data(SpeakingRole).toBool();
-            painter->setPen(speaking || hovered ? QColor(0xf2, 0xf3, 0xf5) : QColor(0x94, 0x9b, 0xa4));
+            painter->setPen(speaking || hovered ? colors.textBright : colors.textMuted);
             const QRect textRect(row.left() + 40, row.top(), right - row.left() - 40, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),

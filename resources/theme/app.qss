@@ -1,33 +1,33 @@
-/* Snapcord dark theme — colors based on the Discord layout. */
+/* Snapcord theme template — tokens are substituted by Theme at runtime. */
 
 QWidget {
-    color: #dbdee1;
-    font-size: 14px;
+    color: @text;
+    font-size: @fontSize;
 }
 
 QMainWindow, #chatArea {
-    background: #313338;
+    background: @bg2;
 }
 
 QToolTip {
-    background: #111214;
-    color: #dbdee1;
+    background: @bg4;
+    color: @text;
     border: none;
     padding: 6px 8px;
 }
 
 QMenu {
-    background: #111214;
-    border: 1px solid #1e1f22;
+    background: @bg4;
+    border: 1px solid @surface;
     padding: 6px;
 }
 QMenu::item {
-    color: #b5bac1;
+    color: @textDim;
     padding: 6px 24px 6px 8px;
     border-radius: 2px;
 }
 QMenu::item:selected {
-    background: #5865f2;
+    background: @accent;
     color: #ffffff;
 }
 
@@ -38,7 +38,7 @@ QScrollBar:vertical {
     margin: 0;
 }
 QScrollBar::handle:vertical {
-    background: #1a1b1e;
+    background: @bg0;
     border-radius: 4px;
     min-height: 24px;
 }
@@ -51,23 +51,23 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 /* Server rail */
 #serverRail, #serverRailContent, #serverRail QScrollArea {
-    background: #1e1f22;
+    background: @bg0;
 }
 #railSeparator {
-    background: #35363c;
+    background: @hover;
     border-radius: 1px;
 }
 
 /* Channel sidebar */
 #channelSidebar {
-    background: #2b2d31;
+    background: @bg1;
 }
 #sidebarHeader {
-    border-bottom: 1px solid #1f2023;
+    border-bottom: 1px solid @border;
 }
 #sidebarHeader QLabel {
-    color: #f2f3f5;
-    font-size: 15px;
+    color: @textBright;
+    font-size: @fontSizeMd;
     font-weight: 600;
 }
 #channelTree {
@@ -76,7 +76,6 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     outline: 0;
     padding-top: 8px;
 }
-/* Rows are painted by ChannelDelegate; keep the view itself from drawing row backgrounds. */
 #channelTree::item, #channelTree::item:hover, #channelTree::item:selected {
     background: transparent;
 }
@@ -87,20 +86,20 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 /* Voice connection panel */
 #voicePanel {
-    background: #232428;
-    border-bottom: 1px solid #2e2f34;
+    background: @bg3;
+    border-bottom: 1px solid @border;
 }
 #voiceStatus {
     background: transparent;
     border: none;
     padding: 0;
     text-align: left;
-    color: #f0b232;
-    font-size: 14px;
+    color: @warning;
+    font-size: @fontSize;
     font-weight: 700;
 }
 #voiceStatus[connected="true"] {
-    color: #23a559;
+    color: @success;
 }
 #voiceStatus:hover {
     text-decoration: underline;
@@ -108,37 +107,37 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 
 /* Connection info popup */
 #connectionInfo {
-    background: #111214;
-    border: 1px solid #2b2d31;
+    background: @bg4;
+    border: 1px solid @bg1;
     border-radius: 6px;
 }
 #connectionInfo QLabel {
-    color: #b5bac1;
-    font-size: 13px;
+    color: @textDim;
+    font-size: @fontSizeHint;
 }
 #connectionInfoTitle {
-    color: #f2f3f5;
-    font-size: 15px;
+    color: @textBright;
+    font-size: @fontSizeMd;
     font-weight: 700;
 }
 
 /* Incoming call */
 #incomingCall {
-    background: #232428;
-    border: 1px solid #1e1f22;
+    background: @bg3;
+    border: 1px solid @surface;
     border-radius: 8px;
 }
 #incomingCallName {
-    color: #f2f3f5;
-    font-size: 18px;
+    color: @textBright;
+    font-size: @fontSizeXl;
     font-weight: 700;
 }
 #incomingCallStatus {
-    color: #b5bac1;
-    font-size: 14px;
+    color: @textDim;
+    font-size: @fontSize;
 }
 #acceptCallButton {
-    background: #248046;
+    background: @success;
     border: none;
     border-radius: 28px;
 }
@@ -155,13 +154,13 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 }
 
 QCheckBox {
-    color: #dbdee1;
+    color: @text;
     spacing: 10px;
-    font-size: 14px;
+    font-size: @fontSize;
 }
 #voiceLocation {
-    color: #949ba4;
-    font-size: 12px;
+    color: @textMuted;
+    font-size: @fontSizeSm;
 }
 #voicePanel QToolButton {
     background: transparent;
@@ -169,21 +168,22 @@ QCheckBox {
     border-radius: 4px;
 }
 #voicePanel QToolButton:hover {
-    background: #3a3c41;
+    background: @hover;
 }
 
-/* User panel */
+/* User panel — profilePrimary / profileAccent are local Nitro-style colors */
 #userPanel {
-    background: #232428;
+    background: @profilePrimary;
+    border-left: 3px solid @profileAccent;
 }
 #userName {
-    color: #f2f3f5;
-    font-size: 14px;
+    color: @textBright;
+    font-size: @fontSize;
     font-weight: 600;
 }
 #userStatus {
-    color: #949ba4;
-    font-size: 12px;
+    color: @textMuted;
+    font-size: @fontSizeSm;
 }
 #userPanel QToolButton {
     background: transparent;
@@ -191,94 +191,94 @@ QCheckBox {
     border-radius: 4px;
 }
 #userPanel QToolButton:hover {
-    background: #3a3c41;
+    background: @hover;
 }
 
 /* Chat area */
 #chatHeader {
-    border-bottom: 1px solid #26272b;
+    border-bottom: 1px solid @border;
 }
 #chatTitle {
-    color: #f2f3f5;
-    font-size: 16px;
+    color: @textBright;
+    font-size: @fontSizeLg;
     font-weight: 600;
 }
 #welcomeTitle {
-    color: #f2f3f5;
-    font-size: 28px;
+    color: @textBright;
+    font-size: @fontSizeDisplay;
     font-weight: 700;
 }
 #welcomeSubtitle {
-    color: #b5bac1;
-    font-size: 15px;
+    color: @textDim;
+    font-size: @fontSizeMd;
 }
 
 /* Chat */
 #messageList {
-    background: #313338;
+    background: @bg2;
     border: none;
 }
 #chatTopic {
-    color: #949ba4;
-    font-size: 14px;
+    color: @textMuted;
+    font-size: @fontSize;
     padding-left: 8px;
-    border-left: 1px solid #3f4147;
+    border-left: 1px solid @hover;
     margin-left: 4px;
 }
 #headerCallButton {
     background: transparent;
-    color: #dbdee1;
+    color: @text;
     border: none;
     border-radius: 4px;
     padding: 6px 10px;
-    font-size: 14px;
+    font-size: @fontSize;
 }
 #headerCallButton:hover {
-    background: #3a3c41;
+    background: @hover;
 }
 #composerBox {
-    background: #383a40;
+    background: @selected;
     border-radius: 8px;
 }
 #composer {
     background: transparent;
     border: none;
-    color: #dbdee1;
-    font-size: 15px;
-    selection-background-color: #5865f2;
+    color: @text;
+    font-size: @fontSizeMd;
+    selection-background-color: @accent;
 }
 #composerModeBar {
-    background: #2b2d31;
+    background: @bg1;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
 }
 #composerModeLabel {
-    color: #b5bac1;
-    font-size: 13px;
+    color: @textDim;
+    font-size: @fontSizeHint;
 }
 #composerModeCancel, #emojiButton {
     background: transparent;
     border: none;
-    color: #b5bac1;
-    font-size: 18px;
+    color: @textDim;
+    font-size: @fontSizeXl;
     padding: 6px;
 }
 #composerModeCancel:hover, #emojiButton:hover {
     color: #ffffff;
 }
 #typingLabel {
-    color: #dbdee1;
-    font-size: 12px;
+    color: @text;
+    font-size: @fontSizeSm;
     padding-left: 4px;
 }
 #emojiPicker {
-    background: #2b2d31;
-    border: 1px solid #1e1f22;
+    background: @bg1;
+    border: 1px solid @surface;
     border-radius: 8px;
 }
 #emojiSearch {
-    background: #1e1f22;
-    color: #dbdee1;
+    background: @surface;
+    color: @text;
     border: none;
     border-radius: 4px;
     padding: 6px 8px;
@@ -289,7 +289,7 @@ QCheckBox {
     outline: 0;
 }
 #emojiGrid::item:hover {
-    background: #404249;
+    background: @selected;
     border-radius: 4px;
 }
 
@@ -298,75 +298,75 @@ QCheckBox {
     background: #000000;
 }
 #voiceChannelView #chatHeader {
-    background: #313338;
+    background: @bg2;
 }
 #voiceChannelView #welcomeSubtitle {
-    color: #b5bac1;
+    color: @textDim;
 }
 
 /* Buttons */
 #joinVoiceButton, #primaryButton {
-    background: #248046;
+    background: @success;
     color: #ffffff;
     border: none;
     border-radius: 4px;
     padding: 8px 20px;
-    font-size: 14px;
+    font-size: @fontSize;
     font-weight: 600;
 }
 #joinVoiceButton:hover, #primaryButton:hover {
     background: #1a6334;
 }
 #joinVoiceButton:disabled {
-    background: #4e5058;
-    color: #949ba4;
+    background: @button;
+    color: @textMuted;
 }
 #secondaryButton {
-    background: #4e5058;
+    background: @button;
     color: #ffffff;
     border: none;
     border-radius: 4px;
     padding: 8px 16px;
-    font-size: 14px;
+    font-size: @fontSize;
 }
 #secondaryButton:hover {
-    background: #6d6f78;
+    background: @buttonHover;
 }
 #dangerButton {
     background: transparent;
-    color: #f23f43;
+    color: @danger;
     border: none;
     border-radius: 4px;
     padding: 8px;
     text-align: left;
-    font-size: 15px;
+    font-size: @fontSizeMd;
 }
 #dangerButton:hover {
-    background: #35373c;
+    background: @hover;
 }
 
 #brandButton {
-    background: #5865f2;
+    background: @accent;
     color: #ffffff;
     border: none;
     border-radius: 4px;
     padding: 10px 16px;
-    font-size: 15px;
+    font-size: @fontSizeMd;
     font-weight: 600;
 }
 #brandButton:hover {
-    background: #4752c4;
+    background: @accentHover;
 }
 #brandButton:disabled {
-    background: #3c4270;
-    color: #b5bac1;
+    background: @accentMuted;
+    color: @textDim;
 }
 #linkButton {
     background: transparent;
-    color: #00a8fc;
+    color: @link;
     border: none;
     padding: 0;
-    font-size: 14px;
+    font-size: @fontSize;
     text-align: left;
 }
 #linkButton:hover {
@@ -375,57 +375,57 @@ QCheckBox {
 
 /* Login */
 #tokenInput {
-    background: #1e1f22;
-    color: #dbdee1;
+    background: @surface;
+    color: @text;
     border: none;
     border-radius: 4px;
     padding: 10px;
-    font-size: 15px;
+    font-size: @fontSizeMd;
 }
 #tokenError {
     color: #fa777c;
-    font-size: 13px;
+    font-size: @fontSizeHint;
 }
 #loginWindow {
-    background: #1e1f22;
+    background: @surface;
 }
 #loginCard {
-    background: #313338;
+    background: @bg2;
     border-radius: 8px;
 }
 #loginTitle {
-    color: #f2f3f5;
-    font-size: 24px;
+    color: @textBright;
+    font-size: @fontSizeHero;
     font-weight: 600;
 }
 #loginSubtitle {
-    color: #b5bac1;
-    font-size: 16px;
+    color: @textDim;
+    font-size: @fontSizeLg;
 }
 #loginSteps {
-    color: #dbdee1;
-    font-size: 15px;
+    color: @text;
+    font-size: @fontSizeMd;
 }
 #loginWarning {
-    color: #949ba4;
-    font-size: 12px;
+    color: @textMuted;
+    font-size: @fontSizeSm;
 }
 #qrTitle {
-    color: #f2f3f5;
-    font-size: 24px;
+    color: @textBright;
+    font-size: @fontSizeHero;
     font-weight: 600;
 }
 #qrHint {
-    color: #b5bac1;
-    font-size: 15px;
+    color: @textDim;
+    font-size: @fontSizeMd;
 }
 
 /* Settings */
 #settingsSide {
-    background: #2b2d31;
+    background: @bg1;
 }
 #settingsContent {
-    background: #313338;
+    background: @bg2;
 }
 #settingsNavigation {
     background: transparent;
@@ -433,59 +433,85 @@ QCheckBox {
     outline: 0;
 }
 #settingsNavigation::item {
-    color: #b5bac1;
+    color: @textDim;
     padding: 6px 10px;
     border-radius: 4px;
     margin: 1px 0;
 }
 #settingsNavigation::item:hover {
-    background: #35373c;
-    color: #dbdee1;
+    background: @hover;
+    color: @text;
 }
 #settingsNavigation::item:selected {
-    background: #404249;
+    background: @selected;
     color: #ffffff;
 }
 #settingsTitle {
-    color: #f2f3f5;
-    font-size: 20px;
+    color: @textBright;
+    font-size: @fontSizeTitle;
     font-weight: 600;
 }
 #settingsSection {
-    color: #b5bac1;
-    font-size: 12px;
+    color: @textDim;
+    font-size: @fontSizeSm;
     font-weight: 700;
 }
 #settingsHint {
-    color: #949ba4;
-    font-size: 13px;
+    color: @textMuted;
+    font-size: @fontSizeHint;
 }
+#colorSwatch {
+    /* Fill is painted by ColorSwatch; only keep the hit-target size here. */
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+#colorSwatch:hover {
+    background: transparent;
+}
+#presetCard {
+    background: @bg1;
+    border: 2px solid @border;
+    border-radius: 8px;
+    padding: 10px;
+}
+#presetCard[selected="true"] {
+    border-color: @accent;
+}
+#presetCard:hover {
+    border-color: @textMuted;
+}
+
 QComboBox {
-    background: #1e1f22;
-    color: #dbdee1;
+    background: @surface;
+    color: @text;
     border: none;
     border-radius: 4px;
     padding: 8px 10px;
     min-height: 20px;
 }
 QComboBox QAbstractItemView {
-    background: #2b2d31;
-    color: #dbdee1;
-    border: 1px solid #1e1f22;
-    selection-background-color: #404249;
+    background: @bg1;
+    color: @text;
+    border: 1px solid @surface;
+    selection-background-color: @selected;
 }
 QRadioButton {
-    color: #dbdee1;
+    color: @text;
     spacing: 10px;
     padding: 4px 0;
 }
 QSlider::groove:horizontal {
     height: 8px;
-    background: #4e5058;
+    background: @button;
     border-radius: 4px;
 }
 QSlider::sub-page:horizontal {
-    background: #5865f2;
+    background: @accent;
     border-radius: 4px;
 }
 QSlider::handle:horizontal {
@@ -496,10 +522,10 @@ QSlider::handle:horizontal {
     border-radius: 3px;
 }
 QMessageBox {
-    background: #313338;
+    background: @bg2;
 }
 QMessageBox QPushButton {
-    background: #5865f2;
+    background: @accent;
     color: #ffffff;
     border: none;
     border-radius: 3px;
@@ -507,5 +533,5 @@ QMessageBox QPushButton {
     min-width: 60px;
 }
 QMessageBox QPushButton:hover {
-    background: #4752c4;
+    background: @accentHover;
 }
