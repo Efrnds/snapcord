@@ -43,6 +43,8 @@ Get the latest version from the [Releases page](https://github.com/pedrordgsr/sn
 | Windows 10/11 | `Snapcord-…-windows-x64-setup.exe` | Installer. Or use the portable `…-windows-x64.zip`. |
 | macOS 12+ (Apple Silicon) | `Snapcord-…-macos-arm64.dmg` | Drag Snapcord to Applications. |
 | Linux | `Snapcord-…-linux-x86_64.AppImage` | Make it executable and run it. |
+| Linux (Debian/Ubuntu) | `Snapcord-…-linux-amd64.deb` | `sudo dpkg -i Snapcord-…deb` |
+| Linux (Arch) | AUR `snapcord-bin` | After the AUR package is published: `yay -S snapcord-bin` |
 | Linux | `Snapcord-…-linux-x86_64.flatpak` | `flatpak install --user Snapcord-…flatpak` |
 
 The builds are not signed with paid certificates yet, so the system may warn you the first time:
@@ -52,6 +54,7 @@ The builds are not signed with paid certificates yet, so the system may warn you
   run `xattr -dr com.apple.quarantine /Applications/Snapcord.app` in Terminal.
 - **Linux (AppImage):** `chmod +x Snapcord-*.AppImage`, then run it. The login is stored in your keyring
   (GNOME Keyring, KDE Wallet…).
+- **Linux (.deb):** installs under `/opt/snapcord` with a `/usr/bin/Snapcord` launcher (Qt libraries bundled).
 
 ## Building
 
@@ -71,8 +74,10 @@ cmake --build --preset release
 - **macOS:** also `brew install autoconf autoconf-archive automake libtool`.
 
 Packages are built by `packaging/<system>/package.*` and, for Flatpak, from
-`packaging/flatpak/io.github.pedrordgsr.Snapcord.yml`. Pushing a `v*` tag makes GitHub Actions build every
-package and prepare a draft release.
+`packaging/flatpak/io.github.pedrordgsr.Snapcord.yml`. On Linux, `packaging/linux/package.sh` builds the
+AppImage and `packaging/linux/package-deb.sh` builds the `.deb` (both reuse the same AppDir). The AUR
+binary package lives in `packaging/aur/snapcord-bin/` (maintainer updates `pkgver`/`sha256sums` per
+release). Pushing a `v*` tag makes GitHub Actions build every package and prepare a draft release.
 
 ## Translations
 

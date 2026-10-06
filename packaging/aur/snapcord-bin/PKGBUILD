@@ -1,0 +1,64 @@
+# Maintainer: Snapcord contributors
+# Binary package: downloads the official AppImage from GitHub Releases.
+#
+# After each upstream release, update pkgver and sha256sums:
+#   1. Set pkgver to the release version (without the leading v).
+#   2. Download Snapcord-$pkgver-linux-x86_64.AppImage from the release.
+#   3. Run: sha256sum Snapcord-$pkgver-linux-x86_64.AppImage
+#   4. Put that hash in sha256sums (first entry). Desktop/icon hashes stay unless those files change.
+#   5. Regenerate .SRCINFO: makepkg --printsrcinfo > .SRCINFO
+#   6. Commit and push to the AUR package repo (aur.archlinux.org/snapcord-bin.git).
+
+pkgname=snapcord-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Lightweight, voice-focused Discord client (prebuilt AppImage)'
+arch=('x86_64')
+url='https://github.com/pedrordgsr/snapcord'
+license=('GPL-3.0-or-later')
+depends=('fuse2' 'libsecret' 'hicolor-icon-theme')
+provides=('snapcord')
+conflicts=('snapcord')
+options=('!strip')
+source=(
+  "Snapcord-${pkgver}-linux-x86_64.AppImage::https://github.com/pedrordgsr/snapcord/releases/download/v${pkgver}/Snapcord-${pkgver}-linux-x86_64.AppImage"
+  'io.github.pedrordgsr.Snapcord.desktop'
+  'io.github.pedrordgsr.Snapcord-16.png'
+  'io.github.pedrordgsr.Snapcord-32.png'
+  'io.github.pedrordgsr.Snapcord-48.png'
+  'io.github.pedrordgsr.Snapcord-64.png'
+  'io.github.pedrordgsr.Snapcord-128.png'
+  'io.github.pedrordgsr.Snapcord-256.png'
+  'io.github.pedrordgsr.Snapcord-512.png'
+)
+# AppImage checksum must be filled in when the v$pkgver release is published.
+# Until then SKIP lets maintainers test packaging of the desktop/icon files locally.
+sha256sums=(
+  'SKIP'
+  'e46fe8c9a086b22c8093182d58f41101255d4d9314f34719d4f6bd53b922079b'
+  'd3d1914881d12ce0ec5b7619da1f061b21f65c2626d8e5218069c759780a63ed'
+  'f129d476929423027a84018df1f6dd7f49f3dac2fba103d0bb7550bd21b2b8b8'
+  '826e47f61d5f2b89484746d50934c9db50e66c1e70a4eb219f79be61f922a2ae'
+  'c42cfaf1b8f25423188760046e1f656cbbd0e2093ff7090e0b0dfe51177ba0eb'
+  '16ccfecada3df95290f83e92e3998fa36a6e3c924fc2a19f06820640149304f0'
+  'b36c65d433198b3669090ef0de70686c316be230aa870dad0b0420c8623fd3fa'
+  '06aee7d5dac8e1fc02028cb24721b80c68dd2b45477268a752bfb6dfda67940c'
+)
+
+package() {
+  install -Dm755 "Snapcord-${pkgver}-linux-x86_64.AppImage" \
+    "${pkgdir}/opt/snapcord/Snapcord.AppImage"
+
+  install -Dm755 /dev/stdin "${pkgdir}/usr/bin/Snapcord" <<'EOF'
+#!/bin/sh
+exec /opt/snapcord/Snapcord.AppImage "$@"
+EOF
+
+  install -Dm644 io.github.pedrordgsr.Snapcord.desktop \
+    "${pkgdir}/usr/share/applications/io.github.pedrordgsr.Snapcord.desktop"
+
+  for size in 16 32 48 64 128 256 512; do
+    install -Dm644 "io.github.pedrordgsr.Snapcord-${size}.png" \
+      "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/io.github.pedrordgsr.Snapcord.png"
+  done
+}
