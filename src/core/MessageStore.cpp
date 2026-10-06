@@ -105,6 +105,16 @@ void MessageStore::loadOlder(const QString& channelId)
                 });
 }
 
+void MessageStore::preload(const QString& channelId, const QList<Message>& messages)
+{
+    Channel& channel = m_channels[channelId];
+    channel.messages = messages;
+    channel.loading = false;
+    channel.hasOlder = false;
+    channel.lastUsed = ++m_useCounter;
+    emit reset(channelId);
+}
+
 bool MessageStore::isLoading(const QString& channelId) const
 {
     const auto it = m_channels.constFind(channelId);

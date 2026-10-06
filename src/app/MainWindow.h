@@ -22,6 +22,9 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(Session* session, VoiceController* voice, QWidget* parent = nullptr);
 
+    // An empty guildId opens a direct message.
+    void showChannel(const QString& guildId, const QString& channelId);
+
 signals:
     void logoutRequested();
 

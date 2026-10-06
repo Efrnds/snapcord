@@ -19,6 +19,21 @@ QString cacheKey(const QUrl& url, const QSize& bounds)
     return url.toString() + QStringLiteral("#%1x%2").arg(bounds.width()).arg(bounds.height());
 }
 
+ImageCache::OfflineSource& offlineSource()
+{
+    static ImageCache::OfflineSource source;
+    return source;
+}
+
+QImage fitImage(QImage image, const QSize& bounds, bool square)
+{
+    if (square)
+        image = image.scaled(bounds, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    else if (image.width() > bounds.width() || image.height() > bounds.height())
+        image = image.scaled(bounds, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    return image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+}
+
 } // namespace
 
 ImageCache::ImageCache(QObject* parent)
@@ -53,6 +68,16 @@ QImage ImageCache::fetch(const QUrl& url, const QSize& bounds, bool square)
     if (m_pending.contains(key))
         return {};
 
+    if (const OfflineSource& source = offlineSource()) {
+        const QImage image = source(url);
+        if (image.isNull())
+            return {};
+        auto* fitted = new QImage(fitImage(image, bounds, square));
+        const QImage result = *fitted;
+        m_images.insert(key, fitted, static_cast<int>(fitted->sizeInBytes()));
+        return result;
+    }
+
     m_pending.insert(key);
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
@@ -64,15 +89,16 @@ QImage ImageCache::fetch(const QUrl& url, const QSize& bounds, bool square)
         QImage image;
         if (reply->error() != QNetworkReply::NoError || !image.loadFromData(reply->readAll()))
             return;
-        if (square)
-            image = image.scaled(bounds, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-        else if (image.width() > bounds.width() || image.height() > bounds.height())
-            image = image.scaled(bounds, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        image = fitImage(image, bounds, square);
         m_images.insert(key, new QImage(image), static_cast<int>(image.sizeInBytes()));
         emit imageLoaded(url);
     });
     return {};
+}
+
+void ImageCache::setOfflineSource(OfflineSource source)
+{
+    offlineSource() = std::move(source);
 }
 
 QUrl ImageCache::avatarUrl(const User& user)

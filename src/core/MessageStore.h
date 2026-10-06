@@ -21,6 +21,8 @@ public:
     // Starts loading a channel's recent messages if they are not in memory yet.
     void open(const QString& channelId);
     void loadOlder(const QString& channelId);
+    // Puts a channel's complete history in memory without asking the server (demo mode).
+    void preload(const QString& channelId, const QList<Message>& messages);
     bool isLoading(const QString& channelId) const;
     bool hasOlder(const QString& channelId) const;
     const QList<Message>& messages(const QString& channelId) const;

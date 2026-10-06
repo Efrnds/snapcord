@@ -7,6 +7,8 @@
 #include <QSize>
 #include <QUrl>
 
+#include <functional>
+
 class QNetworkAccessManager;
 struct User;
 
@@ -23,6 +25,10 @@ public:
     QImage image(const QUrl& url);
     // Pictures shown at their own aspect ratio, scaled down to fit `bounds`.
     QImage image(const QUrl& url, const QSize& bounds);
+
+    // Demo mode: every image comes from this function instead of the network (a null image = no picture).
+    using OfflineSource = std::function<QImage(const QUrl&)>;
+    static void setOfflineSource(OfflineSource source);
 
     static QUrl avatarUrl(const User& user);
     static QUrl guildIconUrl(const QString& guildId, const QString& iconHash);

@@ -5,6 +5,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTimer>
 #include <QUrl>
 
 namespace {
@@ -46,6 +47,16 @@ void RestClient::deleteResource(const QString& path, Callback callback)
 
 void RestClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback)
 {
+    if (m_offline) {
+        QTimer::singleShot(0, this, [callback = std::move(callback)] {
+            Response response;
+            response.networkError = QStringLiteral("Offline");
+            if (callback)
+                callback(response);
+        });
+        return;
+    }
+
     QNetworkRequest request(QUrl(QLatin1String(ApiBase) + path));
     request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
     request.setRawHeader("X-Super-Properties", ClientProperties::superPropertiesHeader());

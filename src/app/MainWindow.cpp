@@ -178,6 +178,12 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     refreshUserPanel();
 }
 
+void MainWindow::showChannel(const QString& guildId, const QString& channelId)
+{
+    selectGuild(guildId);
+    openChannel(channelId);
+}
+
 void MainWindow::changeEvent(QEvent* event)
 {
     QMainWindow::changeEvent(event);

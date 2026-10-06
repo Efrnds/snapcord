@@ -33,6 +33,13 @@ void Session::start(const QString& token)
     m_gateway->start(token);
 }
 
+void Session::startOffline(const QList<std::pair<QString, QJsonObject>>& events)
+{
+    m_rest->setOffline(true);
+    for (const auto& [event, data] : events)
+        onDispatch(event, data);
+}
+
 void Session::stop()
 {
     m_gateway->stop();

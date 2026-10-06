@@ -11,7 +11,8 @@ QString string(const QJsonObject& json, QStringView key)
 
 QDateTime timestamp(const QJsonValue& value)
 {
-    return value.isString() ? QDateTime::fromString(value.toString(), Qt::ISODateWithMs) : QDateTime();
+    // Discord sends UTC ("+00:00"); messages are shown in the user's time zone.
+    return value.isString() ? QDateTime::fromString(value.toString(), Qt::ISODateWithMs).toLocalTime() : QDateTime();
 }
 
 Attachment attachmentFromJson(const QJsonObject& json)

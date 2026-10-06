@@ -352,6 +352,8 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   - Quando falha, o passo "Report errors" publica as linhas de erro como anotações, que são
     públicas. Assim dá para ler pela API sem login:
     `GET /repos/pedrordgsr/snapcord/check-runs/{job_id}/annotations`.
+- **Modo demonstração:** `Snapcord --demo` abre a interface real com dados inventados (`src/app/Demo.cpp`), sem
+  login e sem rede. `--demo --screenshots <pasta>` salva as capturas usadas no README (`docs/screenshots/`) e fecha.
 - **Verificado localmente:**
   - O `.zip` do Windows tem 15 MB, roda sem o Qt instalado e ocupa ~34 MB de RAM em Release.
   - Linux, macOS e Flatpak só podem ser verificados pelo CI.

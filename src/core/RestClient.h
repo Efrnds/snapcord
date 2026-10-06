@@ -29,6 +29,8 @@ public:
     explicit RestClient(QObject* parent = nullptr);
 
     void setToken(const QString& token) { m_token = token; }
+    // An offline client fails every request right away, without touching the network (demo mode).
+    void setOffline(bool offline) { m_offline = offline; }
 
     void get(const QString& path, Callback callback);
     void post(const QString& path, const QJsonDocument& body, Callback callback);
@@ -41,4 +43,5 @@ private:
 
     QNetworkAccessManager* m_network;
     QString m_token;
+    bool m_offline = false;
 };

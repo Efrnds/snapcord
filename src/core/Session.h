@@ -22,6 +22,8 @@ public:
     explicit Session(QObject* parent = nullptr);
 
     void start(const QString& token);
+    // Demo mode: never connects; the state comes from these Gateway events (name, payload) instead.
+    void startOffline(const QList<std::pair<QString, QJsonObject>>& events);
     void stop();
 
     QString token() const { return m_token; }

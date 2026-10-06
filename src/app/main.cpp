@@ -1,4 +1,5 @@
 #include "AppController.h"
+#include "Demo.h"
 #include "Language.h"
 #include "core/Log.h"
 
@@ -6,6 +7,7 @@
 #include <QFile>
 #include <QFont>
 #include <QIcon>
+#include <QLocale>
 #include <QPalette>
 
 namespace {
@@ -38,6 +40,14 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("Snapcord"));
     QApplication::setOrganizationName(QStringLiteral("Snapcord"));
     QApplication::setApplicationVersion(QStringLiteral(SNAPCORD_VERSION));
+
+    // Demo mode keeps its settings, logs and cache apart from the real ones.
+    const QStringList arguments = QApplication::arguments();
+    const bool demo = arguments.contains(QStringLiteral("--demo"));
+    const qsizetype screenshotsIndex = arguments.indexOf(QStringLiteral("--screenshots"));
+    const QString screenshotFolder = screenshotsIndex >= 0 ? arguments.value(screenshotsIndex + 1) : QString();
+    if (demo)
+        QApplication::setApplicationName(QStringLiteral("Snapcord Demo"));
     // Matches the .desktop file, so Linux desktops (Wayland especially) show the right icon in the taskbar.
     QGuiApplication::setDesktopFileName(QStringLiteral("io.github.pedrordgsr.Snapcord"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/snapcord.svg")));
@@ -56,6 +66,14 @@ int main(int argc, char* argv[])
     QFile theme(QStringLiteral(":/theme/dark.qss"));
     if (theme.open(QIODevice::ReadOnly))
         app.setStyleSheet(QString::fromUtf8(theme.readAll()));
+
+    if (demo) {
+        // Dates and times in English too, so screenshots look the same on every machine.
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        DemoController controller;
+        controller.start(screenshotFolder);
+        return app.exec();
+    }
 
     AppController controller;
     controller.start();

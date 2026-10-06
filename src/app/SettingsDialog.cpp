@@ -288,6 +288,12 @@ QWidget* SettingsDialog::buildVoicePage()
         m_outputDevice->addItem(name, name);
     m_outputDevice->setCurrentIndex(qMax(0, m_outputDevice->findData(m_settings.outputDevice)));
 
+    // Device names can be very long; without this the page grows wider than the window.
+    for (QComboBox* combo : {m_inputDevice, m_outputDevice}) {
+        combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+        combo->setMinimumContentsLength(12);
+    }
+
     m_inputVolume = volumeSlider(m_settings.inputVolume);
     m_outputVolume = volumeSlider(m_settings.outputVolume);
 
@@ -432,6 +438,7 @@ QWidget* SettingsDialog::buildVoicePage()
     scroll->setWidget(content);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     return scroll;
 }
 

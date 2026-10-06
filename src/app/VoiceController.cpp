@@ -108,6 +108,21 @@ void VoiceController::startCall(const QString& channelId)
     m_ringWhenJoined = !callRunning;
 }
 
+void VoiceController::showDemoCall(const QString& guildId, const QString& channelId, const QStringList& speaking,
+                                   const QList<int>& pingHistory)
+{
+    m_demoCall = true;
+    m_guildId = guildId;
+    m_channelId = channelId;
+    m_pingHistory = pingHistory;
+    m_speaking = QSet<QString>(speaking.cbegin(), speaking.cend());
+    emit channelChanged();
+    for (const QString& userId : speaking)
+        emit speakingChanged(userId, true);
+    if (!pingHistory.isEmpty())
+        emit pingChanged(pingHistory.last());
+}
+
 void VoiceController::leave()
 {
     if (m_channelId.isEmpty())
@@ -129,6 +144,8 @@ void VoiceController::resetChannel()
     m_ringWhenJoined = false;
     m_participants.clear();
     m_participantsKnown = false;
+    m_demoCall = false;
+    m_speaking.clear();
 }
 
 void VoiceController::toggleMute()

@@ -28,7 +28,10 @@ public:
 
     QString guildId() const { return m_guildId; }
     QString channelId() const { return m_channelId; }
-    VoiceConnection::State state() const { return m_connection->state(); }
+    VoiceConnection::State state() const { return m_demoCall ? VoiceConnection::State::Connected : m_connection->state(); }
+    // Demo mode: shows a connected call with these users speaking, without any audio or network.
+    void showDemoCall(const QString& guildId, const QString& channelId, const QStringList& speaking,
+                      const QList<int>& pingHistory);
     VoiceConnection* connection() const { return m_connection; }
     SoundEffects* sounds() const { return m_sounds; }
 
@@ -81,4 +84,5 @@ private:
     QSet<QString> m_participants; // other users in our channel, to play join/leave sounds
     bool m_participantsKnown = false;
     QList<int> m_pingHistory;
+    bool m_demoCall = false;
 };

@@ -5,6 +5,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     ChannelSidebar.cpp ChannelSidebar.h
     ChatView.cpp ChatView.h
     ConnectionInfoPopup.cpp ConnectionInfoPopup.h
+    Demo.cpp Demo.h
     EmojiPicker.cpp EmojiPicker.h
     ImageCache.cpp ImageCache.h
     IncomingCallWindow.cpp IncomingCallWindow.h
