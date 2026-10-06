@@ -160,19 +160,16 @@ jobs:
 
   release:
     name: release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Runs even if other platforms failed: for now only the Windows packages are released.
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
     needs: [build, flatpak]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
+          name: snapcord-windows
           path: artifacts
-          merge-multiple: true
-      - name: Name the Flatpak bundle after the version
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          find artifacts -name '*.flatpak' -exec mv {} "artifacts/Snapcord-$version-linux-x86_64.flatpak" \;
-          ls -la artifacts
+      - run: ls -la artifacts
       # A draft: the release is published by hand after a final check.
       - uses: softprops/action-gh-release@v2
         with:
