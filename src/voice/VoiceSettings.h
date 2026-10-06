@@ -15,6 +15,11 @@ struct VoiceSettings
     int pushToTalkReleaseMs = 200;        // keeps transmitting briefly after the key is released
     float inputVolume = 1.0f;             // 0..2
     float outputVolume = 1.0f;            // 0..2
+    bool automaticSensitivity = true;     // voice detection decides instead of the dB threshold
+    bool noiseSuppression = true;
+    bool echoCancellation = false;
+    bool automaticGainControl = false;
+    bool soundEffects = true;
 
     static VoiceSettings load();
     void save() const;

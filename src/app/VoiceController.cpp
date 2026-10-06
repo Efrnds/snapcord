@@ -4,10 +4,17 @@
 
 #include <QSettings>
 
+namespace {
+
+constexpr int PingHistorySize = 60;
+
+} // namespace
+
 VoiceController::VoiceController(Session* session, QObject* parent)
     : QObject(parent)
     , m_session(session)
     , m_connection(new VoiceConnection(this))
+    , m_sounds(new SoundEffects(this))
 {
     // Discord remembers mute/deafen across restarts; so does Snapcord.
     QSettings settings;
@@ -16,6 +23,11 @@ VoiceController::VoiceController(Session* session, QObject* parent)
     m_connection->setSelfMuted(m_selfMuted);
     m_connection->setSelfDeafened(m_selfDeafened);
 
+    const VoiceSettings voiceSettings = VoiceSettings::load();
+    m_sounds->setEnabled(voiceSettings.soundEffects);
+    m_sounds->setOutputDevice(voiceSettings.outputDevice);
+    m_sounds->setVolume(voiceSettings.outputVolume);
+
     connect(m_session, &Session::ownVoiceStateChanged, this, &VoiceController::onOwnVoiceState);
     connect(m_session, &Session::voiceServerUpdated, this, &VoiceController::onVoiceServer);
     connect(m_session, &Session::connectionStateChanged, this, [this](bool connected) {
@@ -23,9 +35,28 @@ VoiceController::VoiceController(Session* session, QObject* parent)
         if (connected && !m_channelId.isEmpty())
             sendVoiceState();
     });
+    connect(m_session, &Session::voiceStatesChanged, this, [this](const QString& guildId) {
+        if (!m_guildId.isEmpty() && guildId == m_guildId)
+            updateParticipants();
+    });
+    connect(m_session, &Session::callChanged, this, [this](const QString& channelId) {
+        if (m_guildId.isEmpty() && channelId == m_channelId)
+            updateParticipants();
+    });
 
-    connect(m_connection, &VoiceConnection::stateChanged, this, &VoiceController::stateChanged);
-    connect(m_connection, &VoiceConnection::pingChanged, this, &VoiceController::pingChanged);
+    connect(m_connection, &VoiceConnection::stateChanged, this, [this](VoiceConnection::State state) {
+        if (state == VoiceConnection::State::Connected) {
+            m_sounds->play(SoundEffects::Sound::Join);
+            updateParticipants();
+        }
+        emit stateChanged(state);
+    });
+    connect(m_connection, &VoiceConnection::pingChanged, this, [this](int milliseconds) {
+        m_pingHistory.append(milliseconds);
+        if (m_pingHistory.size() > PingHistorySize)
+            m_pingHistory.removeFirst();
+        emit pingChanged(milliseconds);
+    });
     connect(m_connection, &VoiceConnection::speakingChanged, this, [this](const QString& userId, bool speaking) {
         if (speaking)
             m_speaking.insert(userId);
@@ -44,15 +75,15 @@ VoiceController::VoiceController(Session* session, QObject* parent)
 VoiceController::~VoiceController()
 {
     if (!m_channelId.isEmpty())
-        m_session->updateVoiceState(QString(), QString(), m_selfMuted, m_selfDeafened);
+        m_session->updateVoiceState(m_guildId, QString(), m_selfMuted, m_selfDeafened);
 }
 
 void VoiceController::join(const QString& guildId, const QString& channelId)
 {
     if (guildId == m_guildId && channelId == m_channelId)
         return;
-    if (!m_guildId.isEmpty() && guildId != m_guildId) {
-        // Moving to another guild: leave the current call first.
+    if (!m_channelId.isEmpty() && (guildId != m_guildId || guildId.isEmpty())) {
+        // Moving to another guild or call means another voice server: drop the current connection first.
         m_connection->disconnect();
     }
     m_guildId = guildId;
@@ -60,8 +91,21 @@ void VoiceController::join(const QString& guildId, const QString& channelId)
     m_endpoint.clear();
     m_voiceToken.clear();
     m_haveVoiceState = false;
+    m_ringWhenJoined = false;
+    m_participants.clear();
+    m_participantsKnown = false;
+    m_pingHistory.clear();
     sendVoiceState();
     emit channelChanged();
+}
+
+void VoiceController::startCall(const QString& channelId)
+{
+    const Call* call = m_session->call(channelId);
+    const bool callRunning = call && !call->voiceStates.isEmpty();
+    join(QString(), channelId);
+    // Discord creates the call when the first person joins; the caller then rings everyone else.
+    m_ringWhenJoined = !callRunning;
 }
 
 void VoiceController::leave()
@@ -69,13 +113,22 @@ void VoiceController::leave()
     if (m_channelId.isEmpty())
         return;
     m_connection->disconnect();
-    m_session->updateVoiceState(QString(), QString(), m_selfMuted, m_selfDeafened);
+    m_session->updateVoiceState(m_guildId, QString(), m_selfMuted, m_selfDeafened);
+    m_sounds->play(SoundEffects::Sound::Leave);
+    resetChannel();
+    emit channelChanged();
+}
+
+void VoiceController::resetChannel()
+{
     m_guildId.clear();
     m_channelId.clear();
     m_endpoint.clear();
     m_voiceToken.clear();
     m_haveVoiceState = false;
-    emit channelChanged();
+    m_ringWhenJoined = false;
+    m_participants.clear();
+    m_participantsKnown = false;
 }
 
 void VoiceController::toggleMute()
@@ -98,6 +151,11 @@ void VoiceController::toggleDeafen()
 
 void VoiceController::setSelfState(bool muted, bool deafened)
 {
+    if (deafened != m_selfDeafened)
+        m_sounds->play(deafened ? SoundEffects::Sound::Deafen : SoundEffects::Sound::Undeafen);
+    else if (muted != m_selfMuted)
+        m_sounds->play(muted ? SoundEffects::Sound::Mute : SoundEffects::Sound::Unmute);
+
     m_selfMuted = muted;
     m_selfDeafened = deafened;
     m_connection->setSelfMuted(muted);
@@ -125,11 +183,34 @@ void VoiceController::applySettings(const VoiceSettings& settings)
 {
     settings.save();
     m_connection->applySettings(settings);
+    m_sounds->setEnabled(settings.soundEffects);
+    m_sounds->setOutputDevice(settings.outputDevice);
+    m_sounds->setVolume(settings.outputVolume);
 }
 
 void VoiceController::sendVoiceState()
 {
     m_session->updateVoiceState(m_guildId, m_channelId, m_selfMuted, m_selfDeafened);
+}
+
+void VoiceController::updateParticipants()
+{
+    if (m_channelId.isEmpty() || m_connection->state() != VoiceConnection::State::Connected)
+        return;
+    QSet<QString> current;
+    for (const VoiceState& state : m_session->voiceStatesInChannel(m_guildId, m_channelId)) {
+        if (state.userId != m_session->self().id)
+            current.insert(state.userId);
+    }
+    // The first snapshot after connecting is just who was already there: no sound for it.
+    if (m_participantsKnown) {
+        if (!(current - m_participants).isEmpty())
+            m_sounds->play(SoundEffects::Sound::UserJoin);
+        else if (!(m_participants - current).isEmpty())
+            m_sounds->play(SoundEffects::Sound::UserLeave);
+    }
+    m_participants = current;
+    m_participantsKnown = true;
 }
 
 void VoiceController::onOwnVoiceState(const VoiceState& state)
@@ -139,24 +220,34 @@ void VoiceController::onOwnVoiceState(const VoiceState& state)
     if (state.channelId.isEmpty()) {
         // Disconnected by someone else (kicked, or the channel was deleted).
         m_connection->disconnect();
-        m_guildId.clear();
-        m_channelId.clear();
-        m_haveVoiceState = false;
+        m_sounds->play(SoundEffects::Sound::Leave);
+        resetChannel();
         emit channelChanged();
         return;
     }
     if (state.channelId != m_channelId) {
         // Moved to another channel by a moderator; a new voice server update follows.
         m_channelId = state.channelId;
+        m_participants.clear();
+    m_participantsKnown = false;
         emit channelChanged();
+    }
+    if (m_ringWhenJoined && m_guildId.isEmpty()) {
+        m_ringWhenJoined = false;
+        m_session->ringCall(m_channelId);
     }
     m_haveVoiceState = true;
     maybeConnect();
 }
 
-void VoiceController::onVoiceServer(const QString& guildId, const QString& endpoint, const QString& token)
+void VoiceController::onVoiceServer(const QString& guildId, const QString& channelId, const QString& endpoint,
+                                    const QString& token)
 {
-    if (guildId != m_guildId || m_channelId.isEmpty())
+    if (m_channelId.isEmpty())
+        return;
+    // Guild voice servers are identified by guild; private calls by their channel.
+    const bool ours = m_guildId.isEmpty() ? channelId == m_channelId : guildId == m_guildId;
+    if (!ours)
         return;
     m_endpoint = endpoint;
     m_voiceToken = token;
@@ -171,7 +262,7 @@ void VoiceController::maybeConnect()
 
     VoiceGateway::Credentials credentials;
     credentials.endpoint = m_endpoint;
-    credentials.serverId = m_guildId;
+    credentials.serverId = m_guildId.isEmpty() ? m_channelId : m_guildId;
     credentials.userId = m_session->self().id;
     credentials.sessionId = m_session->sessionId();
     credentials.token = m_voiceToken;

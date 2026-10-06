@@ -76,6 +76,22 @@ VoiceState VoiceState::fromJson(const QJsonObject& json, const QString& guildId)
     return state;
 }
 
+PrivateChannel PrivateChannel::fromJson(const QJsonObject& json)
+{
+    PrivateChannel channel;
+    channel.id = string(json, u"id");
+    channel.type = static_cast<ChannelType>(json.value(u"type").toInt());
+    channel.name = string(json, u"name");
+    channel.icon = string(json, u"icon");
+    channel.lastMessageId = string(json, u"last_message_id");
+    // Full user objects normally; only IDs when the READY payload is deduplicated.
+    for (const QJsonValue& recipient : json.value(u"recipients").toArray())
+        channel.recipientIds.append(string(recipient.toObject(), u"id"));
+    for (const QJsonValue& id : json.value(u"recipient_ids").toArray())
+        channel.recipientIds.append(id.toString());
+    return channel;
+}
+
 bool snowflakeLess(const QString& a, const QString& b)
 {
     if (a.size() != b.size())

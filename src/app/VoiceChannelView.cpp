@@ -143,6 +143,11 @@ void VoiceChannelView::setChannelName(const QString& name)
     m_title->setText(name);
 }
 
+void VoiceChannelView::setJoinText(const QString& text)
+{
+    m_joinButton->setText(text);
+}
+
 void VoiceChannelView::setParticipants(const QList<ParticipantTile::Participant>& participants)
 {
     // Reuse tiles where possible; a voice channel rarely has more than a handful of people.

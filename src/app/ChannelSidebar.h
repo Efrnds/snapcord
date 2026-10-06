@@ -17,7 +17,7 @@ class ChannelSidebar : public QWidget
     Q_OBJECT
 
 public:
-    enum class ItemKind { Category, TextChannel, VoiceChannel, VoiceMember };
+    enum class ItemKind { Category, TextChannel, VoiceChannel, VoiceMember, DirectMessage };
 
     struct Member
     {
@@ -37,7 +37,9 @@ public:
     void beginRebuild();
     void addCategory(const QString& id, const QString& name);
     void addChannel(const QString& id, const QString& name, ItemKind kind);
-    void addVoiceMember(const Member& member); // listed under the last added voice channel
+    // A direct message or group DM; `inCall` shows the call indicator. Call members can be added under it.
+    void addDirectMessage(const QString& id, const QString& name, const QPixmap& avatar, bool inCall);
+    void addVoiceMember(const Member& member); // listed under the last added voice channel or DM
     void endRebuild();
 
     void setSelectedChannel(const QString& channelId);

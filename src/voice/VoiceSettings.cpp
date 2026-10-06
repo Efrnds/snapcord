@@ -17,6 +17,11 @@ VoiceSettings VoiceSettings::load()
     result.pushToTalkReleaseMs = settings.value(QStringLiteral("pushToTalkReleaseMs"), 200).toInt();
     result.inputVolume = settings.value(QStringLiteral("inputVolume"), 1.0).toFloat();
     result.outputVolume = settings.value(QStringLiteral("outputVolume"), 1.0).toFloat();
+    result.automaticSensitivity = settings.value(QStringLiteral("automaticSensitivity"), true).toBool();
+    result.noiseSuppression = settings.value(QStringLiteral("noiseSuppression"), true).toBool();
+    result.echoCancellation = settings.value(QStringLiteral("echoCancellation"), false).toBool();
+    result.automaticGainControl = settings.value(QStringLiteral("automaticGainControl"), false).toBool();
+    result.soundEffects = settings.value(QStringLiteral("soundEffects"), true).toBool();
     return result;
 }
 
@@ -33,6 +38,11 @@ void VoiceSettings::save() const
     settings.setValue(QStringLiteral("pushToTalkReleaseMs"), pushToTalkReleaseMs);
     settings.setValue(QStringLiteral("inputVolume"), inputVolume);
     settings.setValue(QStringLiteral("outputVolume"), outputVolume);
+    settings.setValue(QStringLiteral("automaticSensitivity"), automaticSensitivity);
+    settings.setValue(QStringLiteral("noiseSuppression"), noiseSuppression);
+    settings.setValue(QStringLiteral("echoCancellation"), echoCancellation);
+    settings.setValue(QStringLiteral("automaticGainControl"), automaticGainControl);
+    settings.setValue(QStringLiteral("soundEffects"), soundEffects);
 }
 
 float VoiceSettings::userVolume(const QString& userId)

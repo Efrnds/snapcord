@@ -9,6 +9,7 @@
 #include <QTimer>
 
 class Gateway;
+class RestClient;
 
 // Logged-in account state built from Gateway events: the user, their guilds, channels and voice states.
 class Session : public QObject
@@ -35,7 +36,18 @@ public:
 
     User user(const QString& id) const;
 
-    // Voice state of this client (opcode 4). An empty channelId disconnects from voice.
+    // Direct messages and group DMs, most recently active first.
+    QList<PrivateChannel> privateChannels() const;
+    const PrivateChannel* privateChannel(const QString& id) const;
+    QString privateChannelName(const PrivateChannel& channel) const;
+    const Call* call(const QString& channelId) const;
+    bool isRingingSelf(const QString& channelId) const;
+    // Rings the other recipients of a private channel's call / stops ringing this user.
+    void ringCall(const QString& channelId);
+    void declineCall(const QString& channelId);
+
+    // Voice state of this client (opcode 4). An empty channelId disconnects from voice;
+    // an empty guildId targets a private channel call.
     void updateVoiceState(const QString& guildId, const QString& channelId, bool selfMute, bool selfDeaf);
 
 signals:
@@ -43,9 +55,13 @@ signals:
     void guildListChanged();
     void guildChanged(const QString& guildId);
     void voiceStatesChanged(const QString& guildId);
+    void privateChannelsChanged();
+    void callChanged(const QString& channelId);
     void usersChanged();
     void ownVoiceStateChanged(const VoiceState& state);
-    void voiceServerUpdated(const QString& guildId, const QString& endpoint, const QString& token);
+    // For private calls, guildId is empty and channelId identifies the call.
+    void voiceServerUpdated(const QString& guildId, const QString& channelId, const QString& endpoint,
+                            const QString& token);
     void connectionStateChanged(bool connected);
     void authenticationFailed();
 
@@ -54,11 +70,16 @@ private:
     void loadReady(const QJsonObject& data);
     void loadGuild(const QJsonObject& data);
     void applyVoiceState(const VoiceState& state);
+    void applyCallVoiceState(const VoiceState& state);
+    void loadCall(const QJsonObject& data);
     void storeUser(const QJsonObject& json);
     void storeMember(const QString& guildId, const QJsonObject& member);
     void requestMissingUsers();
 
     Gateway* m_gateway;
+    RestClient* m_rest;
+    QHash<QString, PrivateChannel> m_privateChannels;
+    QHash<QString, Call> m_calls; // by private channel ID
     QString m_token;
     User m_self;
     QHash<QString, Guild> m_guilds;

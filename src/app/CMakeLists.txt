@@ -3,7 +3,9 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     AppController.cpp AppController.h
     Avatar.cpp Avatar.h
     ChannelSidebar.cpp ChannelSidebar.h
+    ConnectionInfoPopup.cpp ConnectionInfoPopup.h
     ImageCache.cpp ImageCache.h
+    IncomingCallWindow.cpp IncomingCallWindow.h
     Language.cpp Language.h
     LoginWindow.cpp LoginWindow.h
     MainWindow.cpp MainWindow.h
@@ -32,6 +34,8 @@ qt_add_resources(snapcord "app_resources"
         "${resource_dir}/icons/headphones-off.svg"
         "${resource_dir}/icons/settings.svg"
         "${resource_dir}/icons/disconnect.svg"
+        "${resource_dir}/icons/call.svg"
+        "${resource_dir}/icons/speaker-active.svg"
 )
 
 # Interface translations. English is the source language; each .ts file adds another language.

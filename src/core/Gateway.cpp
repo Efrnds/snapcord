@@ -15,7 +15,8 @@ constexpr auto DefaultGatewayUrl = "wss://gateway.discord.gg";
 constexpr auto GatewayQuery = "/?encoding=json&v=9&compress=zlib-stream";
 
 // LAZY_USER_NOTES | NO_AFFINE_USER_IDS: skip data Snapcord does not use, keep the classic READY layout.
-constexpr int Capabilities = (1 << 0) | (1 << 1);
+// AUTO_CALL_CONNECT: receive CALL_CREATE for private calls that were already running when we connected.
+constexpr int Capabilities = (1 << 0) | (1 << 1) | (1 << 12);
 
 enum Opcode {
     Dispatch = 0,

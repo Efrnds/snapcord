@@ -3,13 +3,14 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPushButton>
 #include <QStyle>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 VoicePanel::VoicePanel(QWidget* parent)
     : QWidget(parent)
-    , m_status(new QLabel)
+    , m_status(new QPushButton)
     , m_location(new QLabel)
     , m_disconnect(new QToolButton)
 {
@@ -19,6 +20,9 @@ VoicePanel::VoicePanel(QWidget* parent)
     hide();
 
     m_status->setObjectName(QStringLiteral("voiceStatus"));
+    m_status->setCursor(Qt::PointingHandCursor);
+    m_status->setFlat(true);
+    connect(m_status, &QPushButton::clicked, this, &VoicePanel::detailsRequested);
     m_location->setObjectName(QStringLiteral("voiceLocation"));
 
     m_disconnect->setIcon(QIcon(QStringLiteral(":/icons/disconnect.svg")));
@@ -32,7 +36,7 @@ VoicePanel::VoicePanel(QWidget* parent)
     texts->setContentsMargins(0, 0, 0, 0);
     texts->setSpacing(0);
     texts->addStretch();
-    texts->addWidget(m_status);
+    texts->addWidget(m_status, 0, Qt::AlignLeft);
     texts->addWidget(m_location);
     texts->addStretch();
 
@@ -51,14 +55,14 @@ void VoicePanel::setStatus(Status status)
     m_status->style()->polish(m_status);
 }
 
-void VoicePanel::setLocation(const QString& channelName, const QString& guildName)
+void VoicePanel::setLocation(const QString& channelName, const QString& placeName)
 {
-    const QString text = channelName + QStringLiteral(" / ") + guildName;
+    const QString text = channelName + QStringLiteral(" / ") + placeName;
     m_location->setText(m_location->fontMetrics().elidedText(text, Qt::ElideRight, 170));
     m_location->setToolTip(text);
 }
 
 void VoicePanel::setPing(int milliseconds)
 {
-    m_status->setToolTip(tr("Ping: %1 ms").arg(milliseconds));
+    m_status->setToolTip(tr("Ping: %1 ms. Click for connection details.").arg(milliseconds));
 }

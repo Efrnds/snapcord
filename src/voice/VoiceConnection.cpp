@@ -23,6 +23,9 @@ constexpr uint8_t SilenceFrame[3] = {0xF8, 0xFF, 0xFE};
 constexpr int SilenceFramesAfterSpeech = 5;
 // Voice activity stays on for 300 ms after the level drops below the threshold.
 constexpr int VoiceHangoverFrames = 15;
+// Automatic input sensitivity: RNNoise voice probability needed to transmit, and a level floor.
+constexpr float VoiceProbabilityThreshold = 0.6f;
+constexpr float AutomaticSensitivityFloorDb = -60.0f;
 // A remote user counts as speaking for this long after their last audio packet.
 constexpr int64_t SpeakingTimeoutMs = 250;
 constexpr int64_t KeepAliveIntervalMs = 5000;
@@ -49,6 +52,8 @@ struct VoiceConnection::Stream
 
 VoiceConnection::VoiceConnection(QObject* parent)
     : QObject(parent)
+    , m_processChunk(AudioProcessor::FrameSize)
+    , m_echoChunk(AudioProcessor::FrameSize)
     , m_captureFrame(FrameSamples)
     , m_stereoFrame(StereoFrameSamples)
     , m_opusPacket(OpusFormat::MaxPacketSize)
@@ -141,6 +146,12 @@ void VoiceConnection::applySettings(const VoiceSettings& settings)
     m_pushToTalkReleaseMs.store(settings.pushToTalkReleaseMs);
     m_inputGain.store(settings.inputVolume);
     m_outputGain.store(settings.outputVolume);
+    m_automaticSensitivity.store(settings.automaticSensitivity);
+    m_noiseSuppression.store(settings.noiseSuppression);
+    m_echoCancellation.store(settings.echoCancellation);
+    m_automaticGainControl.store(settings.automaticGainControl);
+    // The processor is rebuilt on the capture thread, which owns it.
+    m_processorConfigVersion.fetch_add(1);
 
     const bool devicesChanged = settings.inputDevice != m_inputDevice || settings.outputDevice != m_outputDevice;
     m_inputDevice = settings.inputDevice;
@@ -213,6 +224,7 @@ void VoiceConnection::onSessionDescription(const QString& mode, const QByteArray
     std::array<uint8_t, 32> key;
     std::memcpy(key.data(), secretKey.constData(), key.size());
     m_cipher = std::make_unique<TransportCipher>(*cipherMode, key);
+    m_daveProtocolVersion = daveProtocolVersion;
     m_dave->start(daveProtocolVersion, m_ssrc);
 
     // At least one Speaking payload must be sent before any audio.
@@ -282,6 +294,10 @@ void VoiceConnection::startMedia()
 
     m_encoder = std::make_unique<OpusEncoderWrapper>();
     m_captureFill = 0;
+    m_processFill = 0;
+    m_frameVoiceProbability = -1.0f;
+    m_echoReference.clear();
+    m_inboundPacketLoss = 0.0;
     m_transmitting = false;
     m_voiceHangoverFrames = 0;
     m_silenceFramesToSend = 0;
@@ -343,6 +359,17 @@ void VoiceConnection::stopMedia()
     }
 }
 
+VoiceConnection::ConnectionInfo VoiceConnection::connectionInfo()
+{
+    ConnectionInfo info;
+    info.endpoint = m_credentials.endpoint;
+    info.encryptionMode = m_encryptionMode;
+    info.daveProtocolVersion = m_daveProtocolVersion;
+    info.endToEndEncrypted = m_dave && m_dave->isEncrypting();
+    info.inboundPacketLoss = m_inboundPacketLoss;
+    return info;
+}
+
 void VoiceConnection::updateSpeakingIndicators()
 {
     const int64_t now = nowMs();
@@ -373,6 +400,14 @@ void VoiceConnection::updateSpeakingIndicators()
         emit speakingChanged(m_credentials.userId, selfSpeaking);
     }
 
+    // Inbound packet loss, from how many frames playback had to conceal (every 2 seconds).
+    if (m_statisticsTicks % 20 == 0) {
+        const uint32_t played = m_playedFrames.exchange(0);
+        const uint32_t concealed = m_concealedFrames.exchange(0);
+        if (played + concealed > 0)
+            m_inboundPacketLoss = 100.0 * concealed / (played + concealed);
+    }
+
     // Every 10 seconds (100 ticks of 100 ms).
     if (++m_statisticsTicks >= 100) {
         m_statisticsTicks = 0;
@@ -389,27 +424,61 @@ void VoiceConnection::updateSpeakingIndicators()
 
 void VoiceConnection::captureSamples(const float* samples, int count)
 {
+    // The processor works on 10 ms chunks; two processed chunks make one 20 ms Opus frame.
     while (count > 0) {
-        const size_t chunk = std::min<size_t>(static_cast<size_t>(count), FrameSamples - m_captureFill);
-        std::copy(samples, samples + chunk, m_captureFrame.begin() + static_cast<ptrdiff_t>(m_captureFill));
-        m_captureFill += chunk;
+        const size_t chunk = std::min<size_t>(static_cast<size_t>(count), AudioProcessor::FrameSize - m_processFill);
+        std::copy(samples, samples + chunk, m_processChunk.begin() + static_cast<ptrdiff_t>(m_processFill));
+        m_processFill += chunk;
         samples += chunk;
         count -= static_cast<int>(chunk);
-        if (m_captureFill == FrameSamples) {
-            processCaptureFrame();
-            m_captureFill = 0;
+        if (m_processFill == AudioProcessor::FrameSize) {
+            processChunk();
+            m_processFill = 0;
         }
+    }
+}
+
+void VoiceConnection::processChunk()
+{
+    const int configVersion = m_processorConfigVersion.load(std::memory_order_relaxed);
+    if (configVersion != m_appliedProcessorConfig) {
+        m_appliedProcessorConfig = configVersion;
+        AudioProcessor::Options options;
+        options.noiseSuppression = m_noiseSuppression.load();
+        options.echoCancellation = m_echoCancellation.load();
+        options.automaticGainControl = m_automaticGainControl.load();
+        options.voiceDetection = m_automaticSensitivity.load();
+        if (!(options == m_processor.options()))
+            m_processor.configure(options);
+    }
+
+    const float gain = m_inputGain.load(std::memory_order_relaxed);
+    for (float& sample : m_processChunk)
+        sample *= gain;
+
+    const float* reference = nullptr;
+    if (m_processor.options().echoCancellation) {
+        m_echoReference.pop(m_echoChunk.data());
+        reference = m_echoChunk.data();
+    }
+    const float voice = m_processor.process(m_processChunk.data(), reference);
+    m_frameVoiceProbability = std::max(m_frameVoiceProbability, voice);
+
+    std::copy(m_processChunk.begin(), m_processChunk.end(),
+              m_captureFrame.begin() + static_cast<ptrdiff_t>(m_captureFill));
+    m_captureFill += m_processChunk.size();
+    if (m_captureFill == FrameSamples) {
+        processCaptureFrame();
+        m_captureFill = 0;
+        m_frameVoiceProbability = -1.0f;
     }
 }
 
 void VoiceConnection::processCaptureFrame()
 {
-    const float gain = m_inputGain.load(std::memory_order_relaxed);
     double energy = 0.0;
-    for (float& sample : m_captureFrame) {
-        sample *= gain;
+    for (const float sample : m_captureFrame)
         energy += double(sample) * sample;
-    }
     const double rms = std::sqrt(energy / FrameSamples);
     const float levelDb = rms > 1e-9 ? static_cast<float>(20.0 * std::log10(rms)) : -100.0f;
     m_inputLevelDb.store(levelDb, std::memory_order_relaxed);
@@ -423,7 +492,11 @@ void VoiceConnection::processCaptureFrame()
                 m_pushToTalkUntilMs = now + m_pushToTalkReleaseMs.load(std::memory_order_relaxed);
             transmit = now < m_pushToTalkUntilMs;
         } else {
-            if (levelDb >= m_thresholdDb.load(std::memory_order_relaxed))
+            // Automatic sensitivity trusts RNNoise's voice detection; the floor ignores near-silent frames.
+            const bool voiceDetected = m_automaticSensitivity.load(std::memory_order_relaxed) && m_frameVoiceProbability >= 0.0f
+                ? m_frameVoiceProbability >= VoiceProbabilityThreshold && levelDb > AutomaticSensitivityFloorDb
+                : levelDb >= m_thresholdDb.load(std::memory_order_relaxed);
+            if (voiceDetected)
                 m_voiceHangoverFrames = VoiceHangoverFrames;
             else if (m_voiceHangoverFrames > 0)
                 --m_voiceHangoverFrames;
@@ -491,6 +564,7 @@ void VoiceConnection::sendFrame(const uint8_t* opus, size_t size, bool endToEndE
 
 void VoiceConnection::renderPlayback(float* output, int frameCount)
 {
+    float* const start = output;
     size_t needed = static_cast<size_t>(frameCount) * OpusFormat::Channels;
     while (needed > 0) {
         if (m_mixReadOffset >= m_mixFrame.size()) {
@@ -503,6 +577,9 @@ void VoiceConnection::renderPlayback(float* output, int frameCount)
         m_mixReadOffset += chunk;
         needed -= chunk;
     }
+    // What the speakers play is the reference the echo canceller removes from the microphone.
+    if (m_echoCancellation.load(std::memory_order_relaxed))
+        m_echoReference.push(start, static_cast<size_t>(frameCount));
 }
 
 void VoiceConnection::mixNextFrame()
@@ -526,9 +603,11 @@ void VoiceConnection::mixNextFrame()
             samples = stream->decoder.decode(stream->packet.data(), static_cast<int>(stream->packet.size()),
                                              m_decodeFrame.data(), static_cast<int>(FrameSamples));
             stream->lastVoiceMs.store(now, std::memory_order_relaxed);
+            m_playedFrames.fetch_add(1, std::memory_order_relaxed);
             break;
         case JitterBuffer::Result::Lost:
             samples = stream->decoder.conceal(m_decodeFrame.data(), static_cast<int>(FrameSamples));
+            m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
             break;
         case JitterBuffer::Result::Idle:
             continue;

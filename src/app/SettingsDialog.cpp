@@ -6,6 +6,7 @@
 #include "voice/AudioEngine.h"
 
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QHBoxLayout>
@@ -34,6 +35,22 @@ QLabel* sectionLabel(const QString& text)
     auto* label = new QLabel(text.toUpper());
     label->setObjectName(QStringLiteral("settingsSection"));
     return label;
+}
+
+// A checkbox with a muted explanation underneath, like Discord's settings toggles.
+QWidget* option(QCheckBox* checkBox, const QString& hint)
+{
+    auto* widget = new QWidget;
+    auto* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 4);
+    layout->setSpacing(2);
+    layout->addWidget(checkBox);
+    auto* label = new QLabel(hint);
+    label->setObjectName(QStringLiteral("settingsHint"));
+    label->setWordWrap(true);
+    label->setContentsMargins(26, 0, 0, 0);
+    layout->addWidget(label);
+    return widget;
 }
 
 QSlider* volumeSlider(float value)
@@ -280,6 +297,17 @@ QWidget* SettingsDialog::buildVoicePage()
 
     m_meter = new LevelMeter;
     m_meter->setThreshold(m_settings.activationThresholdDb);
+    m_automaticSensitivity = new QCheckBox(tr("Automatically determine input sensitivity"));
+    m_automaticSensitivity->setChecked(m_settings.automaticSensitivity);
+
+    m_noiseSuppression = new QCheckBox(tr("Noise Suppression"));
+    m_noiseSuppression->setChecked(m_settings.noiseSuppression);
+    m_echoCancellation = new QCheckBox(tr("Echo Cancellation"));
+    m_echoCancellation->setChecked(m_settings.echoCancellation);
+    m_automaticGainControl = new QCheckBox(tr("Automatic Gain Control"));
+    m_automaticGainControl->setChecked(m_settings.automaticGainControl);
+    m_soundEffects = new QCheckBox(tr("Play sound effects"));
+    m_soundEffects->setChecked(m_settings.soundEffects);
 
     m_keybind = new KeybindButton;
     m_keybind->setKey(m_settings.pushToTalkKey);
@@ -312,6 +340,7 @@ QWidget* SettingsDialog::buildVoicePage()
     auto* sensitivityLayout = new QVBoxLayout(m_sensitivityGroup);
     sensitivityLayout->setContentsMargins(0, 0, 0, 0);
     sensitivityLayout->addWidget(sectionLabel(tr("Input Sensitivity")));
+    sensitivityLayout->addWidget(m_automaticSensitivity);
     auto* sensitivityHint = new QLabel(tr("Talk to test your microphone. The bar turns green when you are loud "
                                           "enough to be heard; drag the white marker to adjust."));
     sensitivityHint->setObjectName(QStringLiteral("settingsHint"));
@@ -358,6 +387,15 @@ QWidget* SettingsDialog::buildVoicePage()
     layout->addSpacing(16);
     layout->addWidget(m_sensitivityGroup);
     layout->addWidget(m_pushToTalkGroup);
+    layout->addSpacing(16);
+    layout->addWidget(sectionLabel(tr("Voice Processing")));
+    layout->addWidget(option(m_noiseSuppression, tr("Removes background noise like keyboards, fans and traffic.")));
+    layout->addWidget(option(m_echoCancellation,
+                             tr("Stops others from hearing themselves when you use speakers instead of headphones.")));
+    layout->addWidget(option(m_automaticGainControl, tr("Keeps your voice at a steady volume.")));
+    layout->addSpacing(16);
+    layout->addWidget(sectionLabel(tr("Sounds")));
+    layout->addWidget(option(m_soundEffects, tr("Joining, leaving, muting and incoming calls.")));
     layout->addStretch();
 
     connect(m_inputDevice, &QComboBox::currentIndexChanged, this, [this] {
@@ -373,6 +411,12 @@ QWidget* SettingsDialog::buildVoicePage()
         apply();
     });
     connect(m_meter, &LevelMeter::thresholdChanged, this, &SettingsDialog::apply);
+    connect(m_automaticSensitivity, &QCheckBox::toggled, this, [this] {
+        updateModeWidgets();
+        apply();
+    });
+    for (QCheckBox* checkBox : {m_noiseSuppression, m_echoCancellation, m_automaticGainControl, m_soundEffects})
+        connect(checkBox, &QCheckBox::toggled, this, &SettingsDialog::apply);
     connect(m_keybind, &KeybindButton::keyChanged, this, &SettingsDialog::apply);
     connect(m_releaseDelay, &QSlider::valueChanged, this, [this] {
         m_releaseDelayLabel->setText(tr("%1 ms").arg(m_releaseDelay->value()));
@@ -429,6 +473,11 @@ void SettingsDialog::apply()
     m_settings.activationThresholdDb = m_meter->threshold();
     m_settings.pushToTalkKey = m_keybind->key();
     m_settings.pushToTalkReleaseMs = m_releaseDelay->value();
+    m_settings.automaticSensitivity = m_automaticSensitivity->isChecked();
+    m_settings.noiseSuppression = m_noiseSuppression->isChecked();
+    m_settings.echoCancellation = m_echoCancellation->isChecked();
+    m_settings.automaticGainControl = m_automaticGainControl->isChecked();
+    m_settings.soundEffects = m_soundEffects->isChecked();
     m_voice->applySettings(m_settings);
 }
 
@@ -436,7 +485,9 @@ void SettingsDialog::updateModeWidgets()
 {
     const bool pushToTalk = m_pushToTalk->isChecked();
     m_pushToTalkGroup->setVisible(pushToTalk);
-    m_meter->setThresholdVisible(!pushToTalk);
+    m_automaticSensitivity->setVisible(!pushToTalk);
+    // With automatic sensitivity, voice detection decides; the meter only shows the level.
+    m_meter->setThresholdVisible(!pushToTalk && !m_automaticSensitivity->isChecked());
 }
 
 void SettingsDialog::showEvent(QShowEvent* event)

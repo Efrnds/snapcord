@@ -1,5 +1,7 @@
 #include "core/ZlibStream.h"
+#include "voice/AudioProcessor.h"
 #include "voice/DaveSession.h"
+#include "voice/SoundEffects.h"
 #include "voice/JitterBuffer.h"
 #include "voice/OpusCodec.h"
 #include "voice/Rtp.h"
@@ -28,7 +30,90 @@ private slots:
     void opusRoundTrip();
     void zlibStreamDecodesSyncFlushedMessages();
     void davePassthroughWhenDisabled();
+    void noiseSuppressionReducesNoise();
+    void echoCancellationRemovesPlayback();
+    void soundEffectsAreSynthesized();
 };
+
+namespace {
+
+double energy(const std::vector<float>& samples, size_t from = 0)
+{
+    double sum = 0;
+    for (size_t i = from; i < samples.size(); ++i)
+        sum += double(samples[i]) * samples[i];
+    return sum;
+}
+
+std::vector<float> whiteNoise(size_t count, float amplitude, uint32_t seed)
+{
+    std::vector<float> samples(count);
+    for (float& sample : samples) {
+        seed = seed * 1664525u + 1013904223u;
+        sample = amplitude * (static_cast<float>(seed >> 8) / float(1u << 24) * 2.0f - 1.0f);
+    }
+    return samples;
+}
+
+} // namespace
+
+void VoicePipelineTest::noiseSuppressionReducesNoise()
+{
+    AudioProcessor processor;
+    AudioProcessor::Options options;
+    options.noiseSuppression = true;
+    processor.configure(options);
+
+    // Two seconds of steady background noise: RNNoise should remove most of it and see no voice.
+    std::vector<float> input = whiteNoise(48000 * 2, 0.05f, 1);
+    std::vector<float> output = input;
+    float lastVoiceProbability = 1.0f;
+    for (size_t offset = 0; offset < output.size(); offset += AudioProcessor::FrameSize)
+        lastVoiceProbability = processor.process(output.data() + offset, nullptr);
+
+    const size_t settled = 48000; // skip the first second while the model adapts
+    QVERIFY2(energy(output, settled) < energy(input, settled) * 0.25,
+             "noise suppression should remove at least 75% of the noise energy");
+    QVERIFY(lastVoiceProbability >= 0.0f && lastVoiceProbability < 0.5f);
+}
+
+void VoicePipelineTest::echoCancellationRemovesPlayback()
+{
+    AudioProcessor processor;
+    AudioProcessor::Options options;
+    options.noiseSuppression = false;
+    options.voiceDetection = false;
+    options.echoCancellation = true;
+    processor.configure(options);
+
+    // The microphone hears the speakers 20 ms later and quieter; the canceller should learn and remove it.
+    const size_t total = 48000 * 4;
+    const size_t delay = 960;
+    const std::vector<float> speaker = whiteNoise(total, 0.3f, 7);
+    std::vector<float> microphone(total, 0.0f);
+    for (size_t i = delay; i < total; ++i)
+        microphone[i] = 0.5f * speaker[i - delay];
+    std::vector<float> output = microphone;
+    for (size_t offset = 0; offset < total; offset += AudioProcessor::FrameSize)
+        processor.process(output.data() + offset, speaker.data() + offset);
+
+    const size_t converged = 48000 * 3; // judge the last second only
+    QVERIFY2(energy(output, converged) < energy(microphone, converged) * 0.1,
+             "echo cancellation should remove at least 90% of the echo energy");
+}
+
+void VoicePipelineTest::soundEffectsAreSynthesized()
+{
+    SoundEffects effects;
+    for (int i = 0; i < static_cast<int>(SoundEffects::Sound::Count); ++i) {
+        const auto& samples = effects.samples(static_cast<SoundEffects::Sound>(i));
+        QVERIFY(samples.size() > 48000 / 10); // at least 100 ms
+        float peak = 0.0f;
+        for (const float sample : samples)
+            peak = std::max(peak, std::abs(sample));
+        QVERIFY(peak > 0.05f && peak <= 1.0f);
+    }
+}
 
 void VoicePipelineTest::transportCipherRoundTrip_data()
 {

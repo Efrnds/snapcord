@@ -49,6 +49,8 @@ public:
     explicit VoiceChannelView(QWidget* parent = nullptr);
 
     void setChannelName(const QString& name);
+    // Text of the join button ("Join Voice", "Start Call", "Join Call").
+    void setJoinText(const QString& text);
     void setParticipants(const QList<ParticipantTile::Participant>& participants);
     void setSpeaking(const QString& userId, bool speaking);
     // `joined`: this client is in this channel. `canJoin`: the user has permission to connect.

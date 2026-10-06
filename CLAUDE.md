@@ -232,10 +232,32 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 ## Estado do projeto
 
 - **Fase 0:** concluída.
-- **Fase 1:** código completo, compila sem avisos e os testes automáticos passam.
-  **Ainda falta o teste real com uma conta do Discord.** Já foi verificado de verdade:
-  - o login por QR até a exibição do código (o handshake com o Discord funciona);
-  - a criptografia de transporte, o RTP, o jitter buffer, o Opus e o zlib-stream, nos testes.
+- **Fase 1:** concluída e **testada com uma conta real**. O log da chamada confirmou:
+  - DAVE v1 funcionando, com welcome aceito;
+  - áudio indo e voltando;
+  - zero falhas de decodificação.
+  - As "E2EE encrypt failures" enquanto o usuário está sozinho no canal são normais: o grupo
+    MLS só se forma quando chega o segundo participante.
+- **Fase 2:** código completo, compila sem avisos e 15 testes passando. **Falta o teste real**
+  das chamadas em DM, dos sons e do processamento de voz com o microfone.
+  - **Processamento de voz (`AudioProcessor`):** pipeline em blocos de 10 ms, nesta ordem:
+    1. Ganho de entrada.
+    2. Cancelamento de eco (SpeexDSP MDF, cauda de 150 ms). A referência vem do áudio de
+       saída, via `EchoReference`.
+    3. Supressão de ruído RNNoise 0.2, compilado do tarball em `cmake/Dependencies.cmake`,
+       com SSE4.1/AVX2 escolhidos em tempo de execução.
+    4. Controle automático de ganho (preprocessador do SpeexDSP).
+  - **Sensibilidade automática:** usa a probabilidade de voz do RNNoise (≥ 0,6) mais um piso
+    de -60 dB.
+  - **Sons (`SoundEffects`):** sintetizados em código, sem arquivos e sem os sons do Discord.
+    Tocam num stream de saída próprio, aberto só enquanto há som tocando.
+  - **Chamadas em DM e grupos:**
+    - Capability `AUTO_CALL_CONNECT`; eventos `CALL_CREATE`, `CALL_UPDATE` e `CALL_DELETE`.
+    - `VOICE_STATE_UPDATE` sem `guild_id`; o `server_id` da voz é o ID do canal.
+    - Ao iniciar uma chamada nova, o cliente toca para os outros com
+      `POST /channels/{id}/call/ring`; recusar usa `.../call/stop-ringing`.
+  - **Painel de conexão:** clicar em "Voz conectada" mostra o gráfico de ping, a perda de
+    pacotes recebidos (frames escondidos pelo PLC) e o estado do DAVE.
 
 ### Arquitetura implementada
 
@@ -281,8 +303,10 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 
 ## Próximo passo
 
-1. O dono do projeto testa a Fase 1 com uma conta secundária: login por QR, lista de
-   servidores, entrar num canal de voz, falar e ouvir alguém, mutar e ensurdecer, volume
-   por usuário, push-to-talk.
+1. O dono do projeto testa a Fase 2:
+   - chamada em DM, tanto iniciando quanto recebendo;
+   - supressão de ruído e cancelamento de eco;
+   - sons;
+   - painel de conexão.
 2. Se algo falhar, ler o `snapcord.log` para diagnosticar.
-3. Depois, seguir para a Fase 2.
+3. Depois, seguir para a Fase 3 (chat).

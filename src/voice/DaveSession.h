@@ -65,6 +65,9 @@ public:
     // Decrypts an Opus frame received from `userId`.
     bool decrypt(const QString& userId, const uint8_t* frame, size_t size, std::vector<uint8_t>& out);
 
+    // True once outgoing audio is end-to-end encrypted (a media key is set and the call is not in passthrough).
+    bool isEncrypting();
+
 private:
     void handleProtocolInit(int protocolVersion);
     void prepareEpoch(uint64_t epoch, int protocolVersion);

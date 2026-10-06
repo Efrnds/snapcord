@@ -1,6 +1,7 @@
 #pragma once
 
 #include "voice/AudioEngine.h"
+#include "voice/AudioProcessor.h"
 #include "voice/JitterBuffer.h"
 #include "voice/OpusCodec.h"
 #include "voice/UdpSocket.h"
@@ -49,6 +50,17 @@ public:
     float inputLevelDb() const { return m_inputLevelDb.load(std::memory_order_relaxed); }
     AudioEngine& audio() { return m_audio; }
 
+    // Details for the connection info panel.
+    struct ConnectionInfo
+    {
+        QString endpoint;
+        QString encryptionMode;
+        int daveProtocolVersion = 0;
+        bool endToEndEncrypted = false;
+        double inboundPacketLoss = 0.0; // percent, over the last few seconds
+    };
+    ConnectionInfo connectionInfo();
+
 signals:
     void stateChanged(VoiceConnection::State state);
     void speakingChanged(const QString& userId, bool speaking);
@@ -71,6 +83,7 @@ private:
 
     // Audio and network threads.
     void captureSamples(const float* samples, int count);
+    void processChunk();
     void processCaptureFrame();
     void sendFrame(const uint8_t* opus, size_t size, bool endToEndEncrypt);
     void renderPlayback(float* output, int frameCount);
@@ -103,10 +116,21 @@ private:
     std::atomic<int> m_pushToTalkReleaseMs{200};
     std::atomic<float> m_inputGain{1.0f};
     std::atomic<float> m_outputGain{1.0f};
+    std::atomic<bool> m_automaticSensitivity{true};
+    std::atomic<bool> m_noiseSuppression{true};
+    std::atomic<bool> m_echoCancellation{false};
+    std::atomic<bool> m_automaticGainControl{false};
+    std::atomic<int> m_processorConfigVersion{0};
     QString m_inputDevice;
     QString m_outputDevice;
 
     // Capture state (capture thread only).
+    AudioProcessor m_processor;
+    int m_appliedProcessorConfig = -1;
+    std::vector<float> m_processChunk;
+    size_t m_processFill = 0;
+    std::vector<float> m_echoChunk;
+    float m_frameVoiceProbability = -1.0f;
     std::vector<float> m_captureFrame;
     size_t m_captureFill = 0;
     std::vector<float> m_stereoFrame;
@@ -131,6 +155,11 @@ private:
     std::vector<float> m_mixFrame;
     std::vector<float> m_decodeFrame;
     size_t m_mixReadOffset = 0;
+    EchoReference m_echoReference;
+    std::atomic<uint32_t> m_playedFrames{0};
+    std::atomic<uint32_t> m_concealedFrames{0};
+    double m_inboundPacketLoss = 0.0;
+    int m_daveProtocolVersion = 0;
 
     QTimer m_speakingTimer;
     QHash<QString, bool> m_speaking;

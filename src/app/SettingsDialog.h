@@ -10,6 +10,7 @@
 #include <memory>
 
 class AudioEngine;
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QRadioButton;
@@ -114,6 +115,11 @@ private:
     KeybindButton* m_keybind = nullptr;
     QSlider* m_releaseDelay = nullptr;
     QLabel* m_releaseDelayLabel = nullptr;
+    QCheckBox* m_automaticSensitivity = nullptr;
+    QCheckBox* m_noiseSuppression = nullptr;
+    QCheckBox* m_echoCancellation = nullptr;
+    QCheckBox* m_automaticGainControl = nullptr;
+    QCheckBox* m_soundEffects = nullptr;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;

@@ -80,6 +80,28 @@ struct VoiceState
     static VoiceState fromJson(const QJsonObject& json, const QString& guildId);
 };
 
+// A direct message or group DM.
+struct PrivateChannel
+{
+    QString id;
+    ChannelType type = ChannelType::DirectMessage;
+    QString name; // group DMs only; empty means "list the recipients"
+    QString icon;
+    QStringList recipientIds;
+    QString lastMessageId;
+
+    bool isGroup() const { return type == ChannelType::GroupDirectMessage; }
+    static PrivateChannel fromJson(const QJsonObject& json);
+};
+
+// An ongoing voice call in a private channel.
+struct Call
+{
+    QString channelId;
+    QStringList ringing;                    // users being rung
+    QHash<QString, VoiceState> voiceStates; // by user ID
+};
+
 struct Guild
 {
     QString id;

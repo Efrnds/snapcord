@@ -2,7 +2,9 @@
 
 #include "Avatar.h"
 #include "ChannelSidebar.h"
+#include "ConnectionInfoPopup.h"
 #include "ImageCache.h"
+#include "IncomingCallWindow.h"
 #include "ServerRail.h"
 #include "SettingsDialog.h"
 #include "UserPanel.h"
@@ -37,12 +39,15 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     , m_sidebar(new ChannelSidebar)
     , m_pages(new QStackedWidget)
     , m_voiceView(new VoiceChannelView)
+    , m_incomingCall(new IncomingCallWindow(this))
 {
     setWindowTitle(QStringLiteral("Snapcord"));
     resize(1280, 720);
     setMinimumSize(940, 500);
 
-    m_homePage = buildPlaceholderPage(tr("Direct Messages"), tr("Direct messages and calls arrive in Phase 2."));
+    m_homePage = buildPlaceholderPage(tr("Direct Messages"),
+                                      tr("Pick a conversation on the left to start a voice call. "
+                                         "Text chat arrives in Phase 3."));
     m_textPage = buildPlaceholderPage(tr("Text Channels"), tr("Text chat arrives in Phase 3. For now, Snapcord "
                                                               "focuses on voice channels."));
     m_pages->addWidget(m_homePage);
@@ -87,6 +92,28 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
             scheduleRefresh();
     });
     connect(m_session, &Session::usersChanged, this, scheduleRefresh);
+    connect(m_session, &Session::privateChannelsChanged, this, [this, scheduleRefresh] {
+        if (m_guildId.isEmpty())
+            scheduleRefresh();
+    });
+    connect(m_session, &Session::callChanged, this, [this, scheduleRefresh](const QString& channelId) {
+        updateIncomingCall(channelId);
+        if (m_guildId.isEmpty() || channelId == m_voice->channelId())
+            scheduleRefresh();
+    });
+
+    connect(m_incomingCall, &IncomingCallWindow::accepted, this, [this](const QString& channelId) {
+        m_incomingCall->hide();
+        m_voice->sounds()->stopRinging();
+        m_voice->join(QString(), channelId);
+        selectGuild(QString());
+        onChannelClicked(channelId, false);
+    });
+    connect(m_incomingCall, &IncomingCallWindow::declined, this, [this](const QString& channelId) {
+        m_incomingCall->hide();
+        m_voice->sounds()->stopRinging();
+        m_session->declineCall(channelId);
+    });
     connect(m_images, &ImageCache::imageLoaded, this, [this, scheduleRefresh](const QUrl& url) {
         for (const QString& guildId : m_session->guildOrder()) {
             const Guild* guild = m_session->guild(guildId);
@@ -106,7 +133,16 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     });
     connect(m_sidebar, &ChannelSidebar::memberContextMenuRequested, this, &MainWindow::showUserMenu);
     connect(m_voiceView, &VoiceChannelView::participantContextMenuRequested, this, &MainWindow::showUserMenu);
-    connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] { m_voice->join(m_guildId, m_channelId); });
+    connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] {
+        if (m_guildId.isEmpty())
+            m_voice->startCall(m_channelId);
+        else
+            m_voice->join(m_guildId, m_channelId);
+    });
+    connect(m_sidebar->voicePanel(), &VoicePanel::detailsRequested, this, [this] {
+        auto* popup = new ConnectionInfoPopup(m_voice, this);
+        popup->showAbove(m_sidebar->voicePanel());
+    });
 
     UserPanel* userPanel = m_sidebar->userPanel();
     connect(userPanel, &UserPanel::muteClicked, m_voice, &VoiceController::toggleMute);
@@ -172,6 +208,9 @@ void MainWindow::selectGuild(const QString& guildId)
     if (guildId.isEmpty()) {
         m_sidebar->setTitle(tr("Direct Messages"));
         m_pages->setCurrentWidget(m_homePage);
+        // Show the private call we're in, if any.
+        if (!m_voice->channelId().isEmpty() && m_voice->guildId().isEmpty())
+            m_channelId = m_voice->channelId();
     } else {
         const Guild* guild = m_session->guild(guildId);
         m_sidebar->setTitle(guild ? guild->name : QString());
@@ -194,8 +233,37 @@ void MainWindow::selectGuild(const QString& guildId)
 
 void MainWindow::refreshChannels()
 {
+    auto addCallMembers = [this](const QString& guildId, const QString& channelId) {
+        for (const VoiceState& state : m_session->voiceStatesInChannel(guildId, channelId)) {
+            ChannelSidebar::Member member;
+            member.userId = state.userId;
+            member.name = m_session->user(state.userId).displayName();
+            if (member.name.isEmpty())
+                member.name = tr("Unknown user");
+            member.speaking = m_voice->isSpeaking(state.userId);
+            member.muted = state.selfMute || state.mute;
+            member.deafened = state.selfDeaf || state.deaf;
+            member.avatar = memberAvatar(state.userId, member.speaking);
+            m_sidebar->addVoiceMember(member);
+        }
+    };
+
     m_sidebar->beginRebuild();
-    if (!m_guildId.isEmpty()) {
+    if (m_guildId.isEmpty()) {
+        m_sidebar->addCategory(QStringLiteral("direct-messages"), tr("Direct Messages"));
+        // Only the most recent conversations download their pictures; older ones show initials.
+        constexpr int PicturesToLoad = 60;
+        int index = 0;
+        for (const PrivateChannel& channel : m_session->privateChannels()) {
+            const Call* call = m_session->call(channel.id);
+            const bool inCall = call && !call->voiceStates.isEmpty();
+            m_sidebar->addDirectMessage(channel.id, m_session->privateChannelName(channel),
+                                        privateChannelAvatar(channel, 32, index++ < PicturesToLoad || inCall),
+                                        inCall);
+            if (inCall)
+                addCallMembers(QString(), channel.id);
+        }
+    } else {
         for (const Channel& channel : m_session->visibleChannels(m_guildId)) {
             if (channel.type == ChannelType::GuildCategory) {
                 m_sidebar->addCategory(channel.id, channel.name);
@@ -206,18 +274,7 @@ void MainWindow::refreshChannels()
                 continue;
             }
             m_sidebar->addChannel(channel.id, channel.name, ChannelSidebar::ItemKind::VoiceChannel);
-            for (const VoiceState& state : m_session->voiceStatesInChannel(m_guildId, channel.id)) {
-                ChannelSidebar::Member member;
-                member.userId = state.userId;
-                member.name = m_session->user(state.userId).displayName();
-                if (member.name.isEmpty())
-                    member.name = tr("Unknown user");
-                member.speaking = m_voice->isSpeaking(state.userId);
-                member.muted = state.selfMute || state.mute;
-                member.deafened = state.selfDeaf || state.deaf;
-                member.avatar = memberAvatar(state.userId, member.speaking);
-                m_sidebar->addVoiceMember(member);
-            }
+            addCallMembers(m_guildId, channel.id);
         }
     }
     m_sidebar->endRebuild();
@@ -225,19 +282,29 @@ void MainWindow::refreshChannels()
 
 void MainWindow::refreshVoiceView()
 {
-    const Channel* channel = m_guildId.isEmpty() ? nullptr : m_session->channel(m_guildId, m_channelId);
-    if (!channel) {
-        if (!m_guildId.isEmpty() && m_pages->currentWidget() != m_textPage)
+    QString title;
+    QString joinText;
+    if (m_guildId.isEmpty()) {
+        const PrivateChannel* privateChannel = m_session->privateChannel(m_channelId);
+        if (!privateChannel) {
+            m_pages->setCurrentWidget(m_homePage);
+            return;
+        }
+        const Call* call = m_session->call(m_channelId);
+        title = m_session->privateChannelName(*privateChannel);
+        joinText = call && !call->voiceStates.isEmpty() ? tr("Join Call") : tr("Start Call");
+    } else {
+        const Channel* channel = m_session->channel(m_guildId, m_channelId);
+        if (!channel || !channel->isVoice()) {
             m_pages->setCurrentWidget(m_textPage);
-        return;
-    }
-    if (!channel->isVoice()) {
-        m_pages->setCurrentWidget(m_textPage);
-        return;
+            return;
+        }
+        title = channel->name;
+        joinText = tr("Join Voice");
     }
 
     QList<ParticipantTile::Participant> participants;
-    for (const VoiceState& state : m_session->voiceStatesInChannel(m_guildId, channel->id)) {
+    for (const VoiceState& state : m_session->voiceStatesInChannel(m_guildId, m_channelId)) {
         ParticipantTile::Participant participant;
         participant.userId = state.userId;
         participant.name = m_session->user(state.userId).displayName();
@@ -249,10 +316,11 @@ void MainWindow::refreshVoiceView()
         participant.deafened = state.selfDeaf || state.deaf;
         participants.append(participant);
     }
-    m_voiceView->setChannelName(channel->name);
+    m_voiceView->setChannelName(title);
+    m_voiceView->setJoinText(joinText);
     m_voiceView->setParticipants(participants);
-    const bool joined = m_voice->channelId() == channel->id;
-    m_voiceView->setJoinState(joined, m_session->canConnect(m_guildId, channel->id));
+    const bool joined = m_voice->channelId() == m_channelId;
+    m_voiceView->setJoinState(joined, m_session->canConnect(m_guildId, m_channelId));
     m_pages->setCurrentWidget(m_voiceView);
 }
 
@@ -263,12 +331,59 @@ void MainWindow::refreshVoicePanel()
         panel->hide();
         return;
     }
-    const Guild* guild = m_session->guild(m_voice->guildId());
-    const Channel* channel = m_session->channel(m_voice->guildId(), m_voice->channelId());
     panel->setStatus(m_voice->state() == VoiceConnection::State::Connected ? VoicePanel::Status::Connected
                                                                            : VoicePanel::Status::Connecting);
-    panel->setLocation(channel ? channel->name : QString(), guild ? guild->name : QString());
+    if (m_voice->guildId().isEmpty()) {
+        panel->setLocation(locationName(QString(), m_voice->channelId()), tr("Direct Messages"));
+    } else {
+        const Guild* guild = m_session->guild(m_voice->guildId());
+        panel->setLocation(locationName(m_voice->guildId(), m_voice->channelId()), guild ? guild->name : QString());
+    }
     panel->show();
+}
+
+QString MainWindow::locationName(const QString& guildId, const QString& channelId) const
+{
+    if (guildId.isEmpty()) {
+        const PrivateChannel* privateChannel = m_session->privateChannel(channelId);
+        return privateChannel ? m_session->privateChannelName(*privateChannel) : QString();
+    }
+    const Channel* channel = m_session->channel(guildId, channelId);
+    return channel ? channel->name : QString();
+}
+
+void MainWindow::updateIncomingCall(const QString& channelId)
+{
+    // Ring while someone calls us, unless we are already in that call.
+    const bool ringing = m_session->isRingingSelf(channelId) && m_voice->channelId() != channelId;
+    if (ringing && (!m_incomingCall->isVisible() || m_incomingCall->channelId() != channelId)) {
+        const PrivateChannel* privateChannel = m_session->privateChannel(channelId);
+        if (!privateChannel)
+            return;
+        m_incomingCall->setCaller(channelId, m_session->privateChannelName(*privateChannel),
+                                  privateChannelAvatar(*privateChannel, 80));
+        m_incomingCall->showAtCorner();
+        m_voice->sounds()->startRinging();
+    } else if (!ringing && m_incomingCall->isVisible() && m_incomingCall->channelId() == channelId) {
+        m_incomingCall->hide();
+        m_voice->sounds()->stopRinging();
+    }
+}
+
+QPixmap MainWindow::privateChannelAvatar(const PrivateChannel& channel, int size, bool loadPicture)
+{
+    const QString name = m_session->privateChannelName(channel);
+    QImage picture;
+    if (loadPicture) {
+        if (channel.isGroup()) {
+            if (!channel.icon.isEmpty())
+                picture = m_images->image(QUrl(QStringLiteral("https://cdn.discordapp.com/channel-icons/%1/%2.png?size=128")
+                                                   .arg(channel.id, channel.icon)));
+        } else {
+            picture = userPicture(channel.recipientIds.value(0));
+        }
+    }
+    return makeAvatar(name, picture, size, devicePixelRatioF());
 }
 
 void MainWindow::refreshUserPanel()
@@ -284,8 +399,10 @@ void MainWindow::refreshUserPanel()
 void MainWindow::onChannelClicked(const QString& channelId, bool isVoice)
 {
     m_channelId = channelId;
+    m_sidebar->setSelectedChannel(channelId);
+    // Discord joins a guild voice channel on a single click; private calls start with the "Start Call" button.
     if (isVoice && m_session->canConnect(m_guildId, channelId))
-        m_voice->join(m_guildId, channelId); // Discord joins a voice channel on a single click
+        m_voice->join(m_guildId, channelId);
     refreshVoiceView();
 }
 

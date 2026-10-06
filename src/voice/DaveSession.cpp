@@ -193,6 +193,12 @@ bool DaveSession::decrypt(const QString& userId, const uint8_t* frame, size_t si
     return true;
 }
 
+bool DaveSession::isEncrypting()
+{
+    std::lock_guard lock(m_mediaMutex);
+    return m_encryptor->HasKeyRatchet() && !m_encryptor->IsPassthroughMode();
+}
+
 void DaveSession::handleProtocolInit(int protocolVersion)
 {
     if (protocolVersion > 0) {

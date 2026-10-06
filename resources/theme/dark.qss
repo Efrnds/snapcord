@@ -91,12 +91,73 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     border-bottom: 1px solid #2e2f34;
 }
 #voiceStatus {
+    background: transparent;
+    border: none;
+    padding: 0;
+    text-align: left;
     color: #f0b232;
     font-size: 14px;
     font-weight: 700;
 }
 #voiceStatus[connected="true"] {
     color: #23a559;
+}
+#voiceStatus:hover {
+    text-decoration: underline;
+}
+
+/* Connection info popup */
+#connectionInfo {
+    background: #111214;
+    border: 1px solid #2b2d31;
+    border-radius: 6px;
+}
+#connectionInfo QLabel {
+    color: #b5bac1;
+    font-size: 13px;
+}
+#connectionInfoTitle {
+    color: #f2f3f5;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* Incoming call */
+#incomingCall {
+    background: #232428;
+    border: 1px solid #1e1f22;
+    border-radius: 8px;
+}
+#incomingCallName {
+    color: #f2f3f5;
+    font-size: 18px;
+    font-weight: 700;
+}
+#incomingCallStatus {
+    color: #b5bac1;
+    font-size: 14px;
+}
+#acceptCallButton {
+    background: #248046;
+    border: none;
+    border-radius: 28px;
+}
+#acceptCallButton:hover {
+    background: #1a6334;
+}
+#declineCallButton {
+    background: #da373c;
+    border: none;
+    border-radius: 28px;
+}
+#declineCallButton:hover {
+    background: #a12829;
+}
+
+QCheckBox {
+    color: #dbdee1;
+    spacing: 10px;
+    font-size: 14px;
 }
 #voiceLocation {
     color: #949ba4;

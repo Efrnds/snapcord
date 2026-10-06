@@ -23,16 +23,7 @@ find_package(Opus CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(unofficial-nayuki-qr-code-generator CONFIG REQUIRED)
 find_path(MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
-
-# Discord's DAVE end-to-end encryption library. It is built from source because it has no vcpkg port;
-# its own dependencies (OpenSSL, mlspp, nlohmann-json) come from vcpkg.
-include(FetchContent)
-FetchContent_Declare(libdave
-    URL https://github.com/discord/libdave/archive/8de72b1f8a2ac3c5a5270755bb8091a62e3c6169.tar.gz
-    SOURCE_SUBDIR cpp
-    EXCLUDE_FROM_ALL
-)
-FetchContent_MakeAvailable(libdave)
+include(cmake/Dependencies.cmake)
 
 if(MSVC)
     add_compile_options(/W4 /permissive- /utf-8)

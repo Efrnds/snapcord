@@ -5,6 +5,8 @@
 
 class ChannelSidebar;
 class ImageCache;
+class IncomingCallWindow;
+struct PrivateChannel;
 class QLabel;
 class QStackedWidget;
 class ServerRail;
@@ -34,8 +36,11 @@ private:
     void onSpeakingChanged(const QString& userId, bool speaking);
     void showUserMenu(const QString& userId, const QPoint& globalPosition);
     void openSettings();
+    void updateIncomingCall(const QString& channelId);
     QImage userPicture(const QString& userId);
     QPixmap memberAvatar(const QString& userId, bool speaking);
+    QPixmap privateChannelAvatar(const PrivateChannel& channel, int size, bool loadPicture = true);
+    QString locationName(const QString& guildId, const QString& channelId) const;
 
     Session* m_session;
     VoiceController* m_voice;
@@ -47,6 +52,7 @@ private:
     QWidget* m_homePage;
     QWidget* m_textPage;
     VoiceChannelView* m_voiceView;
+    IncomingCallWindow* m_incomingCall;
 
     QString m_guildId;   // guild shown in the sidebar (empty = direct messages)
     QString m_channelId; // channel shown in the center area

@@ -1,10 +1,12 @@
 add_library(snapcord_voice STATIC
     AudioEngine.cpp AudioEngine.h
+    AudioProcessor.cpp AudioProcessor.h
     DaveSession.cpp DaveSession.h
     JitterBuffer.cpp JitterBuffer.h
     MiniaudioImpl.c
     OpusCodec.cpp OpusCodec.h
     Rtp.cpp Rtp.h
+    SoundEffects.cpp SoundEffects.h
     TransportCipher.cpp TransportCipher.h
     UdpSocket.cpp UdpSocket.h
     VoiceConnection.cpp VoiceConnection.h
@@ -18,7 +20,7 @@ target_include_directories(snapcord_voice
 )
 target_link_libraries(snapcord_voice
     PUBLIC Qt6::Core Qt6::Network Qt6::WebSockets snapcord_core snapcord_platform
-    PRIVATE libdave Opus::opus OpenSSL::Crypto unofficial-sodium::sodium
+    PRIVATE libdave Opus::opus OpenSSL::Crypto unofficial-sodium::sodium rnnoise SpeexDSP::speexdsp
 )
 
 # miniaudio only needs a few platform libraries; everything else is loaded at runtime.
