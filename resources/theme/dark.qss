@@ -1,0 +1,170 @@
+/* Snapcord dark theme — colors based on the Discord layout. */
+
+QWidget {
+    color: #dbdee1;
+    font-size: 14px;
+}
+
+QMainWindow, #chatArea {
+    background: #313338;
+}
+
+QToolTip {
+    background: #111214;
+    color: #dbdee1;
+    border: none;
+    padding: 6px 8px;
+}
+
+QMenu {
+    background: #111214;
+    border: 1px solid #1e1f22;
+    padding: 6px;
+}
+QMenu::item {
+    color: #b5bac1;
+    padding: 6px 24px 6px 8px;
+    border-radius: 2px;
+}
+QMenu::item:selected {
+    background: #5865f2;
+    color: #ffffff;
+}
+
+/* Thin scroll bars */
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}
+QScrollBar::handle:vertical {
+    background: #1a1b1e;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+/* Server rail */
+#serverRail, #serverRailContent, #serverRail QScrollArea {
+    background: #1e1f22;
+}
+#serverRail QPushButton {
+    background: #313338;
+    color: #dbdee1;
+    border: none;
+    border-radius: 24px;
+    font-size: 15px;
+    font-weight: 600;
+}
+#serverRail QPushButton:hover, #serverRail QPushButton:checked {
+    background: #5865f2;
+    color: #ffffff;
+    border-radius: 16px;
+}
+#serverRail #addServerButton:hover {
+    background: #23a559;
+}
+#railSeparator {
+    background: #35363c;
+    border-radius: 1px;
+}
+
+/* Channel sidebar */
+#channelSidebar {
+    background: #2b2d31;
+}
+#sidebarHeader {
+    border-bottom: 1px solid #1f2023;
+}
+#sidebarHeader QLabel {
+    color: #f2f3f5;
+    font-size: 15px;
+    font-weight: 600;
+}
+#channelTree {
+    background: transparent;
+    border: none;
+    outline: 0;
+    padding-top: 8px;
+}
+#channelTree::item {
+    color: #949ba4;
+    border-radius: 4px;
+    margin: 1px 8px;
+    padding-left: 4px;
+}
+#channelTree::item:hover {
+    background: #35373c;
+    color: #dbdee1;
+}
+#channelTree::item:selected {
+    background: #404249;
+    color: #f2f3f5;
+}
+#channelTree::branch {
+    background: transparent;
+    image: none;
+}
+
+/* User panel */
+#userPanel {
+    background: #232428;
+}
+#userName {
+    color: #f2f3f5;
+    font-size: 14px;
+    font-weight: 600;
+}
+#userStatus {
+    color: #949ba4;
+    font-size: 12px;
+}
+#userPanel QToolButton {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+}
+#userPanel QToolButton:hover {
+    background: #3a3c41;
+}
+
+/* Chat area */
+#chatHeader {
+    border-bottom: 1px solid #26272b;
+}
+#chatTitle {
+    color: #f2f3f5;
+    font-size: 16px;
+    font-weight: 600;
+}
+#welcomeTitle {
+    color: #f2f3f5;
+    font-size: 28px;
+    font-weight: 700;
+}
+#welcomeSubtitle {
+    color: #b5bac1;
+    font-size: 15px;
+}
+
+/* Member list */
+#memberList {
+    background: #2b2d31;
+    border: none;
+    outline: 0;
+    padding: 0 8px;
+}
+#memberList::item {
+    color: #949ba4;
+    border-radius: 4px;
+    padding-left: 8px;
+}
+#memberList::item:hover {
+    background: #35373c;
+    color: #dbdee1;
+}
