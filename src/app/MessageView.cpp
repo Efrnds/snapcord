@@ -21,6 +21,7 @@
 #include <QTimer>
 #include <QUrlQuery>
 
+#include <algorithm>
 #include <vector>
 
 namespace {
@@ -74,15 +75,88 @@ QSize fitInto(int width, int height, int maxWidth, int maxHeight)
     return {std::max(1, int(width * scale)), std::max(1, int(height * scale))};
 }
 
-// Discord's media proxy resizes images on the server, so only the displayed size is downloaded.
-QUrl previewUrl(const QString& proxyUrl, const QSize& size)
+// QMediaPlayer can play real files (Discord uploads, gifv mp4). YouTube/page URLs use WebEngine.
+bool isDirectVideoFile(const QString& url)
+{
+    const QString path = QUrl(url).path().toLower();
+    return path.endsWith(u".mp4") || path.endsWith(u".webm") || path.endsWith(u".mov")
+        || path.endsWith(u".m4v") || path.endsWith(u".mkv");
+}
+
+// media.discordapp.net (and cdn) accept width/height. images-ext-* often 404s when those are added.
+bool supportsDiscordSizeQuery(const QString& url)
+{
+    const QString host = QUrl(url).host();
+    return host == u"media.discordapp.net" || host.endsWith(u".media.discordapp.net")
+        || host == u"cdn.discordapp.com" || host.endsWith(u".cdn.discordapp.com");
+}
+
+// Discord's media proxy resizes on the server. For videos, `format=jpeg` asks for a still poster —
+// without it the proxy returns the mp4 itself and the image cache paints a black box.
+QUrl previewUrl(const QString& proxyUrl, const QSize& size, bool videoPoster = false)
 {
     QUrl url(proxyUrl);
     QUrlQuery query(url);
-    query.addQueryItem(QStringLiteral("width"), QString::number(size.width()));
-    query.addQueryItem(QStringLiteral("height"), QString::number(size.height()));
+    query.addQueryItem(QStringLiteral("width"), QString::number(std::max(1, size.width())));
+    query.addQueryItem(QStringLiteral("height"), QString::number(std::max(1, size.height())));
+    if (videoPoster)
+        query.addQueryItem(QStringLiteral("format"), QStringLiteral("jpeg"));
     url.setQuery(query);
     return url;
+}
+
+QUrl mediaPreview(const QString& url, const QSize& size, bool videoPoster = false)
+{
+    if (url.isEmpty())
+        return {};
+    const bool poster = videoPoster || isDirectVideoFile(url);
+    return supportsDiscordSizeQuery(url) ? previewUrl(url, size, poster) : QUrl(url);
+}
+
+QString youtubeVideoId(const QUrl& url)
+{
+    const QString host = url.host().toLower();
+    if (host == u"youtu.be" || host.endsWith(u".youtu.be")) {
+        const QString id = url.path().mid(1).section(u'/', 0, 0);
+        return id.section(u'?', 0, 0);
+    }
+    if (host.contains(u"youtube.com") || host.contains(u"youtube-nocookie.com")) {
+        const QString path = url.path();
+        if (path.startsWith(u"/embed/"))
+            return path.mid(7).section(u'/', 0, 0);
+        if (path.startsWith(u"/shorts/"))
+            return path.mid(8).section(u'/', 0, 0);
+        if (path.startsWith(u"/live/"))
+            return path.mid(6).section(u'/', 0, 0);
+        return QUrlQuery(url).queryItemValue(QStringLiteral("v"));
+    }
+    return {};
+}
+
+// Best still frame for an embed preview (YouTube CDN first — Discord's images-ext is unreliable).
+QUrl embedPreviewSource(const Embed& embed, const QSize& size)
+{
+    const QString yt = [&] {
+        QString id = youtubeVideoId(QUrl(embed.url));
+        if (id.isEmpty())
+            id = youtubeVideoId(QUrl(embed.videoUrl));
+        return id;
+    }();
+    if (!yt.isEmpty())
+        return QUrl(QStringLiteral("https://i.ytimg.com/vi/%1/hqdefault.jpg").arg(yt));
+
+    // Prefer the original host for non-Discord images (Twitch, etc.).
+    if (!embed.imageOriginalUrl.isEmpty()) {
+        const QString host = QUrl(embed.imageOriginalUrl).host();
+        if (!host.contains(u"discordapp") && !host.contains(u"discord.com"))
+            return QUrl(embed.imageOriginalUrl);
+    }
+    if (!embed.imageUrl.isEmpty())
+        return mediaPreview(embed.imageUrl, size);
+    // gifv / Discord-hosted video with no separate thumbnail: ask the proxy for a poster frame.
+    if (isDirectVideoFile(embed.videoUrl) && supportsDiscordSizeQuery(embed.videoUrl))
+        return previewUrl(embed.videoUrl, size, true);
+    return {};
 }
 
 QString formatSize(qint64 bytes)
@@ -200,8 +274,11 @@ struct MessageDelegate::Layout
     {
         QRect rect;
         QUrl source;
-        QString openUrl;
+        QString imageUrl; // full-resolution URL for the in-app viewer
+        QString openUrl;  // browser / download link (files, embed pages)
         bool file = false;
+        bool video = false;     // playable in the native player (mp4/webm/…)
+        bool webEmbed = false;  // YouTube etc. — in-app WebEngine lightbox
         QString name;
         QString detail;
     };
@@ -413,10 +490,14 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
     for (const Attachment& attachment : message.attachments) {
         Layout::Picture picture;
         picture.openUrl = attachment.url;
-        if (attachment.isImage()) {
+        if (attachment.isMedia()) {
             const QSize size = fitInto(attachment.width, attachment.height, std::min(MaxPictureWidth, contentWidth), MaxPictureHeight);
             picture.rect = QRect(ContentLeft, y + 4, size.width(), size.height());
-            picture.source = previewUrl(attachment.proxyUrl, size);
+            // Discord's media proxy still serves a still frame for videos when sized.
+            picture.source = mediaPreview(attachment.proxyUrl.isEmpty() ? attachment.url : attachment.proxyUrl, size,
+                                           attachment.isVideo());
+            picture.imageUrl = attachment.url;
+            picture.video = attachment.isVideo();
         } else {
             picture.file = true;
             picture.name = attachment.filename;
@@ -429,7 +510,8 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
 
     for (const Embed& embed : message.embeds) {
         // Plain image/video links are shown as the picture alone, like Discord does.
-        const bool mediaOnly = (embed.type == u"image" || embed.type == u"gifv") && !embed.imageUrl.isEmpty();
+        const bool mediaOnly = (embed.type == u"image" || embed.type == u"gifv" || embed.type == u"video")
+            && (!embed.imageUrl.isEmpty() || !embed.videoUrl.isEmpty());
         Layout::EmbedBox box;
         const int boxWidth = std::min(MaxEmbedWidth, contentWidth);
         const int innerLeft = ContentLeft + (mediaOnly ? 0 : 16);
@@ -461,14 +543,28 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
                 by += int(std::ceil(box.description->size().height())) + 6;
             }
         }
-        if (!embed.imageUrl.isEmpty()) {
+        if (!embed.imageUrl.isEmpty() || !embed.videoUrl.isEmpty()) {
             box.hasPicture = true;
+            const int iw = embed.imageWidth > 0 ? embed.imageWidth : 400;
+            const int ih = embed.imageHeight > 0 ? embed.imageHeight : 300;
             const QSize size = embed.imageIsThumbnail && !mediaOnly
-                ? fitInto(embed.imageWidth, embed.imageHeight, 80, 80)
-                : fitInto(embed.imageWidth, embed.imageHeight, std::min(MaxPictureWidth, innerWidth), MaxPictureHeight);
+                ? fitInto(iw, ih, 80, 80)
+                : fitInto(iw, ih, std::min(MaxPictureWidth, innerWidth), MaxPictureHeight);
             box.picture.rect = QRect(innerLeft, by, size.width(), size.height());
-            box.picture.source = previewUrl(embed.imageUrl, size);
-            box.picture.openUrl = embed.url.isEmpty() ? embed.imageUrl : embed.url;
+            // Never feed a video/page URL to the image cache — that paints a black box.
+            box.picture.source = embedPreviewSource(embed, size);
+            const bool playable = isDirectVideoFile(embed.videoUrl);
+            box.picture.video = playable;
+            // YouTube / Twitch / etc.: play inside the app via WebEngine (Discord-style lightbox).
+            box.picture.webEmbed = !playable
+                && (!embed.videoUrl.isEmpty() || embed.type == u"video" || embed.type == u"gifv");
+            if (playable)
+                box.picture.imageUrl = embed.videoUrl;
+            else if (!embed.imageUrl.isEmpty() && !box.picture.webEmbed)
+                box.picture.imageUrl = embed.imageUrl;
+            box.picture.openUrl = embed.url.isEmpty()
+                ? (embed.imageUrl.isEmpty() ? embed.videoUrl : embed.imageUrl)
+                : embed.url;
             by += size.height() + 6;
         }
         const int boxHeight = by - y - 4 + (mediaOnly ? 0 : 6);
@@ -628,6 +724,22 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
             painter->fillRect(picture.rect, colors.bg1);
         else
             painter->drawImage(picture.rect, image);
+        if (picture.video || picture.webEmbed) {
+            // Soft play affordance so video previews read differently from stills.
+            const int r = std::min(36, std::min(picture.rect.width(), picture.rect.height()) / 3);
+            const QPoint c = picture.rect.center();
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(0, 0, 0, 140));
+            painter->drawEllipse(c, r, r);
+            QPainterPath triangle;
+            const int s = r / 2;
+            triangle.moveTo(c.x() - s / 2 + 2, c.y() - s);
+            triangle.lineTo(c.x() - s / 2 + 2, c.y() + s);
+            triangle.lineTo(c.x() + s, c.y());
+            triangle.closeSubpath();
+            painter->setBrush(Qt::white);
+            painter->drawPath(triangle);
+        }
         painter->restore();
     };
     for (const Layout::Picture& picture : l.pictures)
@@ -713,15 +825,29 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
     }
     for (const Layout::Picture& picture : l.pictures) {
         if (picture.rect.contains(p)) {
+            if (picture.webEmbed) {
+                hit.kind = Hit::Image;
+                hit.url = picture.openUrl;
+                hit.web = true;
+                return hit;
+            }
             hit.kind = picture.file ? Hit::File : Hit::Image;
-            hit.url = picture.openUrl;
+            hit.url = picture.file || picture.imageUrl.isEmpty() ? picture.openUrl : picture.imageUrl;
+            hit.video = picture.video;
             return hit;
         }
     }
     for (const Layout::EmbedBox& box : l.embeds) {
         if (box.hasPicture && box.picture.rect.contains(p)) {
+            if (box.picture.webEmbed) {
+                hit.kind = Hit::Image;
+                hit.url = box.picture.openUrl;
+                hit.web = true;
+                return hit;
+            }
             hit.kind = Hit::Image;
-            hit.url = box.picture.openUrl;
+            hit.url = box.picture.imageUrl.isEmpty() ? box.picture.openUrl : box.picture.imageUrl;
+            hit.video = box.picture.video;
             return hit;
         }
         if (!box.titleUrl.isEmpty() && box.titleRect.contains(p)) {
@@ -819,6 +945,8 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
             emit linkActivated(hit.url);
         break;
     case MessageDelegate::Hit::Image:
+        emit imageActivated(hit.url, hit.video, hit.web);
+        break;
     case MessageDelegate::Hit::File:
         emit linkActivated(hit.url);
         break;

@@ -2,6 +2,7 @@
 
 #include "EmojiPicker.h"
 #include "ImageCache.h"
+#include "ImageViewer.h"
 #include "MemberListView.h"
 #include "MessageView.h"
 #include "Theme.h"
@@ -230,6 +231,7 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
             m_session->sendTyping(m_channelId);
     });
     connect(m_list, &MessageListView::linkActivated, this, &ChatView::openLink);
+    connect(m_list, &MessageListView::imageActivated, this, &ChatView::openImage);
     connect(m_list, &MessageListView::reactionClicked, this, &ChatView::toggleReaction);
     connect(m_list, &MessageListView::replyClicked, this, &ChatView::jumpTo);
     connect(m_list, &MessageListView::userClicked, this, [this](const QString& userId, const QPoint& position) {
@@ -487,6 +489,16 @@ void ChatView::openLink(const QString& url)
 {
     if (url.startsWith(u"http://") || url.startsWith(u"https://"))
         QDesktopServices::openUrl(QUrl(url));
+}
+
+void ChatView::openImage(const QString& url, bool video, bool web)
+{
+    if (!url.startsWith(u"http://") && !url.startsWith(u"https://"))
+        return;
+    const ImageViewer::Mode mode = web       ? ImageViewer::Mode::Web
+                                   : video   ? ImageViewer::Mode::Video
+                                             : ImageViewer::Mode::Image;
+    ImageViewer::open(QUrl(url), m_images, window(), mode);
 }
 
 void ChatView::jumpTo(const QString& messageId)
