@@ -33,8 +33,9 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
-          # WebEngineWidgets also needs Quick, WebChannel and Positioning; aqt does not pull them in.
-          modules: 'qtwebsockets qtimageformats qtmultimedia qtdeclarative qtshadertools qtwebchannel qtpositioning qtwebengine'
+          # Quick ships with the desktop install. WebEngine still needs WebChannel and Positioning,
+          # which aqt does not pull in on its own. `qtdeclarative` is not a selectable module name.
+          modules: 'qtwebsockets qtimageformats qtmultimedia qtwebchannel qtpositioning qtwebengine'
           cache: true
 
       - name: Install CMake and Ninja
