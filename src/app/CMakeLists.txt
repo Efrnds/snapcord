@@ -16,6 +16,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     Notifier.cpp Notifier.h
     ServerRail.cpp ServerRail.h
     SettingsDialog.cpp SettingsDialog.h
+    Theme.cpp Theme.h
     UserPanel.cpp UserPanel.h
     VoiceChannelView.cpp VoiceChannelView.h
     VoiceController.cpp VoiceController.h
@@ -27,7 +28,7 @@ qt_add_resources(snapcord "app_resources"
     PREFIX "/"
     BASE "${resource_dir}"
     FILES
-        "${resource_dir}/theme/dark.qss"
+        "${resource_dir}/theme/app.qss"
         "${resource_dir}/icons/snapcord.svg"
         "${resource_dir}/icons/home.svg"
         "${resource_dir}/icons/plus.svg"

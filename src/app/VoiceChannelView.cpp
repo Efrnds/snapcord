@@ -1,6 +1,7 @@
 #include "VoiceChannelView.h"
 
 #include "Avatar.h"
+#include "Theme.h"
 
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -50,7 +51,7 @@ void ParticipantTile::paintEvent(QPaintEvent*)
 
     const QRectF tile = QRectF(rect()).adjusted(1, 1, -1, -1);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0x23, 0x24, 0x28));
+    painter.setBrush(Theme::instance().palette().bg3);
     painter.drawRoundedRect(tile, 8, 8);
 
     const int avatarSize = qBound(48, height() / 3, 96);
@@ -85,7 +86,7 @@ void ParticipantTile::paintEvent(QPaintEvent*)
 
     if (m_participant.speaking) {
         painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(QColor(0x23, 0xa5, 0x59), 3));
+        painter.setPen(QPen(Theme::instance().palette().success, 3));
         painter.drawRoundedRect(tile.adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
     }
 }

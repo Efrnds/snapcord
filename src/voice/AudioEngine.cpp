@@ -124,9 +124,12 @@ void AudioEngine::stopCapture()
 {
     if (!d->captureRunning)
         return;
+    // Drop the callback before tearing the device down so the audio thread cannot touch UI state,
+    // and stop explicitly — on PipeWire, uninit alone can hang the UI thread.
+    d->captureCallback = nullptr;
+    ma_device_stop(&d->captureDevice);
     ma_device_uninit(&d->captureDevice);
     d->captureRunning = false;
-    d->captureCallback = nullptr;
 }
 
 bool AudioEngine::startPlayback(const QString& deviceName, PlaybackCallback callback)
@@ -160,7 +163,8 @@ void AudioEngine::stopPlayback()
 {
     if (!d->playbackRunning)
         return;
+    d->playbackCallback = nullptr;
+    ma_device_stop(&d->playbackDevice);
     ma_device_uninit(&d->playbackDevice);
     d->playbackRunning = false;
-    d->playbackCallback = nullptr;
 }

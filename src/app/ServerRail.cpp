@@ -1,5 +1,7 @@
 #include "ServerRail.h"
 
+#include "Theme.h"
+
 #include <QButtonGroup>
 #include <QFrame>
 #include <QPainter>
@@ -26,7 +28,7 @@ QString initials(const QString& name)
 
 ServerButton::ServerButton(QWidget* parent)
     : QAbstractButton(parent)
-    , m_accent(0x58, 0x65, 0xf2)
+    , m_accent(Theme::instance().accent())
 {
     setCheckable(true);
     setCursor(Qt::PointingHandCursor);
@@ -88,7 +90,7 @@ void ServerButton::paintEvent(QPaintEvent*)
         painter.drawImage(iconRect, m_image);
     } else {
         painter.setPen(Qt::NoPen);
-        painter.setBrush(active ? m_accent : QColor(0x31, 0x33, 0x38));
+        painter.setBrush(active ? m_accent : Theme::instance().palette().bg2);
         painter.drawPath(shape);
         if (!m_icon.isNull()) {
             m_icon.paint(&painter, iconRect.adjusted(12, 12, -12, -12).toRect());
@@ -97,7 +99,7 @@ void ServerButton::paintEvent(QPaintEvent*)
             font.setPixelSize(m_label.size() > 2 ? 14 : 16);
             font.setWeight(QFont::DemiBold);
             painter.setFont(font);
-            painter.setPen(active ? Qt::white : QColor(0xdb, 0xde, 0xe1));
+            painter.setPen(active ? Qt::white : Theme::instance().palette().text);
             painter.drawText(iconRect, Qt::AlignCenter, m_label);
         }
     }
@@ -112,8 +114,8 @@ void ServerButton::paintEvent(QPaintEvent*)
         const QString text = m_mentions > 99 ? QStringLiteral("99+") : QString::number(m_mentions);
         const qreal badgeWidth = std::max(16, painter.fontMetrics().horizontalAdvance(text) + 10);
         const QRectF badge(iconRect.right() - badgeWidth + 4, iconRect.bottom() - 12, badgeWidth, 16);
-        painter.setPen(QPen(QColor(0x1e, 0x1f, 0x22), 4));
-        painter.setBrush(QColor(0xf2, 0x3f, 0x43));
+        painter.setPen(QPen(Theme::instance().palette().bg0, 4));
+        painter.setBrush(Theme::instance().palette().danger);
         painter.drawRoundedRect(badge, 8, 8);
         painter.setPen(Qt::white);
         painter.drawText(badge, Qt::AlignCenter, text);
@@ -140,6 +142,14 @@ ServerRail::ServerRail(QWidget* parent)
     m_group->addButton(m_home);
     connect(m_home, &QAbstractButton::clicked, this, &ServerRail::homeSelected);
     layout->addWidget(m_home);
+
+    connect(&Theme::instance(), &Theme::changed, this, [this] {
+        const QColor accent = Theme::instance().accent();
+        m_home->setAccent(accent);
+        for (ServerButton* button : std::as_const(m_buttons))
+            button->setAccent(accent);
+        update();
+    });
 
     auto* separator = new QFrame;
     separator->setObjectName(QStringLiteral("railSeparator"));
@@ -180,6 +190,7 @@ void ServerRail::addServer(const QString& id, const QString& name, const QImage&
     button->setToolTip(name);
     button->setLabel(initials(name));
     button->setImage(icon);
+    button->setAccent(Theme::instance().accent());
     m_group->addButton(button);
     connect(button, &QAbstractButton::clicked, this, [this, id] { emit serverSelected(id); });
     m_serverLayout->addWidget(button);

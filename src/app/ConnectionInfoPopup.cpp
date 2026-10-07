@@ -1,5 +1,6 @@
 #include "ConnectionInfoPopup.h"
 
+#include "Theme.h"
 #include "VoiceController.h"
 
 #include <QFormLayout>
@@ -30,7 +31,7 @@ void PingGraph::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(0x1e, 0x1f, 0x22));
+    painter.setBrush(Theme::instance().palette().surface);
     painter.drawRoundedRect(rect(), 4, 4);
     if (m_samples.size() < 2)
         return;
@@ -47,7 +48,7 @@ void PingGraph::paintEvent(QPaintEvent*)
         else
             line.lineTo(point);
     }
-    painter.setPen(QPen(QColor(0x23, 0xa5, 0x59), 2));
+    painter.setPen(QPen(Theme::instance().palette().success, 2));
     painter.setBrush(Qt::NoBrush);
     painter.drawPath(line);
 }

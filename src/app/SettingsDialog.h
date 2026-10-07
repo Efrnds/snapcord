@@ -10,6 +10,7 @@
 #include <memory>
 
 class AudioEngine;
+class QButtonGroup;
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -76,6 +77,24 @@ private:
     bool m_recording = false;
 };
 
+// Solid color chip for Appearance. Painted directly so global QSS cannot wipe the fill.
+class ColorSwatch : public QPushButton
+{
+    Q_OBJECT
+
+public:
+    explicit ColorSwatch(QWidget* parent = nullptr);
+
+    void setSwatchColor(const QColor& color);
+    QColor swatchColor() const { return m_color; }
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    QColor m_color{Qt::black};
+};
+
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
@@ -93,13 +112,16 @@ protected:
 
 private:
     QWidget* buildVoicePage();
+    QWidget* buildAppearancePage();
     QWidget* buildNotificationsPage();
     QWidget* buildLanguagePage();
     void apply();
+    void applyAppearance();
     void updateModeWidgets();
     void startMicTest();
     void stopMicTest();
     void changeLanguage(const QString& code);
+    void refreshColorSwatches();
 
     VoiceController* m_voice;
     VoiceSettings m_settings;
@@ -121,6 +143,13 @@ private:
     QCheckBox* m_echoCancellation = nullptr;
     QCheckBox* m_automaticGainControl = nullptr;
     QCheckBox* m_soundEffects = nullptr;
+
+    QSlider* m_fontSize = nullptr;
+    QLabel* m_fontSizeLabel = nullptr;
+    ColorSwatch* m_accentSwatch = nullptr;
+    ColorSwatch* m_profilePrimarySwatch = nullptr;
+    ColorSwatch* m_profileAccentSwatch = nullptr;
+    QButtonGroup* m_presetGroup = nullptr;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;
