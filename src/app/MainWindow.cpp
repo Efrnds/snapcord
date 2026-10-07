@@ -25,6 +25,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
 #include <QSettings>
 #include <QSlider>
 #include <QStackedWidget>
@@ -37,6 +38,20 @@ constexpr auto LastGuildKey = "ui/lastGuild";
 constexpr auto LastChannelKey = "ui/lastChannel/";
 
 } // namespace
+
+// Solid theme background behind the rail / sidebar / chat columns.
+class MainWindow::AppShell : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        painter.fillRect(rect(), Theme::instance().palette().bg2);
+    }
+};
 
 MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent)
     : QMainWindow(parent)
@@ -60,14 +75,16 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     m_pages->addWidget(m_chatView);
     m_pages->addWidget(m_voiceView);
 
-    auto* central = new QWidget;
-    auto* layout = new QHBoxLayout(central);
+    m_shell = new AppShell;
+    m_shell->setAttribute(Qt::WA_StyledBackground, false);
+    auto* layout = new QHBoxLayout(m_shell);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_rail);
     layout->addWidget(m_sidebar);
     layout->addWidget(m_pages, 1);
-    setCentralWidget(central);
+    setCentralWidget(m_shell);
+    connect(&Theme::instance(), &Theme::changed, m_shell, QOverload<>::of(&QWidget::update));
 
     m_sidebar->setTitle(tr("Connecting…"));
 
@@ -97,6 +114,16 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         const QString lastGuild = QSettings().value(QLatin1String(LastGuildKey)).toString();
         selectGuild(lastGuild.isEmpty() || m_session->guild(lastGuild) ? lastGuild : m_session->guildOrder().value(0));
         refreshUserPanel();
+        const User& self = m_session->self();
+        Theme::instance().setDiscordProfileColors(
+            self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor(),
+            QColor(self.bannerColorHex));
+    });
+    connect(m_session, &Session::usersChanged, this, [this] {
+        const User& self = m_session->self();
+        Theme::instance().setDiscordProfileColors(
+            self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor(),
+            QColor(self.bannerColorHex));
     });
     connect(m_session, &Session::guildListChanged, this, &MainWindow::rebuildServerRail);
     connect(m_session, &Session::guildChanged, this, [this, scheduleRefresh](const QString& guildId) {

@@ -5,7 +5,6 @@
 #include "core/Log.h"
 
 #include <QApplication>
-#include <QFont>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QLocale>
@@ -34,10 +33,7 @@ int main(int argc, char* argv[])
     // Fusion looks the same on all three platforms; Theme paints Discord-like colors on top.
     QApplication::setStyle(QStringLiteral("Fusion"));
 
-    QFont font = QApplication::font();
-    font.setFamilies({QStringLiteral("Noto Sans"), QStringLiteral("Inter"), QStringLiteral("Segoe UI")});
-    QApplication::setFont(font);
-
+    // Font family comes from Theme settings (default stack: Noto Sans / Inter / Segoe UI).
     Theme::instance().apply(app);
 
     if (demo) {

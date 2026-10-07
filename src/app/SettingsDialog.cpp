@@ -13,6 +13,8 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QEvent>
+#include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -22,13 +24,19 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QProcess>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWheelEvent>
+
+#include "core/Session.h"
 
 #include <cmath>
 
@@ -226,6 +234,7 @@ ColorSwatch::ColorSwatch(QWidget* parent)
     setCursor(Qt::PointingHandCursor);
     setFixedSize(40, 40);
     setFocusPolicy(Qt::NoFocus);
+    setCheckable(false);
 }
 
 void ColorSwatch::setSwatchColor(const QColor& color)
@@ -236,14 +245,124 @@ void ColorSwatch::setSwatchColor(const QColor& color)
     update();
 }
 
+void ColorSwatch::setSelectedSwatch(bool selected)
+{
+    if (m_selected == selected)
+        return;
+    m_selected = selected;
+    update();
+}
+
 void ColorSwatch::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     const QRectF box = QRectF(rect()).adjusted(1, 1, -1, -1);
-    painter.setPen(QPen(underMouse() ? Theme::instance().accent() : Theme::instance().palette().border, 2));
+    const QColor ring = m_selected || underMouse() ? Theme::instance().accent()
+                                                   : Theme::instance().palette().border;
+    painter.setPen(QPen(ring, m_selected ? 3 : 2));
     painter.setBrush(m_color);
     painter.drawRoundedRect(box, 6, 6);
+}
+
+// --- LayoutStudio -----------------------------------------------------------------------------------
+
+LayoutStudio::LayoutStudio(QWidget* parent)
+    : QWidget(parent)
+{
+    setMouseTracking(true);
+    setCursor(Qt::PointingHandCursor);
+    setToolTip(tr("Click a region to change its color"));
+    connect(&Theme::instance(), &Theme::changed, this, QOverload<>::of(&QWidget::update));
+}
+
+QString LayoutStudio::hitTest(const QPoint& pos) const
+{
+    const QRect area = rect().adjusted(8, 8, -8, -8);
+    if (!area.contains(pos))
+        return {};
+    const int railW = qMax(18, area.width() / 10);
+    const int sideW = qMax(48, area.width() / 4);
+    const QRect rail(area.left(), area.top(), railW, area.height());
+    const QRect side(rail.right() + 1, area.top(), sideW, area.height());
+    const QRect chat(side.right() + 1, area.top(), area.right() - side.right(), area.height());
+    const QRect accent(chat.left() + 12, chat.bottom() - 18, 40, 8);
+    if (accent.contains(pos))
+        return QStringLiteral("accent");
+    if (rail.contains(pos))
+        return QStringLiteral("bg0");
+    if (side.contains(pos))
+        return QStringLiteral("bg1");
+    if (chat.contains(pos))
+        return QStringLiteral("bg2");
+    return {};
+}
+
+void LayoutStudio::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    const Theme::Palette& c = Theme::instance().palette();
+    // Fill opaque first — parent scroll views can otherwise bleed a light Fusion Window color.
+    painter.fillRect(rect(), c.bg2);
+    const QRect area = rect().adjusted(8, 8, -8, -8);
+    const int railW = qMax(18, area.width() / 10);
+    const int sideW = qMax(48, area.width() / 4);
+    const QRect rail(area.left(), area.top(), railW, area.height());
+    const QRect side(rail.right() + 1, area.top(), sideW, area.height());
+    const QRect chat(side.right() + 1, area.top(), area.right() - side.right(), area.height());
+
+    painter.setPen(QPen(c.border, 1.5));
+    painter.setBrush(c.bg2);
+    painter.drawRoundedRect(area, 10, 10);
+
+    auto drawRegion = [&](const QRect& r, const QColor& fill, const QString& id, const QString& label) {
+        const bool hot = m_hover == id;
+        painter.setPen(hot ? QPen(c.accent, 2) : Qt::NoPen);
+        painter.setBrush(fill);
+        painter.drawRect(r);
+        painter.setPen(c.textBright);
+        QFont font = painter.font();
+        font.setPixelSize(11);
+        font.setWeight(QFont::DemiBold);
+        painter.setFont(font);
+        painter.drawText(r.adjusted(6, 0, -6, 0), Qt::AlignCenter, label);
+    };
+
+    drawRegion(rail, c.bg0, QStringLiteral("bg0"), tr("Rail"));
+    drawRegion(side, c.bg1, QStringLiteral("bg1"), tr("Sidebar"));
+    drawRegion(chat, c.bg2, QStringLiteral("bg2"), tr("Chat"));
+
+    const QRect accent(chat.left() + 12, chat.bottom() - 18, 48, 10);
+    painter.setPen(m_hover == u"accent" ? QPen(c.textBright, 1) : Qt::NoPen);
+    painter.setBrush(c.accent);
+    painter.drawRoundedRect(accent, 3, 3);
+    painter.setPen(c.onAccent);
+    painter.drawText(accent, Qt::AlignCenter, tr("Accent"));
+}
+
+void LayoutStudio::mousePressEvent(QMouseEvent* event)
+{
+    const QString id = hitTest(event->position().toPoint());
+    if (!id.isEmpty())
+        emit regionClicked(id);
+}
+
+void LayoutStudio::mouseMoveEvent(QMouseEvent* event)
+{
+    const QString id = hitTest(event->position().toPoint());
+    if (id != m_hover) {
+        m_hover = id;
+        update();
+    }
+}
+
+void LayoutStudio::leaveEvent(QEvent*)
+{
+    if (!m_hover.isEmpty()) {
+        m_hover.clear();
+        update();
+    }
 }
 
 // --- SettingsDialog ---------------------------------------------------------------------------------
@@ -255,6 +374,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     , m_meterTimer(new QTimer(this))
 {
     setObjectName(QStringLiteral("settingsDialog"));
+    setAttribute(Qt::WA_StyledBackground, true);
     setWindowTitle(tr("User Settings"));
     resize(860, 640);
 
@@ -275,33 +395,36 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
         emit logoutRequested();
     });
 
-    auto* side = new QWidget;
-    side->setObjectName(QStringLiteral("settingsSide"));
-    side->setAttribute(Qt::WA_StyledBackground);
-    auto* sideLayout = new QVBoxLayout(side);
+    m_settingsSide = new QWidget;
+    m_settingsSide->setObjectName(QStringLiteral("settingsSide"));
+    m_settingsSide->setAttribute(Qt::WA_StyledBackground, true);
+    auto* sideLayout = new QVBoxLayout(m_settingsSide);
     sideLayout->setContentsMargins(12, 24, 12, 16);
     sideLayout->addWidget(navigation, 1);
     sideLayout->addWidget(logout);
 
-    auto* pages = new QStackedWidget;
-    pages->addWidget(buildVoicePage());
-    pages->addWidget(buildAppearancePage());
-    pages->addWidget(buildNotificationsPage());
-    pages->addWidget(buildLanguagePage());
-    connect(navigation, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
+    m_settingsPages = new QStackedWidget;
+    m_settingsPages->addWidget(buildVoicePage());
+    m_settingsPages->addWidget(buildAppearancePage());
+    m_settingsPages->addWidget(buildNotificationsPage());
+    m_settingsPages->addWidget(buildLanguagePage());
+    connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, &QStackedWidget::setCurrentIndex);
     navigation->setCurrentRow(0);
 
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    layout->addWidget(side);
-    layout->addWidget(pages, 1);
+    layout->addWidget(m_settingsSide);
+    layout->addWidget(m_settingsPages, 1);
 
     m_meterTimer->setInterval(50);
     connect(m_meterTimer, &QTimer::timeout, this, [this] {
         const bool inCall = m_voice->state() == VoiceConnection::State::Connected;
         m_meter->setLevel(inCall ? m_voice->connection()->inputLevelDb() : m_testLevelDb.load());
     });
+
+    connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::applyDialogChrome);
+    applyDialogChrome();
 }
 
 SettingsDialog::~SettingsDialog()
@@ -526,93 +649,187 @@ QWidget* SettingsDialog::buildAppearancePage()
     layout->addSpacing(8);
 
     layout->addWidget(sectionLabel(tr("Theme")));
-    m_presetGroup = new QButtonGroup(content);
-    m_presetGroup->setExclusive(true);
-    auto* presetGrid = new QGridLayout;
-    presetGrid->setHorizontalSpacing(10);
-    presetGrid->setVerticalSpacing(10);
     const Theme::Settings current = Theme::instance().settings();
-    int index = 0;
-    for (const Theme::Preset& preset : Theme::presets()) {
-        auto* button = new QPushButton;
-        if (preset.id == QLatin1String("discord"))
-            button->setText(tr("Discord"));
-        else if (preset.id == QLatin1String("midnight"))
-            button->setText(tr("Midnight"));
-        else if (preset.id == QLatin1String("amoled"))
-            button->setText(tr("AMOLED"));
-        else if (preset.id == QLatin1String("ash"))
-            button->setText(tr("Ash"));
-        else if (preset.id == QLatin1String("rose"))
-            button->setText(tr("Rose"));
-        else if (preset.id == QLatin1String("emerald"))
-            button->setText(tr("Emerald"));
-        else if (preset.id == QLatin1String("sunset"))
-            button->setText(tr("Sunset"));
-        else if (preset.id == QLatin1String("ocean"))
-            button->setText(tr("Ocean"));
-        else
-            button->setText(preset.name);
-        button->setObjectName(QStringLiteral("presetCard"));
-        button->setCursor(Qt::PointingHandCursor);
-        button->setCheckable(true);
-        button->setProperty("presetId", preset.id);
-        button->setProperty("selected", preset.id == current.presetId);
-        button->setChecked(preset.id == current.presetId);
-        button->setStyleSheet(QStringLiteral(
-            "QPushButton#presetCard {"
-            "  text-align: left;"
-            "  padding-left: 44px;"
-            "  min-height: 44px;"
-            "  background-color: %1;"
-            "  border: 2px solid %2;"
-            "  border-radius: 8px;"
-            "  color: %3;"
-            "}"
-            "QPushButton#presetCard:checked {"
-            "  border-color: %4;"
-            "}")
-                                  .arg(preset.palette.bg1.name(),
-                                       preset.palette.border.name(),
-                                       preset.palette.textBright.name(),
-                                       preset.palette.accent.name()));
-        button->setStyleSheet(button->styleSheet()
-                              + QStringLiteral("QPushButton#presetCard { border-left: 6px solid %1; }")
-                                    .arg(preset.palette.accent.name()));
-        m_presetGroup->addButton(button, index);
-        presetGrid->addWidget(button, index / 2, index % 2);
-        ++index;
+    m_presetCombo = new QComboBox;
+    for (const Theme::Preset& preset : Theme::presets())
+        m_presetCombo->addItem(presetDisplayName(preset.id, preset.name), preset.id);
+    {
+        const int idx = m_presetCombo->findData(current.presetId);
+        m_presetCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    layout->addLayout(presetGrid);
-    connect(m_presetGroup, &QButtonGroup::idClicked, this, &SettingsDialog::applyAppearance);
+    layout->addWidget(m_presetCombo);
+    ignoreWheel(m_presetCombo);
+    connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Click to recolor")));
+    auto* studioHint = new QLabel(tr("Click rail, sidebar, chat, or accent on the map. Changes apply instantly."));
+    studioHint->setObjectName(QStringLiteral("settingsHint"));
+    studioHint->setWordWrap(true);
+    layout->addWidget(studioHint);
+    m_layoutStudio = new LayoutStudio;
+    layout->addWidget(m_layoutStudio);
+    connect(m_layoutStudio, &LayoutStudio::regionClicked, this, [this](const QString& id) {
+        pickColor(Theme::instance().tokenColor(id), Theme::tokenLabel(id), [this, id](const QColor& c) {
+            Theme::instance().setTokenOverride(id, c);
+            refreshColorSwatches();
+        });
+    });
+
+    m_customizedLabel = new QLabel;
+    m_customizedLabel->setObjectName(QStringLiteral("settingsHint"));
+    layout->addWidget(m_customizedLabel);
+    auto* resetAll = new QPushButton(tr("Reset all customization"));
+    resetAll->setObjectName(QStringLiteral("secondaryButton"));
+    resetAll->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(resetAll, 0, Qt::AlignLeft);
+    connect(resetAll, &QPushButton::clicked, this, [this] {
+        // Sync widgets first so any stray applyAppearance cannot re-write old slider values
+        // on top of the cleared theme (that left the dialog looking washed-out / broken).
+        m_syncingAppearance = true;
+        if (m_brightness)
+            m_brightness->setValue(0);
+        if (m_saturation)
+            m_saturation->setValue(0);
+        if (m_uiScale)
+            m_uiScale->setValue(100);
+        if (m_radius)
+            m_radius->setValue(4);
+        if (m_brightnessLabel)
+            m_brightnessLabel->setText(QStringLiteral("0"));
+        if (m_saturationLabel)
+            m_saturationLabel->setText(QStringLiteral("0"));
+        if (m_uiScaleLabel)
+            m_uiScaleLabel->setText(QStringLiteral("100%"));
+        if (m_radiusLabel)
+            m_radiusLabel->setText(QStringLiteral("4 px"));
+        m_syncingAppearance = false;
+        Theme::instance().clearCustomization();
+        refreshAppearanceControls();
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Tone & scale")));
+    auto addToneSlider = [&](const QString& title, QSlider*& slider, QLabel*& valueLabel, int min, int max,
+                             int value, const std::function<QString(int)>& format) {
+        layout->addWidget(new QLabel(title));
+        slider = new QSlider(Qt::Horizontal);
+        slider->setRange(min, max);
+        slider->setValue(value);
+        slider->setPageStep(1);
+        slider->setSingleStep(1);
+        valueLabel = new QLabel(format(value));
+        valueLabel->setObjectName(QStringLiteral("settingsHint"));
+        valueLabel->setMinimumWidth(48);
+        valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        auto* row = new QHBoxLayout;
+        row->addWidget(slider, 1);
+        row->addWidget(valueLabel);
+        layout->addLayout(row);
+        bindLiveSlider(slider, valueLabel, format);
+        ignoreWheel(slider);
+    };
+    addToneSlider(tr("Brightness"), m_brightness, m_brightnessLabel, -40, 40, current.brightness,
+                  [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
+    addToneSlider(tr("Saturation"), m_saturation, m_saturationLabel, -50, 50, current.saturation,
+                  [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
+    addToneSlider(tr("UI scale"), m_uiScale, m_uiScaleLabel, 85, 130, current.uiScale,
+                  [](int v) { return QStringLiteral("%1%").arg(v); });
+    addToneSlider(tr("Corner radius"), m_radius, m_radiusLabel, 0, 12, current.radius,
+                  [](int v) { return QStringLiteral("%1 px").arg(v); });
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Accent color")));
+    auto* accentHint = new QLabel(tr("Pick a color or open the custom picker."));
+    accentHint->setObjectName(QStringLiteral("settingsHint"));
+    accentHint->setWordWrap(true);
+    layout->addWidget(accentHint);
+
     auto* accentRow = new QHBoxLayout;
+    accentRow->setSpacing(8);
+    m_accentChips.clear();
+    for (const QColor& color : Theme::accentSwatches()) {
+        auto* chip = new ColorSwatch;
+        chip->setFixedSize(32, 32);
+        chip->setSwatchColor(color);
+        chip->setToolTip(color.name(QColor::HexRgb).toUpper());
+        accentRow->addWidget(chip);
+        m_accentChips.push_back(chip);
+        connect(chip, &QPushButton::clicked, this, [this, color] { setCustomAccent(color); });
+    }
     m_accentSwatch = new ColorSwatch;
-    m_accentSwatch->setToolTip(tr("Custom accent color"));
+    m_accentSwatch->setToolTip(tr("Custom…"));
+    accentRow->addWidget(m_accentSwatch);
     auto* resetAccent = new QPushButton(tr("Use theme default"));
     resetAccent->setObjectName(QStringLiteral("secondaryButton"));
     resetAccent->setCursor(Qt::PointingHandCursor);
-    accentRow->addWidget(m_accentSwatch);
     accentRow->addWidget(resetAccent);
     accentRow->addStretch();
     layout->addLayout(accentRow);
     connect(m_accentSwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
+        const Theme::Settings settings = Theme::instance().settings();
         const QColor initial = settings.customAccent.isValid() ? settings.customAccent
                                                                : Theme::instance().accent();
-        const QColor chosen = QColorDialog::getColor(initial, this, tr("Accent color"));
-        if (!chosen.isValid())
-            return;
-        settings.customAccent = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        pickColor(initial, tr("Accent color"), [this](const QColor& chosen) { setCustomAccent(chosen); });
     });
     connect(resetAccent, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        settings.customAccent = QColor(); // invalid = follow the selected theme
-        Theme::instance().setSettings(settings);
+        setCustomAccent(QColor()); // invalid = follow the selected theme
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Backgrounds")));
+    auto* bgHint = new QLabel(tr("Server rail, channel list, and chat area. Leave unset to follow the theme."));
+    bgHint->setObjectName(QStringLiteral("settingsHint"));
+    bgHint->setWordWrap(true);
+    layout->addWidget(bgHint);
+    auto* bgRow = new QHBoxLayout;
+    bgRow->setSpacing(8);
+    m_bg0Swatch = new ColorSwatch;
+    m_bg0Swatch->setToolTip(tr("Server rail"));
+    m_bg1Swatch = new ColorSwatch;
+    m_bg1Swatch->setToolTip(tr("Channel list"));
+    m_bg2Swatch = new ColorSwatch;
+    m_bg2Swatch->setToolTip(tr("Chat area"));
+    auto* resetBg = new QPushButton(tr("Reset backgrounds"));
+    resetBg->setObjectName(QStringLiteral("secondaryButton"));
+    resetBg->setCursor(Qt::PointingHandCursor);
+    bgRow->addWidget(m_bg0Swatch);
+    bgRow->addWidget(m_bg1Swatch);
+    bgRow->addWidget(m_bg2Swatch);
+    bgRow->addWidget(resetBg);
+    bgRow->addStretch();
+    layout->addLayout(bgRow);
+    connect(m_bg0Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg0, tr("Server rail"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg0 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_bg1Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg1, tr("Channel list"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg1 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_bg2Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg2, tr("Chat area"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg2 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(resetBg, &QPushButton::clicked, this, [this] {
+        Theme::Settings s = Theme::instance().settings();
+        s.customBg0 = QColor();
+        s.customBg1 = QColor();
+        s.customBg2 = QColor();
+        Theme::instance().setSettings(s);
         refreshColorSwatches();
     });
 
@@ -638,24 +855,20 @@ QWidget* SettingsDialog::buildAppearancePage()
     layout->addLayout(profileRow);
 
     connect(m_profilePrimarySwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        const QColor chosen = QColorDialog::getColor(Theme::instance().profilePrimary(), this,
-                                                     tr("Profile background"));
-        if (!chosen.isValid())
-            return;
-        settings.profilePrimary = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        pickColor(Theme::instance().profilePrimary(), tr("Profile background"), [this](const QColor& chosen) {
+            Theme::Settings settings = Theme::instance().settings();
+            settings.profilePrimary = chosen;
+            Theme::instance().setSettings(settings);
+            refreshColorSwatches();
+        });
     });
     connect(m_profileAccentSwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        const QColor chosen = QColorDialog::getColor(Theme::instance().profileAccent(), this,
-                                                     tr("Profile accent"));
-        if (!chosen.isValid())
-            return;
-        settings.profileAccent = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        pickColor(Theme::instance().profileAccent(), tr("Profile accent"), [this](const QColor& chosen) {
+            Theme::Settings settings = Theme::instance().settings();
+            settings.profileAccent = chosen;
+            Theme::instance().setSettings(settings);
+            refreshColorSwatches();
+        });
     });
     connect(resetProfile, &QPushButton::clicked, this, [this] {
         Theme::Settings settings = Theme::instance().settings();
@@ -666,52 +879,442 @@ QWidget* SettingsDialog::buildAppearancePage()
     });
 
     layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Chat density")));
+    m_chatDensity = new QComboBox;
+    m_chatDensity->addItem(tr("Compact"), static_cast<int>(Theme::ChatDensity::Compact));
+    m_chatDensity->addItem(tr("Normal"), static_cast<int>(Theme::ChatDensity::Normal));
+    m_chatDensity->addItem(tr("Comfortable"), static_cast<int>(Theme::ChatDensity::Comfortable));
+    m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(current.chatDensity)));
+    layout->addWidget(m_chatDensity);
+    ignoreWheel(m_chatDensity);
+    connect(m_chatDensity, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Font")));
+    m_fontFamily = new QComboBox;
+    for (const QString& family : Theme::fontFamilyChoices()) {
+        if (family.isEmpty())
+            m_fontFamily->addItem(tr("Default (Noto / Inter)"), family);
+        else
+            m_fontFamily->addItem(family, family);
+    }
+    {
+        const int idx = m_fontFamily->findData(current.fontFamily);
+        m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    layout->addWidget(m_fontFamily);
+    ignoreWheel(m_fontFamily);
+    connect(m_fontFamily, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
     layout->addWidget(sectionLabel(tr("Chat font size")));
     m_fontSize = new QSlider(Qt::Horizontal);
     m_fontSize->setRange(12, 18);
     m_fontSize->setValue(current.fontSize);
-    m_fontSizeLabel = new QLabel;
+    m_fontSize->setPageStep(1);
+    m_fontSize->setSingleStep(1);
+    m_fontSizeLabel = new QLabel(QStringLiteral("%1 px").arg(m_fontSize->value()));
     m_fontSizeLabel->setObjectName(QStringLiteral("settingsHint"));
     auto* fontRow = new QHBoxLayout;
     fontRow->addWidget(m_fontSize, 1);
     fontRow->addWidget(m_fontSizeLabel);
     layout->addLayout(fontRow);
-    connect(m_fontSize, &QSlider::valueChanged, this, [this](int value) {
-        m_fontSizeLabel->setText(tr("%1 px").arg(value));
-        applyAppearance();
+    bindLiveSlider(m_fontSize, m_fontSizeLabel, [](int v) { return QStringLiteral("%1 px").arg(v); });
+    ignoreWheel(m_fontSize);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Discord Nitro colors")));
+    auto* nitroHint = new QLabel(
+        tr("Uses your Discord accent_color / banner when the account has Nitro profile colors."));
+    nitroHint->setObjectName(QStringLiteral("settingsHint"));
+    nitroHint->setWordWrap(true);
+    layout->addWidget(nitroHint);
+    m_syncDiscordAccent = new QCheckBox(tr("Keep accent in sync with Discord"));
+    m_syncDiscordAccent->setChecked(current.syncDiscordAccent);
+    layout->addWidget(m_syncDiscordAccent);
+    connect(m_syncDiscordAccent, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
+    auto* applyDiscord = new QPushButton(tr("Apply Discord colors now"));
+    applyDiscord->setObjectName(QStringLiteral("secondaryButton"));
+    applyDiscord->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(applyDiscord, 0, Qt::AlignLeft);
+    connect(applyDiscord, &QPushButton::clicked, this, [this] {
+        if (!m_voice || !m_voice->session())
+            return;
+        const User& self = m_voice->session()->self();
+        const QColor accent = self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor();
+        const QColor banner(self.bannerColorHex);
+        Theme::instance().setDiscordProfileColors(accent, banner);
+        Theme::Settings settings = Theme::instance().settings();
+        if (accent.isValid())
+            settings.customAccent = accent;
+        if (banner.isValid())
+            settings.profilePrimary = banner;
+        Theme::instance().setSettings(settings);
+        refreshAppearanceControls();
     });
-    m_fontSizeLabel->setText(tr("%1 px").arg(m_fontSize->value()));
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Gradient")));
+    m_gradientEnabled = new QCheckBox(tr("Enable chat gradient"));
+    m_gradientEnabled->setChecked(current.gradientEnabled);
+    layout->addWidget(m_gradientEnabled);
+    connect(m_gradientEnabled, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
+    auto* gradRow = new QHBoxLayout;
+    m_gradientTopSwatch = new ColorSwatch;
+    m_gradientTopSwatch->setToolTip(tr("Gradient top"));
+    m_gradientBottomSwatch = new ColorSwatch;
+    m_gradientBottomSwatch->setToolTip(tr("Gradient bottom"));
+    gradRow->addWidget(m_gradientTopSwatch);
+    gradRow->addWidget(m_gradientBottomSwatch);
+    gradRow->addStretch();
+    layout->addLayout(gradRow);
+    connect(m_gradientTopSwatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().settings().gradientTop, tr("Gradient top"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.gradientTop = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_gradientBottomSwatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().settings().gradientBottom, tr("Gradient bottom"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.gradientBottom = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Advanced tokens")));
+    auto* tokenHint = new QLabel(tr("Override any palette token. Cleared entries follow the theme again."));
+    tokenHint->setObjectName(QStringLiteral("settingsHint"));
+    tokenHint->setWordWrap(true);
+    layout->addWidget(tokenHint);
+    auto* tokenGrid = new QGridLayout;
+    tokenGrid->setHorizontalSpacing(8);
+    tokenGrid->setVerticalSpacing(6);
+    m_tokenSwatches.clear();
+    int tokenIndex = 0;
+    for (const QString& id : Theme::tokenIds()) {
+        auto* name = new QLabel(Theme::tokenLabel(id));
+        name->setObjectName(QStringLiteral("settingsHint"));
+        auto* chip = new ColorSwatch;
+        chip->setFixedSize(28, 28);
+        chip->setToolTip(id);
+        tokenGrid->addWidget(name, tokenIndex, 0);
+        tokenGrid->addWidget(chip, tokenIndex, 1);
+        m_tokenSwatches.insert(id, chip);
+        connect(chip, &QPushButton::clicked, this, [this, id] {
+            pickColor(Theme::instance().tokenColor(id), Theme::tokenLabel(id), [this, id](const QColor& c) {
+                Theme::instance().setTokenOverride(id, c);
+                refreshColorSwatches();
+            });
+        });
+        ++tokenIndex;
+    }
+    layout->addLayout(tokenGrid);
+    auto* resetTokens = new QPushButton(tr("Reset all token overrides"));
+    resetTokens->setObjectName(QStringLiteral("secondaryButton"));
+    resetTokens->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(resetTokens, 0, Qt::AlignLeft);
+    connect(resetTokens, &QPushButton::clicked, this, [this] {
+        Theme::Settings settings = Theme::instance().settings();
+        settings.tokenOverrides.clear();
+        Theme::instance().setSettings(settings);
+        refreshColorSwatches();
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Import / export")));
+    auto* ioRow = new QHBoxLayout;
+    auto* exportBtn = new QPushButton(tr("Export theme…"));
+    exportBtn->setObjectName(QStringLiteral("secondaryButton"));
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    auto* importBtn = new QPushButton(tr("Import theme…"));
+    importBtn->setObjectName(QStringLiteral("secondaryButton"));
+    importBtn->setCursor(Qt::PointingHandCursor);
+    ioRow->addWidget(exportBtn);
+    ioRow->addWidget(importBtn);
+    ioRow->addStretch();
+    layout->addLayout(ioRow);
+    connect(exportBtn, &QPushButton::clicked, this, &SettingsDialog::exportTheme);
+    connect(importBtn, &QPushButton::clicked, this, &SettingsDialog::importTheme);
 
     layout->addStretch();
     refreshColorSwatches();
     connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::refreshColorSwatches);
 
-    auto* scroll = new QScrollArea;
-    scroll->setWidget(content);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    return scroll;
+    m_appearanceScroll = new QScrollArea;
+    m_appearanceScroll->setWidget(content);
+    m_appearanceScroll->setWidgetResizable(true);
+    m_appearanceScroll->setFrameShape(QFrame::NoFrame);
+    m_appearanceScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_appearanceScroll->setAttribute(Qt::WA_StyledBackground, true);
+    content->setMinimumWidth(0);
+    return m_appearanceScroll;
 }
 
 void SettingsDialog::refreshColorSwatches()
 {
+    const Theme::Palette& palette = Theme::instance().palette();
+    const Theme::Settings& appearance = Theme::instance().settings();
     if (m_accentSwatch)
         m_accentSwatch->setSwatchColor(Theme::instance().accent());
+    if (m_bg0Swatch)
+        m_bg0Swatch->setSwatchColor(palette.bg0);
+    if (m_bg1Swatch)
+        m_bg1Swatch->setSwatchColor(palette.bg1);
+    if (m_bg2Swatch)
+        m_bg2Swatch->setSwatchColor(palette.bg2);
     if (m_profilePrimarySwatch)
         m_profilePrimarySwatch->setSwatchColor(Theme::instance().profilePrimary());
     if (m_profileAccentSwatch)
         m_profileAccentSwatch->setSwatchColor(Theme::instance().profileAccent());
+    if (m_gradientTopSwatch)
+        m_gradientTopSwatch->setSwatchColor(appearance.gradientTop);
+    if (m_gradientBottomSwatch)
+        m_gradientBottomSwatch->setSwatchColor(appearance.gradientBottom);
+
+    const QColor custom = appearance.customAccent;
+    bool matchedChip = false;
+    for (ColorSwatch* chip : m_accentChips) {
+        if (!chip)
+            continue;
+        const bool match = custom.isValid() && chip->swatchColor().rgb() == custom.rgb();
+        chip->setSelectedSwatch(match);
+        matchedChip = matchedChip || match;
+    }
+    if (m_accentSwatch)
+        m_accentSwatch->setSelectedSwatch(custom.isValid() && !matchedChip);
+
+    for (auto it = m_tokenSwatches.begin(); it != m_tokenSwatches.end(); ++it) {
+        if (!it.value())
+            continue;
+        it.value()->setSwatchColor(Theme::instance().tokenColor(it.key()));
+        it.value()->setSelectedSwatch(appearance.tokenOverrides.contains(it.key()));
+    }
+
+    if (m_customizedLabel) {
+        m_customizedLabel->setText(Theme::instance().hasCustomization()
+                                       ? tr("This theme has local customizations.")
+                                       : tr("Using the preset as-is."));
+    }
+}
+
+void SettingsDialog::refreshAppearanceControls()
+{
+    m_syncingAppearance = true;
+    const Theme::Settings& appearance = Theme::instance().settings();
+    const QSignalBlocker blockFont(m_fontSize);
+    const QSignalBlocker blockFamily(m_fontFamily);
+    const QSignalBlocker blockRadius(m_radius);
+    const QSignalBlocker blockScale(m_uiScale);
+    const QSignalBlocker blockBright(m_brightness);
+    const QSignalBlocker blockSat(m_saturation);
+    const QSignalBlocker blockDensity(m_chatDensity);
+    const QSignalBlocker blockSync(m_syncDiscordAccent);
+    const QSignalBlocker blockGrad(m_gradientEnabled);
+
+    if (m_presetCombo) {
+        const QSignalBlocker blockPreset(m_presetCombo);
+        const int idx = m_presetCombo->findData(appearance.presetId);
+        m_presetCombo->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_fontSize) {
+        m_fontSize->setValue(appearance.fontSize);
+        if (m_fontSizeLabel)
+            m_fontSizeLabel->setText(QStringLiteral("%1 px").arg(appearance.fontSize));
+    }
+    if (m_fontFamily) {
+        const int idx = m_fontFamily->findData(appearance.fontFamily);
+        m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_radius) {
+        m_radius->setValue(appearance.radius);
+        if (m_radiusLabel)
+            m_radiusLabel->setText(QStringLiteral("%1 px").arg(appearance.radius));
+    }
+    if (m_uiScale) {
+        m_uiScale->setValue(appearance.uiScale);
+        if (m_uiScaleLabel)
+            m_uiScaleLabel->setText(QStringLiteral("%1%").arg(appearance.uiScale));
+    }
+    if (m_brightness) {
+        m_brightness->setValue(appearance.brightness);
+        if (m_brightnessLabel) {
+            const int v = appearance.brightness;
+            m_brightnessLabel->setText(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v));
+        }
+    }
+    if (m_saturation) {
+        m_saturation->setValue(appearance.saturation);
+        if (m_saturationLabel) {
+            const int v = appearance.saturation;
+            m_saturationLabel->setText(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v));
+        }
+    }
+    if (m_chatDensity)
+        m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(appearance.chatDensity)));
+    if (m_syncDiscordAccent)
+        m_syncDiscordAccent->setChecked(appearance.syncDiscordAccent);
+    if (m_gradientEnabled)
+        m_gradientEnabled->setChecked(appearance.gradientEnabled);
+    refreshColorSwatches();
+    m_syncingAppearance = false;
+}
+
+void SettingsDialog::exportTheme()
+{
+    const QString path = QFileDialog::getSaveFileName(this, tr("Export theme"), QStringLiteral("snapcord-theme.json"),
+                                                      tr("Theme JSON (*.json)"));
+    if (path.isEmpty())
+        return;
+    const QString error = Theme::instance().exportToFile(path);
+    if (!error.isEmpty())
+        QMessageBox::warning(this, tr("Export theme"), error);
+}
+
+void SettingsDialog::importTheme()
+{
+    const QString path = QFileDialog::getOpenFileName(this, tr("Import theme"), QString(),
+                                                      tr("Theme JSON (*.json)"));
+    if (path.isEmpty())
+        return;
+    const QString error = Theme::instance().importFromFile(path);
+    if (!error.isEmpty()) {
+        QMessageBox::warning(this, tr("Import theme"), error);
+        return;
+    }
+    refreshAppearanceControls();
+}
+
+void SettingsDialog::setCustomAccent(const QColor& color)
+{
+    Theme::Settings settings = Theme::instance().settings();
+    settings.customAccent = color;
+    Theme::instance().setSettings(settings);
+    refreshColorSwatches();
+}
+
+void SettingsDialog::pickColor(const QColor& initial, const QString& title,
+                               const std::function<void(QColor)>& onPicked)
+{
+    // Native portal pickers on Linux often hang the whole Qt app; use Qt's own dialog.
+    // DontUseNativeDialog must be set BEFORE setCurrentColor — enabling it recreates the
+    // widgets and would wipe the color back to black (empty HTML / HSV 0).
+    const QColor start = initial.isValid() ? initial : QColor(Qt::white);
+    auto* dialog = new QColorDialog(this);
+    dialog->setWindowTitle(title);
+    dialog->setOption(QColorDialog::DontUseNativeDialog, true);
+    dialog->setCurrentColor(start);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    connect(dialog, &QColorDialog::colorSelected, this, [onPicked](const QColor& color) {
+        if (color.isValid())
+            onPicked(color);
+    });
+    dialog->open();
+    dialog->setCurrentColor(start);
+}
+
+QString SettingsDialog::presetDisplayName(const QString& id, const QString& fallback)
+{
+    if (id == QLatin1String("discord"))
+        return tr("Discord");
+    if (id == QLatin1String("midnight"))
+        return tr("Midnight");
+    if (id == QLatin1String("amoled"))
+        return tr("AMOLED");
+    if (id == QLatin1String("ash"))
+        return tr("Ash");
+    if (id == QLatin1String("catppuccin-mocha"))
+        return tr("Catppuccin Mocha");
+    if (id == QLatin1String("catppuccin-latte"))
+        return tr("Catppuccin Latte");
+    if (id == QLatin1String("nord"))
+        return tr("Nord");
+    if (id == QLatin1String("dracula"))
+        return tr("Dracula");
+    if (id == QLatin1String("gruvbox"))
+        return tr("Gruvbox");
+    if (id == QLatin1String("tokyo-night"))
+        return tr("Tokyo Night");
+    if (id == QLatin1String("rose-pine"))
+        return tr("Rosé Pine");
+    if (id == QLatin1String("one-dark"))
+        return tr("One Dark");
+    if (id == QLatin1String("light"))
+        return tr("Light");
+    return fallback;
+}
+
+void SettingsDialog::bindLiveSlider(QSlider* slider, QLabel* label, const std::function<QString(int)>& format)
+{
+    // Rebuilding the global stylesheet mid-drag steals the mouse from QSlider — only apply when
+    // the user releases, or when the value jumps without a press (keyboard / groove click).
+    connect(slider, &QSlider::valueChanged, this, [this, slider, label, format](int value) {
+        if (label)
+            label->setText(format(value));
+        if (m_syncingAppearance)
+            return;
+        if (!slider->isSliderDown())
+            applyAppearance();
+    });
+    connect(slider, &QSlider::sliderReleased, this, [this] {
+        if (!m_syncingAppearance)
+            applyAppearance();
+    });
+}
+
+void SettingsDialog::ignoreWheel(QWidget* widget)
+{
+    if (widget)
+        widget->installEventFilter(this);
+}
+
+bool SettingsDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::Wheel) {
+        // Wheel over sliders/combos must scroll the Appearance page, not nudge the control.
+        Q_UNUSED(watched);
+        if (m_appearanceScroll) {
+            if (auto* bar = m_appearanceScroll->verticalScrollBar()) {
+                const auto* wheel = static_cast<const QWheelEvent*>(event);
+                bar->setValue(bar->value() - wheel->angleDelta().y());
+            }
+        }
+        return true;
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 void SettingsDialog::applyAppearance()
 {
+    if (m_syncingAppearance)
+        return;
     Theme::Settings settings = Theme::instance().settings();
-    if (m_presetGroup) {
-        if (QAbstractButton* button = m_presetGroup->checkedButton())
-            settings.presetId = button->property("presetId").toString();
-    }
+    if (m_presetCombo)
+        settings.presetId = m_presetCombo->currentData().toString();
     if (m_fontSize)
         settings.fontSize = m_fontSize->value();
+    if (m_fontFamily)
+        settings.fontFamily = m_fontFamily->currentData().toString();
+    if (m_radius)
+        settings.radius = m_radius->value();
+    if (m_uiScale)
+        settings.uiScale = m_uiScale->value();
+    if (m_brightness)
+        settings.brightness = m_brightness->value();
+    if (m_saturation)
+        settings.saturation = m_saturation->value();
+    if (m_chatDensity)
+        settings.chatDensity = static_cast<Theme::ChatDensity>(m_chatDensity->currentData().toInt());
+    if (m_syncDiscordAccent)
+        settings.syncDiscordAccent = m_syncDiscordAccent->isChecked();
+    if (m_gradientEnabled)
+        settings.gradientEnabled = m_gradientEnabled->isChecked();
     Theme::instance().setSettings(settings);
     refreshColorSwatches();
 }
@@ -774,9 +1377,51 @@ void SettingsDialog::updateModeWidgets()
     m_meter->setThresholdVisible(!pushToTalk && !m_automaticSensitivity->isChecked());
 }
 
+void SettingsDialog::applyDialogChrome()
+{
+    // Fusion QDialog keeps a light Window brush across stylesheet swaps; paint + palette
+    // keep the modal on the active theme even after "Reset all customization".
+    const Theme::Palette& c = Theme::instance().palette();
+    auto tint = [&](QWidget* widget, const QColor& background) {
+        if (!widget)
+            return;
+        QPalette pal = widget->palette();
+        pal.setColor(QPalette::Window, background);
+        pal.setColor(QPalette::Base, background);
+        pal.setColor(QPalette::AlternateBase, c.bg1);
+        pal.setColor(QPalette::Text, c.text);
+        pal.setColor(QPalette::WindowText, c.text);
+        pal.setColor(QPalette::Button, c.button);
+        pal.setColor(QPalette::ButtonText, c.textBright);
+        pal.setColor(QPalette::Highlight, c.selected);
+        pal.setColor(QPalette::HighlightedText, c.textBright);
+        widget->setPalette(pal);
+        widget->setAutoFillBackground(true);
+    };
+
+    tint(this, c.bg2);
+    tint(m_settingsSide, c.bg1);
+    tint(m_settingsPages, c.bg2);
+
+    for (QScrollArea* scroll : findChildren<QScrollArea*>()) {
+        tint(scroll, c.bg2);
+        tint(scroll->viewport(), c.bg2);
+        if (QWidget* inner = scroll->widget())
+            tint(inner, c.bg2);
+    }
+    update();
+}
+
+void SettingsDialog::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.fillRect(rect(), Theme::instance().palette().bg2);
+}
+
 void SettingsDialog::showEvent(QShowEvent* event)
 {
     QDialog::showEvent(event);
+    applyDialogChrome();
     // Outside of a call, open the microphone just for the level meter while the dialog is visible.
     if (m_voice->state() != VoiceConnection::State::Connected)
         startMicTest();

@@ -1,21 +1,30 @@
 #pragma once
 
+#include "Theme.h"
 #include "voice/VoiceSettings.h"
 
 #include <QDialog>
+#include <QMap>
 #include <QPushButton>
+#include <QString>
+#include <QVector>
 #include <QWidget>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 
 class AudioEngine;
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
+class QEvent;
 class QLabel;
 class QRadioButton;
+class QPaintEvent;
+class QScrollArea;
 class QSlider;
+class QStackedWidget;
 class QTimer;
 class VoiceController;
 
@@ -87,12 +96,40 @@ public:
 
     void setSwatchColor(const QColor& color);
     QColor swatchColor() const { return m_color; }
+    void setSelectedSwatch(bool selected);
+    bool isSelectedSwatch() const { return m_selected; }
 
 protected:
     void paintEvent(QPaintEvent* event) override;
 
 private:
     QColor m_color{Qt::black};
+    bool m_selected = false;
+};
+
+// Clickable layout map: rail / sidebar / chat / accent stripe.
+class LayoutStudio : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit LayoutStudio(QWidget* parent = nullptr);
+
+    QSize sizeHint() const override { return {420, 140}; }
+    QSize minimumSizeHint() const override { return {280, 120}; }
+
+signals:
+    void regionClicked(const QString& tokenId);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+
+private:
+    QString hitTest(const QPoint& pos) const;
+    QString m_hover;
 };
 
 class SettingsDialog : public QDialog
@@ -109,6 +146,8 @@ signals:
 protected:
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     QWidget* buildVoicePage();
@@ -117,11 +156,20 @@ private:
     QWidget* buildLanguagePage();
     void apply();
     void applyAppearance();
+    void applyDialogChrome();
     void updateModeWidgets();
     void startMicTest();
     void stopMicTest();
     void changeLanguage(const QString& code);
     void refreshColorSwatches();
+    void refreshAppearanceControls();
+    void setCustomAccent(const QColor& color);
+    void pickColor(const QColor& initial, const QString& title, const std::function<void(QColor)>& onPicked);
+    void exportTheme();
+    void importTheme();
+    void bindLiveSlider(QSlider* slider, QLabel* label, const std::function<QString(int)>& format);
+    void ignoreWheel(QWidget* widget);
+    static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
     VoiceSettings m_settings;
@@ -146,10 +194,35 @@ private:
 
     QSlider* m_fontSize = nullptr;
     QLabel* m_fontSizeLabel = nullptr;
+    QComboBox* m_fontFamily = nullptr;
+    QComboBox* m_chatDensity = nullptr;
+    QSlider* m_radius = nullptr;
+    QLabel* m_radiusLabel = nullptr;
+    QSlider* m_uiScale = nullptr;
+    QLabel* m_uiScaleLabel = nullptr;
+    QSlider* m_brightness = nullptr;
+    QLabel* m_brightnessLabel = nullptr;
+    QSlider* m_saturation = nullptr;
+    QLabel* m_saturationLabel = nullptr;
+    LayoutStudio* m_layoutStudio = nullptr;
+    QLabel* m_customizedLabel = nullptr;
+    QScrollArea* m_appearanceScroll = nullptr;
+    QWidget* m_settingsSide = nullptr;
+    QStackedWidget* m_settingsPages = nullptr;
+    bool m_syncingAppearance = false;
     ColorSwatch* m_accentSwatch = nullptr;
+    ColorSwatch* m_bg0Swatch = nullptr;
+    ColorSwatch* m_bg1Swatch = nullptr;
+    ColorSwatch* m_bg2Swatch = nullptr;
     ColorSwatch* m_profilePrimarySwatch = nullptr;
     ColorSwatch* m_profileAccentSwatch = nullptr;
-    QButtonGroup* m_presetGroup = nullptr;
+    ColorSwatch* m_gradientTopSwatch = nullptr;
+    ColorSwatch* m_gradientBottomSwatch = nullptr;
+    QCheckBox* m_syncDiscordAccent = nullptr;
+    QCheckBox* m_gradientEnabled = nullptr;
+    QComboBox* m_presetCombo = nullptr;
+    QVector<ColorSwatch*> m_accentChips;
+    QMap<QString, ColorSwatch*> m_tokenSwatches;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;

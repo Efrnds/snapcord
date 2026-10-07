@@ -41,9 +41,9 @@ int drawMentionBadge(QPainter* painter, int right, int centerY, int count, const
     const int width = std::max(16, painter->fontMetrics().horizontalAdvance(text) + 10);
     const QRect badge(right - width, centerY - 8, width, 16);
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(0xf2, 0x3f, 0x43));
+    painter->setBrush(Theme::instance().palette().danger);
     painter->drawRoundedRect(badge, 8, 8);
-    painter->setPen(Qt::white);
+    painter->setPen(Theme::instance().palette().onAccent);
     painter->drawText(badge, Qt::AlignCenter, text);
     return badge.left();
 }
@@ -116,7 +116,7 @@ public:
             // Unread pill hanging off the left edge of the column.
             if (unread && !selected) {
                 painter->setPen(Qt::NoPen);
-                painter->setBrush(QColor(0xf2, 0xf3, 0xf5));
+                painter->setBrush(colors.textBright);
                 painter->drawRoundedRect(QRectF(rect.left() - 4, row.center().y() - 4, 8, 8), 4, 4);
             }
             const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
@@ -237,6 +237,7 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
         if (item && static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::VoiceMember)
             emit memberContextMenuRequested(item->data(0, IdRole).toString(), m_tree->viewport()->mapToGlobal(position));
     });
+    connect(&Theme::instance(), &Theme::changed, m_tree->viewport(), QOverload<>::of(&QWidget::update));
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);

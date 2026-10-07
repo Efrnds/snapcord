@@ -37,6 +37,7 @@ protected:
     void changeEvent(QEvent* event) override;
 
 private:
+    class AppShell;
     QWidget* buildPlaceholderPage(const QString& title, const QString& subtitle);
     void rebuildServerRail();
     void refreshUnreadBadges();
@@ -64,6 +65,7 @@ private:
     ImageCache* m_images;
     QPointer<ProfilePopup> m_pendingProfile;
 
+    AppShell* m_shell = nullptr;
     ServerRail* m_rail;
     ChannelSidebar* m_sidebar;
     QStackedWidget* m_pages;

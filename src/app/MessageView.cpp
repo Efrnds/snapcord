@@ -2,6 +2,7 @@
 
 #include "Avatar.h"
 #include "ImageCache.h"
+#include "Theme.h"
 #include "core/Markdown.h"
 #include "core/MessageStore.h"
 #include "core/Session.h"
@@ -32,14 +33,17 @@ constexpr int MaxPictureWidth = 400;
 constexpr int MaxPictureHeight = 300;
 constexpr int MaxEmbedWidth = 432;
 constexpr int ReactionHeight = 26;
-const QColor TextColor(0xdb, 0xde, 0xe1);
-const QColor MutedColor(0x94, 0x9b, 0xa4);
-const QColor NameColor(0xf2, 0xf3, 0xf5);
+
+const Theme::Palette& themeColors()
+{
+    return Theme::instance().palette();
+}
 
 QString documentStyle()
 {
     return QStringLiteral("code, pre { font-family: Consolas, 'Cascadia Mono', 'Courier New', monospace; font-size: 13px; }"
-                          "a { color: #00a8fc; text-decoration: none; }");
+                          "a { color: %1; text-decoration: none; }")
+        .arg(themeColors().link.name(QColor::HexRgb));
 }
 
 QFont messageFont(const QFont& base, int pixelSize, QFont::Weight weight = QFont::Normal)
@@ -327,7 +331,7 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
         l->dayText = QLocale().toString(message.timestamp.date(), QLocale::LongFormat);
         y += 40;
     }
-    y += groupStart ? 14 : 1;
+    y += groupStart ? Theme::instance().messageGroupGap() : Theme::instance().messageTightGap();
     l->top = y;
 
     Markdown::Context context;
@@ -431,7 +435,7 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
         const int innerLeft = ContentLeft + (mediaOnly ? 0 : 16);
         const int innerWidth = boxWidth - (mediaOnly ? 0 : 32);
         int by = y + 4 + (mediaOnly ? 0 : 10);
-        box.color = embed.color >= 0 ? QColor::fromRgb(QRgb(embed.color)) : QColor(0x1e, 0x1f, 0x22);
+        box.color = embed.color >= 0 ? QColor::fromRgb(QRgb(embed.color)) : themeColors().bg0;
         if (!mediaOnly) {
             if (!embed.authorName.isEmpty() || !embed.providerName.isEmpty()) {
                 box.author = embed.authorName.isEmpty() ? embed.providerName : embed.authorName;
@@ -521,28 +525,33 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         painter->setFont(messageFont(base, 12, QFont::DemiBold));
         const int textWidth = painter->fontMetrics().horizontalAdvance(l.dayText) + 16;
         const int center = l.width / 2;
-        painter->setPen(QColor(0x3f, 0x41, 0x47));
+        const auto& colors = themeColors();
+        painter->setPen(colors.border);
         painter->drawLine(16, lineY, center - textWidth / 2, lineY);
         painter->drawLine(center + textWidth / 2, lineY, l.width - 16, lineY);
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(QRect(center - textWidth / 2, lineY - 10, textWidth, 20), Qt::AlignCenter, l.dayText);
     }
+
+    const auto& colors = themeColors();
 
     // Row background: mention highlight, then hover.
     const QRect row(0, l.top - (l.groupStart ? 2 : 0), l.width, l.height - l.top + (l.groupStart ? 2 : 0));
     if (l.mentioned) {
-        painter->fillRect(row, QColor(0xf0, 0xb2, 0x32, 26));
-        painter->fillRect(QRect(row.left(), row.top(), 2, row.height()), QColor(0xf0, 0xb2, 0x32));
+        QColor mention = colors.warning;
+        mention.setAlpha(26);
+        painter->fillRect(row, mention);
+        painter->fillRect(QRect(row.left(), row.top(), 2, row.height()), colors.warning);
     } else if (option.state & QStyle::State_MouseOver) {
-        painter->fillRect(row, QColor(0x2e, 0x30, 0x35));
+        painter->fillRect(row, colors.hover);
     }
 
-    const QColor textColor = message.failed ? QColor(0xf2, 0x3f, 0x43) : message.pending ? QColor(0x80, 0x84, 0x8e) : TextColor;
+    const QColor textColor = message.failed ? colors.danger : message.pending ? colors.textMuted : colors.text;
 
     if (l.system) {
         QIcon(QStringLiteral(":/icons/arrow-right.svg")).paint(painter, l.avatarRect);
         painter->setFont(messageFont(base, 15));
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(l.nameRect, Qt::TextWordWrap, l.name);
         painter->restore();
         return;
@@ -550,7 +559,7 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
 
     if (!l.replyRect.isNull()) {
         // Connector from the avatar column to the replied message.
-        painter->setPen(QPen(QColor(0x4e, 0x50, 0x58), 2));
+        painter->setPen(QPen(colors.button, 2));
         QPainterPath spine;
         spine.moveTo(36, l.replyRect.top() + 18);
         spine.lineTo(36, l.replyRect.center().y() + 2);
@@ -560,13 +569,13 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         int x = l.replyRect.left();
         painter->setFont(messageFont(base, 13, QFont::DemiBold));
         if (!l.replyName.isEmpty()) {
-            painter->setPen(NameColor);
+            painter->setPen(colors.textBright);
             const QString name = u'@' + l.replyName;
             painter->drawText(QRect(x, l.replyRect.top(), 300, 20), Qt::AlignVCenter, name);
             x += painter->fontMetrics().horizontalAdvance(name) + 6;
         }
         painter->setFont(messageFont(base, 13));
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(QRect(x, l.replyRect.top(), l.replyRect.right() - x, 20), Qt::AlignVCenter,
                           painter->fontMetrics().elidedText(l.replyText, Qt::ElideRight, l.replyRect.right() - x));
     }
@@ -574,15 +583,15 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     if (l.groupStart) {
         painter->drawPixmap(l.avatarRect, avatar(message.author, AvatarSize));
         painter->setFont(messageFont(base, 16, QFont::DemiBold));
-        painter->setPen(NameColor);
+        painter->setPen(colors.textBright);
         painter->drawText(l.nameRect, Qt::AlignVCenter, l.name);
         painter->setFont(messageFont(base, 12));
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(QRect(l.nameRect.right() + 8, l.nameRect.top() + 1, 300, l.nameRect.height()), Qt::AlignVCenter, l.time);
     } else if (option.state & QStyle::State_MouseOver) {
         // Grouped messages show their time in the avatar column on hover.
         painter->setFont(messageFont(base, 11));
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(QRect(0, l.top + 2, ContentLeft - 6, 18), Qt::AlignRight | Qt::AlignVCenter, l.time);
     }
 
@@ -597,16 +606,16 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
 
     auto drawPicture = [&](const Layout::Picture& picture) {
         if (picture.file) {
-            painter->setPen(QColor(0x1e, 0x1f, 0x22));
-            painter->setBrush(QColor(0x2b, 0x2d, 0x31));
+            painter->setPen(colors.border);
+            painter->setBrush(colors.bg1);
             painter->drawRoundedRect(picture.rect, 6, 6);
             QIcon(QStringLiteral(":/icons/file.svg")).paint(painter, QRect(picture.rect.left() + 12, picture.rect.center().y() - 16, 24, 32));
             painter->setFont(messageFont(base, 15));
-            painter->setPen(QColor(0x00, 0xa8, 0xfc));
+            painter->setPen(colors.link);
             const QRect nameRect(picture.rect.left() + 48, picture.rect.top() + 8, picture.rect.width() - 60, 22);
             painter->drawText(nameRect, Qt::AlignVCenter, painter->fontMetrics().elidedText(picture.name, Qt::ElideMiddle, nameRect.width()));
             painter->setFont(messageFont(base, 12));
-            painter->setPen(MutedColor);
+            painter->setPen(colors.textMuted);
             painter->drawText(QRect(nameRect.left(), nameRect.bottom(), nameRect.width(), 18), Qt::AlignVCenter, picture.detail);
             return;
         }
@@ -616,7 +625,7 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         painter->save();
         painter->setClipPath(clip);
         if (image.isNull())
-            painter->fillRect(picture.rect, QColor(0x2b, 0x2d, 0x31));
+            painter->fillRect(picture.rect, colors.bg1);
         else
             painter->drawImage(picture.rect, image);
         painter->restore();
@@ -630,24 +639,24 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         if (!mediaOnly) {
             QPainterPath shape;
             shape.addRoundedRect(box.box, 4, 4);
-            painter->fillPath(shape, QColor(0x2b, 0x2d, 0x31));
+            painter->fillPath(shape, colors.bg1);
             painter->fillRect(QRect(box.box.left(), box.box.top(), 4, box.box.height()), box.color);
         }
         if (!box.author.isEmpty()) {
             painter->setFont(messageFont(base, 13, QFont::DemiBold));
-            painter->setPen(NameColor);
+            painter->setPen(colors.textBright);
             painter->drawText(box.authorRect, Qt::AlignVCenter, painter->fontMetrics().elidedText(box.author, Qt::ElideRight, box.authorRect.width()));
         }
         if (!box.title.isEmpty()) {
             painter->setFont(messageFont(base, 15, QFont::DemiBold));
-            painter->setPen(box.titleUrl.isEmpty() ? NameColor : QColor(0x00, 0xa8, 0xfc));
+            painter->setPen(box.titleUrl.isEmpty() ? colors.textBright : colors.link);
             painter->drawText(box.titleRect, Qt::TextWordWrap, box.title);
         }
         if (box.description) {
             painter->save();
             painter->translate(box.descriptionPos);
             QAbstractTextDocumentLayout::PaintContext context;
-            context.palette.setColor(QPalette::Text, TextColor);
+            context.palette.setColor(QPalette::Text, colors.text);
             box.description->documentLayout()->draw(painter, context);
             painter->restore();
         }
@@ -657,15 +666,15 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
 
     if (!l.stickers.isEmpty()) {
         painter->setFont(messageFont(base, 13));
-        painter->setPen(MutedColor);
+        painter->setPen(colors.textMuted);
         painter->drawText(l.stickerRect, Qt::AlignVCenter, l.stickers);
     }
 
     for (qsizetype i = 0; i < l.reactionRects.size() && i < message.reactions.size(); ++i) {
         const Reaction& reaction = message.reactions[i];
         const QRect chip = l.reactionRects[i];
-        painter->setPen(reaction.me ? QPen(QColor(0x58, 0x65, 0xf2)) : Qt::NoPen);
-        painter->setBrush(reaction.me ? QColor(0x37, 0x3a, 0x54) : QColor(0x2b, 0x2d, 0x31));
+        painter->setPen(reaction.me ? QPen(colors.accent) : Qt::NoPen);
+        painter->setBrush(reaction.me ? colors.accentMuted : colors.bg1);
         painter->drawRoundedRect(QRectF(chip).adjusted(0.5, 0.5, -0.5, -0.5), 8, 8);
         const QRect emojiRect(chip.left() + 8, chip.center().y() - 9, 18, 18);
         if (reaction.emoji.isCustom()) {
@@ -674,11 +683,11 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
                 painter->drawImage(emojiRect, image);
         } else {
             painter->setFont(messageFont(base, 14));
-            painter->setPen(TextColor);
+            painter->setPen(colors.text);
             painter->drawText(emojiRect.adjusted(-2, -2, 2, 2), Qt::AlignCenter, reaction.emoji.name);
         }
         painter->setFont(messageFont(base, 13, QFont::DemiBold));
-        painter->setPen(reaction.me ? QColor(0xc9, 0xcd, 0xfb) : QColor(0xb5, 0xba, 0xc1));
+        painter->setPen(reaction.me ? colors.textBright : colors.textDim);
         painter->drawText(QRect(emojiRect.right() + 6, chip.top(), chip.right() - emojiRect.right() - 6, chip.height()),
                           Qt::AlignVCenter, QString::number(reaction.count));
     }
@@ -769,6 +778,10 @@ MessageListView::MessageListView(MessageDelegate* delegate, QWidget* parent)
     setMouseTracking(true);
     viewport()->setAttribute(Qt::WA_Hover);
     setFrameShape(QFrame::NoFrame);
+    connect(&Theme::instance(), &Theme::changed, this, [this] {
+        m_delegate->invalidateAll();
+        viewport()->update();
+    });
 }
 
 bool MessageListView::isAtBottom() const

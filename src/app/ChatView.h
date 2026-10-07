@@ -50,12 +50,8 @@ public:
     // Marks the channel as read if the newest message is on screen and the window is active.
     void markReadIfVisible();
 
-signals:
-    // A user's name, avatar or mention was clicked. `guildId` is empty in direct messages.
-    void profileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
-    // From the member sidebar, whose profiles open to its left.
-    void memberProfileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
-    void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
+protected:
+    void paintEvent(QPaintEvent* event) override;
 
 private:
     void submit(const QString& text);
