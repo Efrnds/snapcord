@@ -34,6 +34,7 @@ public:
                       const QList<int>& pingHistory);
     VoiceConnection* connection() const { return m_connection; }
     SoundEffects* sounds() const { return m_sounds; }
+    Session* session() const { return m_session; }
 
     bool isSelfMuted() const { return m_selfMuted; }
     bool isSelfDeafened() const { return m_selfDeafened; }

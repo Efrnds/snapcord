@@ -13,6 +13,10 @@ struct User
     QString username;
     QString globalName;
     QString avatar;
+    // Discord Nitro profile colors (core stays QtGui-free: store raw RGB / hex).
+    bool hasAccentColor = false;
+    quint32 accentColorRgb = 0; // 0xRRGGBB
+    QString bannerColorHex;     // "#rrggbb" when present
 
     QString displayName() const { return globalName.isEmpty() ? username : globalName; }
     static User fromJson(const QJsonObject& json);

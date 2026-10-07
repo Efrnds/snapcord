@@ -93,6 +93,16 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         const QString lastGuild = QSettings().value(QLatin1String(LastGuildKey)).toString();
         selectGuild(lastGuild.isEmpty() || m_session->guild(lastGuild) ? lastGuild : m_session->guildOrder().value(0));
         refreshUserPanel();
+        const User& self = m_session->self();
+        Theme::instance().setDiscordProfileColors(
+            self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor(),
+            QColor(self.bannerColorHex));
+    });
+    connect(m_session, &Session::usersChanged, this, [this] {
+        const User& self = m_session->self();
+        Theme::instance().setDiscordProfileColors(
+            self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor(),
+            QColor(self.bannerColorHex));
     });
     connect(m_session, &Session::guildListChanged, this, &MainWindow::rebuildServerRail);
     connect(m_session, &Session::guildChanged, this, [this, scheduleRefresh](const QString& guildId) {

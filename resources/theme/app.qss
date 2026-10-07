@@ -5,8 +5,12 @@ QWidget {
     font-size: @fontSize;
 }
 
-QMainWindow, #chatArea {
+QMainWindow {
     background: @bg2;
+}
+#chatArea {
+    /* ChatView paints bg / wallpaper / gradient itself. */
+    background: transparent;
 }
 
 QToolTip {
@@ -215,7 +219,7 @@ QCheckBox {
 
 /* Chat */
 #messageList {
-    background: @bg2;
+    background: transparent;
     border: none;
 }
 #chatTopic {

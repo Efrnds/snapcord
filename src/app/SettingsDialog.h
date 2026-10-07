@@ -4,7 +4,9 @@
 #include "voice/VoiceSettings.h"
 
 #include <QDialog>
+#include <QMap>
 #include <QPushButton>
+#include <QString>
 #include <QVector>
 #include <QWidget>
 
@@ -143,8 +145,11 @@ private:
     void stopMicTest();
     void changeLanguage(const QString& code);
     void refreshColorSwatches();
+    void refreshAppearanceControls();
     void setCustomAccent(const QColor& color);
     void pickColor(const QColor& initial, const QString& title, const std::function<void(QColor)>& onPicked);
+    void exportTheme();
+    void importTheme();
     static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
@@ -179,8 +184,20 @@ private:
     ColorSwatch* m_bg2Swatch = nullptr;
     ColorSwatch* m_profilePrimarySwatch = nullptr;
     ColorSwatch* m_profileAccentSwatch = nullptr;
+    ColorSwatch* m_gradientTopSwatch = nullptr;
+    ColorSwatch* m_gradientBottomSwatch = nullptr;
+    QCheckBox* m_syncDiscordAccent = nullptr;
+    QCheckBox* m_gradientEnabled = nullptr;
+    QLabel* m_wallpaperPathLabel = nullptr;
+    QSlider* m_wallpaperOpacity = nullptr;
+    QLabel* m_wallpaperOpacityLabel = nullptr;
+    QSlider* m_wallpaperBlur = nullptr;
+    QLabel* m_wallpaperBlurLabel = nullptr;
+    QSlider* m_wallpaperFrost = nullptr;
+    QLabel* m_wallpaperFrostLabel = nullptr;
     QButtonGroup* m_presetGroup = nullptr;
     QVector<ColorSwatch*> m_accentChips;
+    QMap<QString, ColorSwatch*> m_tokenSwatches;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;

@@ -1,15 +1,18 @@
 #pragma once
 
 #include <QColor>
+#include <QMap>
 #include <QObject>
+#include <QPixmap>
 #include <QString>
 #include <QStringList>
 #include <QVector>
 
 class QApplication;
+class QJsonObject;
 
-// Lightweight appearance system: solid-color palettes + one accent, applied through QSS
-// token substitution and a shared Palette for hand-painted widgets. No images, no blur.
+// Appearance system: palettes + optional wallpaper/gradient, applied through QSS tokens
+// and a shared Palette for hand-painted widgets.
 class Theme : public QObject
 {
     Q_OBJECT
@@ -63,10 +66,19 @@ public:
         QColor customBg2;
         QColor profilePrimary;    // invalid => use palette.bg3
         QColor profileAccent;     // invalid => use effective accent
+        QMap<QString, QColor> tokenOverrides; // advanced per-token colors (bg3, text, …)
         int fontSize = 14;        // 12–18
         int radius = 4;           // 0 / 4 / 8
         ChatDensity chatDensity = ChatDensity::Normal;
         QString fontFamily;       // empty => default stack (Noto/Inter/Segoe)
+        QString wallpaperPath;
+        int wallpaperOpacity = 35; // 0–100
+        int wallpaperBlur = 0;     // 0–12 (downscale/blur strength)
+        int wallpaperFrost = 25;   // 0–80 dim overlay (cheap frost, not GPU blur)
+        bool gradientEnabled = false;
+        QColor gradientTop;
+        QColor gradientBottom;
+        bool syncDiscordAccent = false;
     };
 
     static Theme& instance();
@@ -76,6 +88,7 @@ public:
     QColor accent() const { return m_palette.accent; }
     QColor profilePrimary() const;
     QColor profileAccent() const;
+    const QPixmap& wallpaperPixmap() const { return m_wallpaper; }
 
     // Extra vertical gap before a message that starts a group (avatar + name).
     int messageGroupGap() const;
@@ -84,10 +97,23 @@ public:
 
     static QVector<Preset> presets();
     static const Preset* findPreset(const QString& id);
-    // Quick accent chips shown in Appearance (includes former accent-only presets).
     static QVector<QColor> accentSwatches();
-    // Short list of open fonts shipped or commonly available; empty id = default stack.
     static QStringList fontFamilyChoices();
+    // Ordered token ids matching Palette fields (for the advanced editor + JSON).
+    static QStringList tokenIds();
+    static QString tokenLabel(const QString& id);
+
+    QColor tokenColor(const QString& id) const;
+    void setTokenOverride(const QString& id, const QColor& color); // invalid clears
+
+    QJsonObject toJson() const;
+    // Returns an empty string on success, or a short error message.
+    QString applyJson(const QJsonObject& json);
+    QString exportToFile(const QString& path) const;
+    QString importFromFile(const QString& path);
+
+    // Called when Discord user profile colors are known (accent_color / banner_color).
+    void setDiscordProfileColors(const QColor& accent, const QColor& banner);
 
     void load();
     void save() const;
@@ -104,7 +130,12 @@ private:
     QString buildStyleSheet() const;
     void applyQtPalette(QApplication& app) const;
     void applyAppFont(QApplication& app) const;
+    void reloadWallpaper();
+    void normalize(Settings& settings) const;
 
     Settings m_settings;
     Palette m_palette;
+    QPixmap m_wallpaper;
+    QColor m_discordAccent;
+    QColor m_discordBanner;
 };

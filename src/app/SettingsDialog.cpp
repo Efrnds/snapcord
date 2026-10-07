@@ -13,6 +13,7 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -25,10 +26,13 @@
 #include <QProcess>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include "core/Session.h"
 
 #include <cmath>
 
@@ -794,6 +798,205 @@ QWidget* SettingsDialog::buildAppearancePage()
     });
     m_fontSizeLabel->setText(tr("%1 px").arg(m_fontSize->value()));
 
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Discord Nitro colors")));
+    auto* nitroHint = new QLabel(
+        tr("Uses your Discord accent_color / banner when the account has Nitro profile colors."));
+    nitroHint->setObjectName(QStringLiteral("settingsHint"));
+    nitroHint->setWordWrap(true);
+    layout->addWidget(nitroHint);
+    m_syncDiscordAccent = new QCheckBox(tr("Keep accent in sync with Discord"));
+    m_syncDiscordAccent->setChecked(current.syncDiscordAccent);
+    layout->addWidget(m_syncDiscordAccent);
+    connect(m_syncDiscordAccent, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
+    auto* applyDiscord = new QPushButton(tr("Apply Discord colors now"));
+    applyDiscord->setObjectName(QStringLiteral("secondaryButton"));
+    applyDiscord->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(applyDiscord, 0, Qt::AlignLeft);
+    connect(applyDiscord, &QPushButton::clicked, this, [this] {
+        if (!m_voice || !m_voice->session())
+            return;
+        const User& self = m_voice->session()->self();
+        const QColor accent = self.hasAccentColor ? QColor::fromRgb(self.accentColorRgb) : QColor();
+        const QColor banner(self.bannerColorHex);
+        Theme::instance().setDiscordProfileColors(accent, banner);
+        Theme::Settings settings = Theme::instance().settings();
+        if (accent.isValid())
+            settings.customAccent = accent;
+        if (banner.isValid())
+            settings.profilePrimary = banner;
+        Theme::instance().setSettings(settings);
+        refreshAppearanceControls();
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Chat wallpaper")));
+    auto* wallHint = new QLabel(
+        tr("Optional image behind chat. Soft blur is a light downscale (CPU-friendly), frost dims it."));
+    wallHint->setObjectName(QStringLiteral("settingsHint"));
+    wallHint->setWordWrap(true);
+    layout->addWidget(wallHint);
+    m_wallpaperPathLabel = new QLabel(current.wallpaperPath.isEmpty() ? tr("No wallpaper")
+                                                                      : current.wallpaperPath);
+    m_wallpaperPathLabel->setObjectName(QStringLiteral("settingsHint"));
+    m_wallpaperPathLabel->setWordWrap(true);
+    layout->addWidget(m_wallpaperPathLabel);
+    auto* wallButtons = new QHBoxLayout;
+    auto* chooseWall = new QPushButton(tr("Choose image…"));
+    chooseWall->setObjectName(QStringLiteral("secondaryButton"));
+    chooseWall->setCursor(Qt::PointingHandCursor);
+    auto* clearWall = new QPushButton(tr("Clear wallpaper"));
+    clearWall->setObjectName(QStringLiteral("secondaryButton"));
+    clearWall->setCursor(Qt::PointingHandCursor);
+    wallButtons->addWidget(chooseWall);
+    wallButtons->addWidget(clearWall);
+    wallButtons->addStretch();
+    layout->addLayout(wallButtons);
+    connect(chooseWall, &QPushButton::clicked, this, [this] {
+        const QString path = QFileDialog::getOpenFileName(
+            this, tr("Chat wallpaper"), QString(),
+            tr("Images (*.png *.jpg *.jpeg *.webp *.bmp)"));
+        if (path.isEmpty())
+            return;
+        Theme::Settings settings = Theme::instance().settings();
+        settings.wallpaperPath = path;
+        Theme::instance().setSettings(settings);
+        refreshAppearanceControls();
+    });
+    connect(clearWall, &QPushButton::clicked, this, [this] {
+        Theme::Settings settings = Theme::instance().settings();
+        settings.wallpaperPath.clear();
+        Theme::instance().setSettings(settings);
+        refreshAppearanceControls();
+    });
+
+    auto addPercentSlider = [&](const QString& title, QSlider*& slider, QLabel*& valueLabel, int min, int max,
+                                int value) {
+        layout->addWidget(new QLabel(title));
+        slider = new QSlider(Qt::Horizontal);
+        slider->setRange(min, max);
+        slider->setValue(value);
+        valueLabel = new QLabel(tr("%1%").arg(value));
+        valueLabel->setObjectName(QStringLiteral("settingsHint"));
+        auto* row = new QHBoxLayout;
+        row->addWidget(slider, 1);
+        row->addWidget(valueLabel);
+        layout->addLayout(row);
+        QLabel* label = valueLabel;
+        connect(slider, &QSlider::valueChanged, this, [this, label](int v) {
+            label->setText(tr("%1%").arg(v));
+            applyAppearance();
+        });
+    };
+    addPercentSlider(tr("Wallpaper opacity"), m_wallpaperOpacity, m_wallpaperOpacityLabel, 0, 100,
+                     current.wallpaperOpacity);
+    layout->addWidget(new QLabel(tr("Soft blur")));
+    m_wallpaperBlur = new QSlider(Qt::Horizontal);
+    m_wallpaperBlur->setRange(0, 12);
+    m_wallpaperBlur->setValue(current.wallpaperBlur);
+    m_wallpaperBlurLabel = new QLabel(QString::number(current.wallpaperBlur));
+    m_wallpaperBlurLabel->setObjectName(QStringLiteral("settingsHint"));
+    {
+        auto* row = new QHBoxLayout;
+        row->addWidget(m_wallpaperBlur, 1);
+        row->addWidget(m_wallpaperBlurLabel);
+        layout->addLayout(row);
+    }
+    connect(m_wallpaperBlur, &QSlider::valueChanged, this, [this](int v) {
+        m_wallpaperBlurLabel->setText(QString::number(v));
+        applyAppearance();
+    });
+    addPercentSlider(tr("Frost overlay"), m_wallpaperFrost, m_wallpaperFrostLabel, 0, 80,
+                     current.wallpaperFrost);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Gradient")));
+    m_gradientEnabled = new QCheckBox(tr("Enable chat gradient"));
+    m_gradientEnabled->setChecked(current.gradientEnabled);
+    layout->addWidget(m_gradientEnabled);
+    connect(m_gradientEnabled, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
+    auto* gradRow = new QHBoxLayout;
+    m_gradientTopSwatch = new ColorSwatch;
+    m_gradientTopSwatch->setToolTip(tr("Gradient top"));
+    m_gradientBottomSwatch = new ColorSwatch;
+    m_gradientBottomSwatch->setToolTip(tr("Gradient bottom"));
+    gradRow->addWidget(m_gradientTopSwatch);
+    gradRow->addWidget(m_gradientBottomSwatch);
+    gradRow->addStretch();
+    layout->addLayout(gradRow);
+    connect(m_gradientTopSwatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().settings().gradientTop, tr("Gradient top"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.gradientTop = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_gradientBottomSwatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().settings().gradientBottom, tr("Gradient bottom"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.gradientBottom = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Advanced tokens")));
+    auto* tokenHint = new QLabel(tr("Override any palette token. Cleared entries follow the theme again."));
+    tokenHint->setObjectName(QStringLiteral("settingsHint"));
+    tokenHint->setWordWrap(true);
+    layout->addWidget(tokenHint);
+    auto* tokenGrid = new QGridLayout;
+    tokenGrid->setHorizontalSpacing(8);
+    tokenGrid->setVerticalSpacing(6);
+    m_tokenSwatches.clear();
+    int tokenIndex = 0;
+    for (const QString& id : Theme::tokenIds()) {
+        auto* name = new QLabel(Theme::tokenLabel(id));
+        name->setObjectName(QStringLiteral("settingsHint"));
+        auto* chip = new ColorSwatch;
+        chip->setFixedSize(28, 28);
+        chip->setToolTip(id);
+        tokenGrid->addWidget(name, tokenIndex, 0);
+        tokenGrid->addWidget(chip, tokenIndex, 1);
+        m_tokenSwatches.insert(id, chip);
+        connect(chip, &QPushButton::clicked, this, [this, id] {
+            pickColor(Theme::instance().tokenColor(id), Theme::tokenLabel(id), [this, id](const QColor& c) {
+                Theme::instance().setTokenOverride(id, c);
+                refreshColorSwatches();
+            });
+        });
+        ++tokenIndex;
+    }
+    layout->addLayout(tokenGrid);
+    auto* resetTokens = new QPushButton(tr("Reset all token overrides"));
+    resetTokens->setObjectName(QStringLiteral("secondaryButton"));
+    resetTokens->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(resetTokens, 0, Qt::AlignLeft);
+    connect(resetTokens, &QPushButton::clicked, this, [this] {
+        Theme::Settings settings = Theme::instance().settings();
+        settings.tokenOverrides.clear();
+        Theme::instance().setSettings(settings);
+        refreshColorSwatches();
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Import / export")));
+    auto* ioRow = new QHBoxLayout;
+    auto* exportBtn = new QPushButton(tr("Export theme…"));
+    exportBtn->setObjectName(QStringLiteral("secondaryButton"));
+    exportBtn->setCursor(Qt::PointingHandCursor);
+    auto* importBtn = new QPushButton(tr("Import theme…"));
+    importBtn->setObjectName(QStringLiteral("secondaryButton"));
+    importBtn->setCursor(Qt::PointingHandCursor);
+    ioRow->addWidget(exportBtn);
+    ioRow->addWidget(importBtn);
+    ioRow->addStretch();
+    layout->addLayout(ioRow);
+    connect(exportBtn, &QPushButton::clicked, this, &SettingsDialog::exportTheme);
+    connect(importBtn, &QPushButton::clicked, this, &SettingsDialog::importTheme);
+
     layout->addStretch();
     refreshColorSwatches();
     connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::refreshColorSwatches);
@@ -808,6 +1011,7 @@ QWidget* SettingsDialog::buildAppearancePage()
 void SettingsDialog::refreshColorSwatches()
 {
     const Theme::Palette& palette = Theme::instance().palette();
+    const Theme::Settings& appearance = Theme::instance().settings();
     if (m_accentSwatch)
         m_accentSwatch->setSwatchColor(Theme::instance().accent());
     if (m_bg0Swatch)
@@ -820,8 +1024,12 @@ void SettingsDialog::refreshColorSwatches()
         m_profilePrimarySwatch->setSwatchColor(Theme::instance().profilePrimary());
     if (m_profileAccentSwatch)
         m_profileAccentSwatch->setSwatchColor(Theme::instance().profileAccent());
+    if (m_gradientTopSwatch)
+        m_gradientTopSwatch->setSwatchColor(appearance.gradientTop);
+    if (m_gradientBottomSwatch)
+        m_gradientBottomSwatch->setSwatchColor(appearance.gradientBottom);
 
-    const QColor custom = Theme::instance().settings().customAccent;
+    const QColor custom = appearance.customAccent;
     bool matchedChip = false;
     for (ColorSwatch* chip : m_accentChips) {
         if (!chip)
@@ -832,6 +1040,95 @@ void SettingsDialog::refreshColorSwatches()
     }
     if (m_accentSwatch)
         m_accentSwatch->setSelectedSwatch(custom.isValid() && !matchedChip);
+
+    for (auto it = m_tokenSwatches.begin(); it != m_tokenSwatches.end(); ++it) {
+        if (!it.value())
+            continue;
+        it.value()->setSwatchColor(Theme::instance().tokenColor(it.key()));
+        it.value()->setSelectedSwatch(appearance.tokenOverrides.contains(it.key()));
+    }
+}
+
+void SettingsDialog::refreshAppearanceControls()
+{
+    const Theme::Settings& appearance = Theme::instance().settings();
+    const QSignalBlocker blockFont(m_fontSize);
+    const QSignalBlocker blockFamily(m_fontFamily);
+    const QSignalBlocker blockRadius(m_radius);
+    const QSignalBlocker blockDensity(m_chatDensity);
+    const QSignalBlocker blockSync(m_syncDiscordAccent);
+    const QSignalBlocker blockGrad(m_gradientEnabled);
+    const QSignalBlocker blockOpacity(m_wallpaperOpacity);
+    const QSignalBlocker blockBlur(m_wallpaperBlur);
+    const QSignalBlocker blockFrost(m_wallpaperFrost);
+
+    if (m_presetGroup) {
+        const auto buttons = m_presetGroup->buttons();
+        for (QAbstractButton* button : buttons)
+            button->setChecked(button->property("presetId").toString() == appearance.presetId);
+    }
+    if (m_fontSize) {
+        m_fontSize->setValue(appearance.fontSize);
+        if (m_fontSizeLabel)
+            m_fontSizeLabel->setText(tr("%1 px").arg(appearance.fontSize));
+    }
+    if (m_fontFamily) {
+        const int idx = m_fontFamily->findData(appearance.fontFamily);
+        m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_radius)
+        m_radius->setCurrentIndex(m_radius->findData(appearance.radius));
+    if (m_chatDensity)
+        m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(appearance.chatDensity)));
+    if (m_syncDiscordAccent)
+        m_syncDiscordAccent->setChecked(appearance.syncDiscordAccent);
+    if (m_gradientEnabled)
+        m_gradientEnabled->setChecked(appearance.gradientEnabled);
+    if (m_wallpaperPathLabel) {
+        m_wallpaperPathLabel->setText(appearance.wallpaperPath.isEmpty() ? tr("No wallpaper")
+                                                                         : appearance.wallpaperPath);
+    }
+    if (m_wallpaperOpacity) {
+        m_wallpaperOpacity->setValue(appearance.wallpaperOpacity);
+        if (m_wallpaperOpacityLabel)
+            m_wallpaperOpacityLabel->setText(tr("%1%").arg(appearance.wallpaperOpacity));
+    }
+    if (m_wallpaperBlur) {
+        m_wallpaperBlur->setValue(appearance.wallpaperBlur);
+        if (m_wallpaperBlurLabel)
+            m_wallpaperBlurLabel->setText(QString::number(appearance.wallpaperBlur));
+    }
+    if (m_wallpaperFrost) {
+        m_wallpaperFrost->setValue(appearance.wallpaperFrost);
+        if (m_wallpaperFrostLabel)
+            m_wallpaperFrostLabel->setText(tr("%1%").arg(appearance.wallpaperFrost));
+    }
+    refreshColorSwatches();
+}
+
+void SettingsDialog::exportTheme()
+{
+    const QString path = QFileDialog::getSaveFileName(this, tr("Export theme"), QStringLiteral("snapcord-theme.json"),
+                                                      tr("Theme JSON (*.json)"));
+    if (path.isEmpty())
+        return;
+    const QString error = Theme::instance().exportToFile(path);
+    if (!error.isEmpty())
+        QMessageBox::warning(this, tr("Export theme"), error);
+}
+
+void SettingsDialog::importTheme()
+{
+    const QString path = QFileDialog::getOpenFileName(this, tr("Import theme"), QString(),
+                                                      tr("Theme JSON (*.json)"));
+    if (path.isEmpty())
+        return;
+    const QString error = Theme::instance().importFromFile(path);
+    if (!error.isEmpty()) {
+        QMessageBox::warning(this, tr("Import theme"), error);
+        return;
+    }
+    refreshAppearanceControls();
 }
 
 void SettingsDialog::setCustomAccent(const QColor& color)
@@ -888,6 +1185,16 @@ void SettingsDialog::applyAppearance()
         settings.radius = m_radius->currentData().toInt();
     if (m_chatDensity)
         settings.chatDensity = static_cast<Theme::ChatDensity>(m_chatDensity->currentData().toInt());
+    if (m_syncDiscordAccent)
+        settings.syncDiscordAccent = m_syncDiscordAccent->isChecked();
+    if (m_gradientEnabled)
+        settings.gradientEnabled = m_gradientEnabled->isChecked();
+    if (m_wallpaperOpacity)
+        settings.wallpaperOpacity = m_wallpaperOpacity->value();
+    if (m_wallpaperBlur)
+        settings.wallpaperBlur = m_wallpaperBlur->value();
+    if (m_wallpaperFrost)
+        settings.wallpaperFrost = m_wallpaperFrost->value();
     Theme::instance().setSettings(settings);
     refreshColorSwatches();
 }

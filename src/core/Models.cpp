@@ -1,6 +1,7 @@
 #include "core/Models.h"
 
 #include <QJsonArray>
+#include <QVariant>
 
 namespace {
 
@@ -24,6 +25,25 @@ User User::fromJson(const QJsonObject& json)
     user.username = string(json, u"username");
     user.globalName = string(json, u"global_name");
     user.avatar = string(json, u"avatar");
+    // Discord stores accent as a 24-bit RGB integer (or null).
+    if (json.contains(u"accent_color") && !json.value(u"accent_color").isNull()) {
+        user.hasAccentColor = true;
+        user.accentColorRgb = static_cast<quint32>(json.value(u"accent_color").toVariant().toULongLong()) & 0x00ffffffu;
+    }
+    if (json.contains(u"banner_color") && !json.value(u"banner_color").isNull()) {
+        const QString hex = json.value(u"banner_color").toString();
+        if (hex.startsWith(u'#'))
+            user.bannerColorHex = hex;
+    }
+    const QJsonArray themeColors = json.value(u"theme_colors").toArray();
+    if (themeColors.size() >= 1 && user.bannerColorHex.isEmpty()) {
+        const quint32 rgb = static_cast<quint32>(themeColors.at(0).toVariant().toULongLong()) & 0x00ffffffu;
+        user.bannerColorHex = QStringLiteral("#%1").arg(rgb, 6, 16, QLatin1Char('0'));
+    }
+    if (themeColors.size() >= 2 && !user.hasAccentColor) {
+        user.hasAccentColor = true;
+        user.accentColorRgb = static_cast<quint32>(themeColors.at(1).toVariant().toULongLong()) & 0x00ffffffu;
+    }
     return user;
 }
 

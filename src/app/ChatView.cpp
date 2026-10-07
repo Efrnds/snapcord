@@ -3,6 +3,7 @@
 #include "EmojiPicker.h"
 #include "ImageCache.h"
 #include "MessageView.h"
+#include "Theme.h"
 #include "VoiceController.h"
 #include "core/Markdown.h"
 #include "core/MessageStore.h"
@@ -19,6 +20,8 @@
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPaintEvent>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QToolButton>
@@ -74,6 +77,36 @@ void Composer::keyPressEvent(QKeyEvent* event)
 
 // --- ChatView ---------------------------------------------------------------------------------------
 
+void ChatView::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    const Theme::Settings& appearance = Theme::instance().settings();
+    const Theme::Palette& colors = Theme::instance().palette();
+    painter.fillRect(rect(), colors.bg2);
+
+    if (appearance.gradientEnabled) {
+        QLinearGradient gradient(0, 0, 0, height());
+        gradient.setColorAt(0, appearance.gradientTop);
+        gradient.setColorAt(1, appearance.gradientBottom);
+        painter.fillRect(rect(), gradient);
+    }
+
+    const QPixmap& wallpaper = Theme::instance().wallpaperPixmap();
+    if (!wallpaper.isNull() && appearance.wallpaperOpacity > 0) {
+        painter.setOpacity(appearance.wallpaperOpacity / 100.0);
+        const QSize scaled = wallpaper.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
+        const QPoint topLeft((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
+        painter.drawPixmap(QRect(topLeft, scaled), wallpaper);
+        painter.setOpacity(1.0);
+    }
+
+    if (appearance.wallpaperFrost > 0) {
+        QColor frost = colors.bg2;
+        frost.setAlpha(qRound(255 * appearance.wallpaperFrost / 100.0));
+        painter.fillRect(rect(), frost);
+    }
+}
+
 ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice, QWidget* parent)
     : QWidget(parent)
     , m_session(session)
@@ -93,8 +126,9 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     , m_statusLabel(new QLabel)
 {
     setObjectName(QStringLiteral("chatArea"));
-    setAttribute(Qt::WA_StyledBackground);
+    setAttribute(Qt::WA_StyledBackground, false);
     m_list->setModel(m_model);
+    connect(&Theme::instance(), &Theme::changed, this, QOverload<>::of(&QWidget::update));
 
     // Header.
     auto* header = new QWidget;

@@ -49,6 +49,9 @@ public:
     // Marks the channel as read if the newest message is on screen and the window is active.
     void markReadIfVisible();
 
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
 private:
     void submit(const QString& text);
     void startReply(const QString& messageId);

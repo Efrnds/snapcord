@@ -5,8 +5,14 @@
 #include <QFile>
 #include <QFont>
 #include <QFontDatabase>
+#include <QImage>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QMap>
+#include <QPainter>
 #include <QPalette>
 #include <QSettings>
+#include <QVariant>
 #include <QWidget>
 
 namespace {
@@ -24,6 +30,127 @@ QColor colorFromHsvDelta(QColor base, int satDelta, int valueDelta)
 QString hex(const QColor& color)
 {
     return color.name(QColor::HexRgb);
+}
+
+QColor* paletteField(Theme::Palette& palette, const QString& id)
+{
+    if (id == u"bg0")
+        return &palette.bg0;
+    if (id == u"bg1")
+        return &palette.bg1;
+    if (id == u"bg2")
+        return &palette.bg2;
+    if (id == u"bg3")
+        return &palette.bg3;
+    if (id == u"bg4")
+        return &palette.bg4;
+    if (id == u"surface")
+        return &palette.surface;
+    if (id == u"hover")
+        return &palette.hover;
+    if (id == u"selected")
+        return &palette.selected;
+    if (id == u"border")
+        return &palette.border;
+    if (id == u"text")
+        return &palette.text;
+    if (id == u"textBright")
+        return &palette.textBright;
+    if (id == u"textMuted")
+        return &palette.textMuted;
+    if (id == u"textDim")
+        return &palette.textDim;
+    if (id == u"accent")
+        return &palette.accent;
+    if (id == u"accentHover")
+        return &palette.accentHover;
+    if (id == u"accentMuted")
+        return &palette.accentMuted;
+    if (id == u"button")
+        return &palette.button;
+    if (id == u"buttonHover")
+        return &palette.buttonHover;
+    if (id == u"success")
+        return &palette.success;
+    if (id == u"successHover")
+        return &palette.successHover;
+    if (id == u"danger")
+        return &palette.danger;
+    if (id == u"dangerHover")
+        return &palette.dangerHover;
+    if (id == u"warning")
+        return &palette.warning;
+    if (id == u"link")
+        return &palette.link;
+    if (id == u"onAccent")
+        return &palette.onAccent;
+    return nullptr;
+}
+
+const QColor* paletteField(const Theme::Palette& palette, const QString& id)
+{
+    return paletteField(const_cast<Theme::Palette&>(palette), id);
+}
+
+QColor readColor(const QSettings& settings, const QString& key)
+{
+    const QVariant value = settings.value(key);
+    if (!value.isValid())
+        return {};
+    const QColor color(value.toString());
+    return color.isValid() ? color : QColor();
+}
+
+void writeColor(QSettings& settings, const QString& key, const QColor& color)
+{
+    if (color.isValid())
+        settings.setValue(key, color.name(QColor::HexRgb));
+    else
+        settings.remove(key);
+}
+
+QColor colorFromJson(const QJsonValue& value)
+{
+    if (value.isNull() || !value.isString())
+        return {};
+    const QColor color(value.toString());
+    return color.isValid() ? color : QColor();
+}
+
+QJsonValue colorToJson(const QColor& color)
+{
+    return color.isValid() ? QJsonValue(color.name(QColor::HexRgb)) : QJsonValue();
+}
+
+// Cheap soft blur: downscale then upscale (good enough for wallpaper frosted look).
+QImage softBlur(QImage image, int strength)
+{
+    if (strength <= 0 || image.isNull())
+        return image;
+    const int factor = qBound(2, strength, 12);
+    const QSize small(qMax(1, image.width() / factor), qMax(1, image.height() / factor));
+    return image.scaled(small, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+        .scaled(image.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+}
+
+bool sameColor(const QColor& a, const QColor& b)
+{
+    if (!a.isValid() && !b.isValid())
+        return true;
+    if (!a.isValid() || !b.isValid())
+        return false;
+    return a.rgb() == b.rgb();
+}
+
+bool sameTokenMap(const QMap<QString, QColor>& a, const QMap<QString, QColor>& b)
+{
+    if (a.size() != b.size())
+        return false;
+    for (auto it = a.begin(); it != a.end(); ++it) {
+        if (!b.contains(it.key()) || !sameColor(it.value(), b.value(it.key())))
+            return false;
+    }
+    return true;
 }
 
 Theme::Palette withAccent(Theme::Palette palette, const QColor& accent)
@@ -152,23 +279,6 @@ const QVector<Theme::Preset>& presetCache()
     return list;
 }
 
-QColor readColor(const QSettings& settings, const QString& key)
-{
-    const QVariant value = settings.value(key);
-    if (!value.isValid())
-        return {};
-    const QColor color(value.toString());
-    return color.isValid() ? color : QColor();
-}
-
-void writeColor(QSettings& settings, const QString& key, const QColor& color)
-{
-    if (color.isValid())
-        settings.setValue(key, color.name(QColor::HexRgb));
-    else
-        settings.remove(key);
-}
-
 // Map removed accent-only presets to a custom accent so upgrades keep the color.
 QColor accentForLegacyPreset(const QString& id)
 {
@@ -241,6 +351,53 @@ QStringList Theme::fontFamilyChoices()
     return choices;
 }
 
+QStringList Theme::tokenIds()
+{
+    return {
+        QStringLiteral("bg0"),        QStringLiteral("bg1"),         QStringLiteral("bg2"),
+        QStringLiteral("bg3"),        QStringLiteral("bg4"),         QStringLiteral("surface"),
+        QStringLiteral("hover"),      QStringLiteral("selected"),    QStringLiteral("border"),
+        QStringLiteral("text"),       QStringLiteral("textBright"),  QStringLiteral("textMuted"),
+        QStringLiteral("textDim"),    QStringLiteral("accent"),      QStringLiteral("accentHover"),
+        QStringLiteral("accentMuted"),QStringLiteral("button"),      QStringLiteral("buttonHover"),
+        QStringLiteral("success"),    QStringLiteral("successHover"),QStringLiteral("danger"),
+        QStringLiteral("dangerHover"),QStringLiteral("warning"),     QStringLiteral("link"),
+        QStringLiteral("onAccent"),
+    };
+}
+
+QString Theme::tokenLabel(const QString& id)
+{
+    static const QMap<QString, QString> labels{
+        {QStringLiteral("bg0"), QStringLiteral("Rail (bg0)")},
+        {QStringLiteral("bg1"), QStringLiteral("Sidebar (bg1)")},
+        {QStringLiteral("bg2"), QStringLiteral("Chat (bg2)")},
+        {QStringLiteral("bg3"), QStringLiteral("Panels (bg3)")},
+        {QStringLiteral("bg4"), QStringLiteral("Menus (bg4)")},
+        {QStringLiteral("surface"), QStringLiteral("Inputs")},
+        {QStringLiteral("hover"), QStringLiteral("Hover")},
+        {QStringLiteral("selected"), QStringLiteral("Selected")},
+        {QStringLiteral("border"), QStringLiteral("Border")},
+        {QStringLiteral("text"), QStringLiteral("Text")},
+        {QStringLiteral("textBright"), QStringLiteral("Text bright")},
+        {QStringLiteral("textMuted"), QStringLiteral("Text muted")},
+        {QStringLiteral("textDim"), QStringLiteral("Text dim")},
+        {QStringLiteral("accent"), QStringLiteral("Accent")},
+        {QStringLiteral("accentHover"), QStringLiteral("Accent hover")},
+        {QStringLiteral("accentMuted"), QStringLiteral("Accent muted")},
+        {QStringLiteral("button"), QStringLiteral("Button")},
+        {QStringLiteral("buttonHover"), QStringLiteral("Button hover")},
+        {QStringLiteral("success"), QStringLiteral("Success")},
+        {QStringLiteral("successHover"), QStringLiteral("Success hover")},
+        {QStringLiteral("danger"), QStringLiteral("Danger")},
+        {QStringLiteral("dangerHover"), QStringLiteral("Danger hover")},
+        {QStringLiteral("warning"), QStringLiteral("Warning")},
+        {QStringLiteral("link"), QStringLiteral("Link")},
+        {QStringLiteral("onAccent"), QStringLiteral("On accent")},
+    };
+    return labels.value(id, id);
+}
+
 QColor Theme::profilePrimary() const
 {
     return m_settings.profilePrimary.isValid() ? m_settings.profilePrimary : m_palette.bg3;
@@ -277,9 +434,36 @@ int Theme::messageTightGap() const
     }
 }
 
+void Theme::normalize(Settings& settings) const
+{
+    settings.fontSize = qBound(12, settings.fontSize, 18);
+    settings.radius = (settings.radius == 0 || settings.radius == 8) ? settings.radius : 4;
+    settings.wallpaperOpacity = qBound(0, settings.wallpaperOpacity, 100);
+    settings.wallpaperBlur = qBound(0, settings.wallpaperBlur, 12);
+    settings.wallpaperFrost = qBound(0, settings.wallpaperFrost, 80);
+    if (settings.chatDensity != ChatDensity::Compact
+        && settings.chatDensity != ChatDensity::Comfortable)
+        settings.chatDensity = ChatDensity::Normal;
+    if (findPreset(settings.presetId)->id != settings.presetId)
+        settings.presetId = QStringLiteral("discord");
+    if (!settings.fontFamily.isEmpty() && !QFontDatabase::hasFamily(settings.fontFamily))
+        settings.fontFamily.clear();
+    if (!settings.gradientTop.isValid())
+        settings.gradientTop = QColor(0x58, 0x65, 0xf2);
+    if (!settings.gradientBottom.isValid())
+        settings.gradientBottom = QColor(0x11, 0x12, 0x14);
+
+    QMap<QString, QColor> cleaned;
+    for (auto it = settings.tokenOverrides.begin(); it != settings.tokenOverrides.end(); ++it) {
+        if (it.value().isValid() && tokenIds().contains(it.key()))
+            cleaned.insert(it.key(), it.value());
+    }
+    settings.tokenOverrides = cleaned;
+}
+
 void Theme::load()
 {
-    const QSettings settings;
+    QSettings settings;
     m_settings.presetId = settings.value(QStringLiteral("appearance/preset"), QStringLiteral("discord")).toString();
     m_settings.customAccent = readColor(settings, QStringLiteral("appearance/customAccent"));
     m_settings.customBg0 = readColor(settings, QStringLiteral("appearance/customBg0"));
@@ -293,27 +477,34 @@ void Theme::load()
         m_settings.presetId = QStringLiteral("discord");
     }
 
-    if (findPreset(m_settings.presetId)->id != m_settings.presetId)
-        m_settings.presetId = QStringLiteral("discord");
     m_settings.profilePrimary = readColor(settings, QStringLiteral("appearance/profilePrimary"));
     m_settings.profileAccent = readColor(settings, QStringLiteral("appearance/profileAccent"));
-    m_settings.fontSize = qBound(12, settings.value(QStringLiteral("appearance/fontSize"), 14).toInt(), 18);
-
-    const int radius = settings.value(QStringLiteral("appearance/radius"), 4).toInt();
-    m_settings.radius = (radius == 0 || radius == 8) ? radius : 4;
-
-    const int density = settings.value(QStringLiteral("appearance/chatDensity"),
-                                       static_cast<int>(ChatDensity::Normal))
-                            .toInt();
-    if (density == static_cast<int>(ChatDensity::Compact)
-        || density == static_cast<int>(ChatDensity::Comfortable))
-        m_settings.chatDensity = static_cast<ChatDensity>(density);
-    else
-        m_settings.chatDensity = ChatDensity::Normal;
-
+    m_settings.fontSize = settings.value(QStringLiteral("appearance/fontSize"), 14).toInt();
+    m_settings.radius = settings.value(QStringLiteral("appearance/radius"), 4).toInt();
+    m_settings.chatDensity = static_cast<ChatDensity>(
+        settings.value(QStringLiteral("appearance/chatDensity"), static_cast<int>(ChatDensity::Normal)).toInt());
     m_settings.fontFamily = settings.value(QStringLiteral("appearance/fontFamily")).toString();
-    if (!m_settings.fontFamily.isEmpty() && !QFontDatabase::hasFamily(m_settings.fontFamily))
-        m_settings.fontFamily.clear();
+    m_settings.wallpaperPath = settings.value(QStringLiteral("appearance/wallpaperPath")).toString();
+    m_settings.wallpaperOpacity = settings.value(QStringLiteral("appearance/wallpaperOpacity"), 35).toInt();
+    m_settings.wallpaperBlur = settings.value(QStringLiteral("appearance/wallpaperBlur"), 0).toInt();
+    m_settings.wallpaperFrost = settings.value(QStringLiteral("appearance/wallpaperFrost"), 25).toInt();
+    m_settings.gradientEnabled = settings.value(QStringLiteral("appearance/gradientEnabled"), false).toBool();
+    m_settings.gradientTop = readColor(settings, QStringLiteral("appearance/gradientTop"));
+    m_settings.gradientBottom = readColor(settings, QStringLiteral("appearance/gradientBottom"));
+    m_settings.syncDiscordAccent = settings.value(QStringLiteral("appearance/syncDiscordAccent"), false).toBool();
+
+    const int tokenCount = settings.beginReadArray(QStringLiteral("appearance/tokens"));
+    for (int i = 0; i < tokenCount; ++i) {
+        settings.setArrayIndex(i);
+        const QString id = settings.value(QStringLiteral("id")).toString();
+        const QColor color(settings.value(QStringLiteral("color")).toString());
+        if (!id.isEmpty() && color.isValid())
+            m_settings.tokenOverrides.insert(id, color);
+    }
+    settings.endArray();
+
+    normalize(m_settings);
+    reloadWallpaper();
 }
 
 void Theme::save() const
@@ -324,34 +515,36 @@ void Theme::save() const
     settings.setValue(QStringLiteral("appearance/radius"), m_settings.radius);
     settings.setValue(QStringLiteral("appearance/chatDensity"), static_cast<int>(m_settings.chatDensity));
     settings.setValue(QStringLiteral("appearance/fontFamily"), m_settings.fontFamily);
+    settings.setValue(QStringLiteral("appearance/wallpaperPath"), m_settings.wallpaperPath);
+    settings.setValue(QStringLiteral("appearance/wallpaperOpacity"), m_settings.wallpaperOpacity);
+    settings.setValue(QStringLiteral("appearance/wallpaperBlur"), m_settings.wallpaperBlur);
+    settings.setValue(QStringLiteral("appearance/wallpaperFrost"), m_settings.wallpaperFrost);
+    settings.setValue(QStringLiteral("appearance/gradientEnabled"), m_settings.gradientEnabled);
+    settings.setValue(QStringLiteral("appearance/syncDiscordAccent"), m_settings.syncDiscordAccent);
     writeColor(settings, QStringLiteral("appearance/customAccent"), m_settings.customAccent);
     writeColor(settings, QStringLiteral("appearance/customBg0"), m_settings.customBg0);
     writeColor(settings, QStringLiteral("appearance/customBg1"), m_settings.customBg1);
     writeColor(settings, QStringLiteral("appearance/customBg2"), m_settings.customBg2);
     writeColor(settings, QStringLiteral("appearance/profilePrimary"), m_settings.profilePrimary);
     writeColor(settings, QStringLiteral("appearance/profileAccent"), m_settings.profileAccent);
+    writeColor(settings, QStringLiteral("appearance/gradientTop"), m_settings.gradientTop);
+    writeColor(settings, QStringLiteral("appearance/gradientBottom"), m_settings.gradientBottom);
+
+    settings.remove(QStringLiteral("appearance/tokens"));
+    settings.beginWriteArray(QStringLiteral("appearance/tokens"), m_settings.tokenOverrides.size());
+    int i = 0;
+    for (auto it = m_settings.tokenOverrides.begin(); it != m_settings.tokenOverrides.end(); ++it, ++i) {
+        settings.setArrayIndex(i);
+        settings.setValue(QStringLiteral("id"), it.key());
+        settings.setValue(QStringLiteral("color"), it.value().name(QColor::HexRgb));
+    }
+    settings.endArray();
     settings.sync();
 }
 
 void Theme::setSettings(Settings settings)
 {
-    settings.fontSize = qBound(12, settings.fontSize, 18);
-    settings.radius = (settings.radius == 0 || settings.radius == 8) ? settings.radius : 4;
-    if (settings.chatDensity != ChatDensity::Compact
-        && settings.chatDensity != ChatDensity::Comfortable)
-        settings.chatDensity = ChatDensity::Normal;
-    if (findPreset(settings.presetId)->id != settings.presetId)
-        settings.presetId = QStringLiteral("discord");
-    if (!settings.fontFamily.isEmpty() && !QFontDatabase::hasFamily(settings.fontFamily))
-        settings.fontFamily.clear();
-
-    const auto sameColor = [](const QColor& a, const QColor& b) {
-        if (!a.isValid() && !b.isValid())
-            return true;
-        if (!a.isValid() || !b.isValid())
-            return false;
-        return a.rgb() == b.rgb();
-    };
+    normalize(settings);
 
     // Skip a full stylesheet rebuild when nothing actually changed (e.g. redundant slider events).
     if (settings.presetId == m_settings.presetId
@@ -361,14 +554,28 @@ void Theme::setSettings(Settings settings)
         && sameColor(settings.customBg2, m_settings.customBg2)
         && sameColor(settings.profilePrimary, m_settings.profilePrimary)
         && sameColor(settings.profileAccent, m_settings.profileAccent)
+        && sameTokenMap(settings.tokenOverrides, m_settings.tokenOverrides)
         && settings.fontSize == m_settings.fontSize
         && settings.radius == m_settings.radius
         && settings.chatDensity == m_settings.chatDensity
-        && settings.fontFamily == m_settings.fontFamily) {
+        && settings.fontFamily == m_settings.fontFamily
+        && settings.wallpaperPath == m_settings.wallpaperPath
+        && settings.wallpaperOpacity == m_settings.wallpaperOpacity
+        && settings.wallpaperBlur == m_settings.wallpaperBlur
+        && settings.wallpaperFrost == m_settings.wallpaperFrost
+        && settings.gradientEnabled == m_settings.gradientEnabled
+        && sameColor(settings.gradientTop, m_settings.gradientTop)
+        && sameColor(settings.gradientBottom, m_settings.gradientBottom)
+        && settings.syncDiscordAccent == m_settings.syncDiscordAccent) {
         return;
     }
 
+    const bool wallpaperChanged = settings.wallpaperPath != m_settings.wallpaperPath
+        || settings.wallpaperBlur != m_settings.wallpaperBlur;
+
     m_settings = std::move(settings);
+    if (wallpaperChanged)
+        reloadWallpaper();
     save();
 
     if (auto* app = qobject_cast<QApplication*>(QCoreApplication::instance()))
@@ -384,12 +591,18 @@ Theme::Palette Theme::resolvePalette() const
     Palette palette = findPreset(m_settings.presetId)->palette;
     if (m_settings.customAccent.isValid())
         palette = withAccent(palette, m_settings.customAccent);
+    else if (m_settings.syncDiscordAccent && m_discordAccent.isValid())
+        palette = withAccent(palette, m_discordAccent);
     if (m_settings.customBg0.isValid())
         palette.bg0 = m_settings.customBg0;
     if (m_settings.customBg1.isValid())
         palette.bg1 = m_settings.customBg1;
     if (m_settings.customBg2.isValid())
         palette.bg2 = m_settings.customBg2;
+    for (auto it = m_settings.tokenOverrides.begin(); it != m_settings.tokenOverrides.end(); ++it) {
+        if (QColor* field = paletteField(palette, it.key()))
+            *field = it.value();
+    }
     return palette;
 }
 
@@ -492,4 +705,165 @@ void Theme::apply(QApplication& app)
     if (app.styleSheet() != qss)
         app.setStyleSheet(qss);
     emit changed();
+}
+
+QColor Theme::tokenColor(const QString& id) const
+{
+    if (const QColor* field = paletteField(m_palette, id))
+        return *field;
+    return {};
+}
+
+void Theme::setTokenOverride(const QString& id, const QColor& color)
+{
+    Settings settings = m_settings;
+    if (!color.isValid())
+        settings.tokenOverrides.remove(id);
+    else
+        settings.tokenOverrides.insert(id, color);
+    // Keep shortcut fields in sync when editing the common tokens.
+    if (id == u"accent")
+        settings.customAccent = color;
+    else if (id == u"bg0")
+        settings.customBg0 = color;
+    else if (id == u"bg1")
+        settings.customBg1 = color;
+    else if (id == u"bg2")
+        settings.customBg2 = color;
+    setSettings(settings);
+}
+
+void Theme::reloadWallpaper()
+{
+    m_wallpaper = {};
+    if (m_settings.wallpaperPath.isEmpty())
+        return;
+    QImage image(m_settings.wallpaperPath);
+    if (image.isNull())
+        return;
+    image = softBlur(image, m_settings.wallpaperBlur);
+    m_wallpaper = QPixmap::fromImage(image);
+}
+
+QJsonObject Theme::toJson() const
+{
+    QJsonObject root;
+    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("presetId"), m_settings.presetId);
+    root.insert(QStringLiteral("customAccent"), colorToJson(m_settings.customAccent));
+    root.insert(QStringLiteral("customBg0"), colorToJson(m_settings.customBg0));
+    root.insert(QStringLiteral("customBg1"), colorToJson(m_settings.customBg1));
+    root.insert(QStringLiteral("customBg2"), colorToJson(m_settings.customBg2));
+    root.insert(QStringLiteral("profilePrimary"), colorToJson(m_settings.profilePrimary));
+    root.insert(QStringLiteral("profileAccent"), colorToJson(m_settings.profileAccent));
+    root.insert(QStringLiteral("fontSize"), m_settings.fontSize);
+    root.insert(QStringLiteral("radius"), m_settings.radius);
+    root.insert(QStringLiteral("chatDensity"), static_cast<int>(m_settings.chatDensity));
+    root.insert(QStringLiteral("fontFamily"), m_settings.fontFamily);
+    root.insert(QStringLiteral("wallpaperPath"), m_settings.wallpaperPath);
+    root.insert(QStringLiteral("wallpaperOpacity"), m_settings.wallpaperOpacity);
+    root.insert(QStringLiteral("wallpaperBlur"), m_settings.wallpaperBlur);
+    root.insert(QStringLiteral("wallpaperFrost"), m_settings.wallpaperFrost);
+    root.insert(QStringLiteral("gradientEnabled"), m_settings.gradientEnabled);
+    root.insert(QStringLiteral("gradientTop"), colorToJson(m_settings.gradientTop));
+    root.insert(QStringLiteral("gradientBottom"), colorToJson(m_settings.gradientBottom));
+    root.insert(QStringLiteral("syncDiscordAccent"), m_settings.syncDiscordAccent);
+    QJsonObject tokens;
+    for (auto it = m_settings.tokenOverrides.begin(); it != m_settings.tokenOverrides.end(); ++it)
+        tokens.insert(it.key(), it.value().name(QColor::HexRgb));
+    root.insert(QStringLiteral("tokens"), tokens);
+    return root;
+}
+
+QString Theme::applyJson(const QJsonObject& json)
+{
+    if (json.value(QStringLiteral("version")).toInt(1) > 1)
+        return QStringLiteral("Unsupported theme file version.");
+
+    Settings settings = m_settings;
+    if (json.contains(QStringLiteral("presetId")))
+        settings.presetId = json.value(QStringLiteral("presetId")).toString();
+    if (json.contains(QStringLiteral("customAccent")))
+        settings.customAccent = colorFromJson(json.value(QStringLiteral("customAccent")));
+    if (json.contains(QStringLiteral("customBg0")))
+        settings.customBg0 = colorFromJson(json.value(QStringLiteral("customBg0")));
+    if (json.contains(QStringLiteral("customBg1")))
+        settings.customBg1 = colorFromJson(json.value(QStringLiteral("customBg1")));
+    if (json.contains(QStringLiteral("customBg2")))
+        settings.customBg2 = colorFromJson(json.value(QStringLiteral("customBg2")));
+    if (json.contains(QStringLiteral("profilePrimary")))
+        settings.profilePrimary = colorFromJson(json.value(QStringLiteral("profilePrimary")));
+    if (json.contains(QStringLiteral("profileAccent")))
+        settings.profileAccent = colorFromJson(json.value(QStringLiteral("profileAccent")));
+    if (json.contains(QStringLiteral("fontSize")))
+        settings.fontSize = json.value(QStringLiteral("fontSize")).toInt(settings.fontSize);
+    if (json.contains(QStringLiteral("radius")))
+        settings.radius = json.value(QStringLiteral("radius")).toInt(settings.radius);
+    if (json.contains(QStringLiteral("chatDensity")))
+        settings.chatDensity = static_cast<ChatDensity>(json.value(QStringLiteral("chatDensity")).toInt());
+    if (json.contains(QStringLiteral("fontFamily")))
+        settings.fontFamily = json.value(QStringLiteral("fontFamily")).toString();
+    if (json.contains(QStringLiteral("wallpaperPath")))
+        settings.wallpaperPath = json.value(QStringLiteral("wallpaperPath")).toString();
+    if (json.contains(QStringLiteral("wallpaperOpacity")))
+        settings.wallpaperOpacity = json.value(QStringLiteral("wallpaperOpacity")).toInt();
+    if (json.contains(QStringLiteral("wallpaperBlur")))
+        settings.wallpaperBlur = json.value(QStringLiteral("wallpaperBlur")).toInt();
+    if (json.contains(QStringLiteral("wallpaperFrost")))
+        settings.wallpaperFrost = json.value(QStringLiteral("wallpaperFrost")).toInt();
+    if (json.contains(QStringLiteral("gradientEnabled")))
+        settings.gradientEnabled = json.value(QStringLiteral("gradientEnabled")).toBool();
+    if (json.contains(QStringLiteral("gradientTop")))
+        settings.gradientTop = colorFromJson(json.value(QStringLiteral("gradientTop")));
+    if (json.contains(QStringLiteral("gradientBottom")))
+        settings.gradientBottom = colorFromJson(json.value(QStringLiteral("gradientBottom")));
+    if (json.contains(QStringLiteral("syncDiscordAccent")))
+        settings.syncDiscordAccent = json.value(QStringLiteral("syncDiscordAccent")).toBool();
+    if (json.contains(QStringLiteral("tokens"))) {
+        settings.tokenOverrides.clear();
+        const QJsonObject tokens = json.value(QStringLiteral("tokens")).toObject();
+        for (auto it = tokens.begin(); it != tokens.end(); ++it) {
+            const QColor color(it.value().toString());
+            if (color.isValid())
+                settings.tokenOverrides.insert(it.key(), color);
+        }
+    }
+
+    setSettings(settings);
+    return {};
+}
+
+QString Theme::exportToFile(const QString& path) const
+{
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return QStringLiteral("Could not write theme file.");
+    file.write(QJsonDocument(toJson()).toJson(QJsonDocument::Indented));
+    return {};
+}
+
+QString Theme::importFromFile(const QString& path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return QStringLiteral("Could not read theme file.");
+    QJsonParseError error;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject())
+        return QStringLiteral("Invalid theme JSON.");
+    return applyJson(doc.object());
+}
+
+void Theme::setDiscordProfileColors(const QColor& accent, const QColor& banner)
+{
+    m_discordAccent = accent;
+    m_discordBanner = banner;
+    if (!m_settings.syncDiscordAccent)
+        return;
+    Settings settings = m_settings;
+    if (accent.isValid())
+        settings.customAccent = accent;
+    if (banner.isValid() && !settings.profilePrimary.isValid())
+        settings.profilePrimary = banner;
+    setSettings(settings);
 }
