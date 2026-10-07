@@ -110,6 +110,33 @@ private slots:
         session.startOffline({{QStringLiteral("GUILD_MEMBER_LIST_UPDATE"), other}});
         QVERIFY(!session.memberList(Guild, Channel));
     }
+
+    void keepsListsOfGuildsLeft()
+    {
+        // The Gateway does not send the list again when the user comes back to a guild.
+        Session session;
+        startSession(session);
+        const QJsonArray groups{group(QStringLiteral("online"), 1)};
+        const QJsonObject sync{{QStringLiteral("op"), QStringLiteral("SYNC")},
+                               {QStringLiteral("range"), QJsonArray{0, 99}},
+                               {QStringLiteral("items"), QJsonArray{groups[0], member("10")}}};
+        session.startOffline({{QStringLiteral("GUILD_MEMBER_LIST_UPDATE"), update(groups, {sync})}});
+        QVERIFY(session.memberList(Guild, Channel));
+
+        session.subscribeMemberList(QStringLiteral("5"), QStringLiteral("6"));
+        // Updates keep coming while the user is away.
+        const QJsonArray after{group(QStringLiteral("online"), 2)};
+        const QJsonArray ops{
+            QJsonObject{{QStringLiteral("op"), QStringLiteral("INSERT")}, {QStringLiteral("index"), 2}, {QStringLiteral("item"), member("11")}},
+            QJsonObject{{QStringLiteral("op"), QStringLiteral("UPDATE")}, {QStringLiteral("index"), 0}, {QStringLiteral("item"), after[0]}},
+        };
+        session.startOffline({{QStringLiteral("GUILD_MEMBER_LIST_UPDATE"), update(after, ops)}});
+
+        session.subscribeMemberList(Guild, Channel);
+        const MemberList* list = session.memberList(Guild, Channel);
+        QVERIFY(list);
+        QCOMPARE(rows(list), (QStringList{"[online]", "10", "11"}));
+    }
 };
 
 QTEST_GUILESS_MAIN(MemberListTest)

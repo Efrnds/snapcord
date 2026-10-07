@@ -20,7 +20,16 @@ Session::Session(QObject* parent)
 {
     connect(m_gateway, &Gateway::dispatch, this, &Session::onDispatch);
     connect(m_gateway, &Gateway::authenticationFailed, this, &Session::authenticationFailed);
-    connect(m_gateway, &Gateway::connectionStateChanged, this, &Session::connectionStateChanged);
+    connect(m_gateway, &Gateway::connectionStateChanged, this, [this](bool connected) {
+        // Presence updates before READY would get the connection closed.
+        m_gatewayReady = connected;
+        emit connectionStateChanged(connected);
+    });
+
+    // A song change and the end of the previous one, or several quick skips, become a single update.
+    m_presenceTimer.setSingleShot(true);
+    m_presenceTimer.setInterval(1000);
+    connect(&m_presenceTimer, &QTimer::timeout, this, &Session::sendOwnPresence);
 
     // Unknown users in voice channels are requested in batches instead of one request per event.
     m_missingUsersTimer.setSingleShot(true);
@@ -285,6 +294,8 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
         storePresence(data);
     } else if (event == u"GUILD_MEMBER_LIST_UPDATE") {
         onMemberListUpdate(data);
+    } else if (event == u"USER_CONNECTIONS_UPDATE") {
+        emit connectionsChanged();
     } else if (event == u"SESSIONS_REPLACE") {
         loadSessions(data.value(u"sessions").toArray());
     } else if (event == u"USER_SETTINGS_UPDATE") {
@@ -414,9 +425,7 @@ void Session::loadReady(const QJsonObject& data)
     // A new session starts without subscriptions.
     m_listGuildId.clear();
     m_listChannelId.clear();
-    m_memberList = {};
-    m_memberListSynced = false;
-    m_memberListIds.clear();
+    m_memberLists.clear();
     m_guilds.clear();
     m_guildOrder.clear();
     m_privateChannels.clear();
@@ -619,17 +628,13 @@ void Session::subscribeMemberList(const QString& guildId, const QString& channel
         return;
 
     if (guildId != m_listGuildId || channelId != m_listChannelId) {
-        if (guildId != m_listGuildId)
-            m_memberListIds.clear();
-        QString listId = m_memberListIds.value(channelId);
-        const Channel* channel = this->channel(guildId, channelId);
-        if (listId.isEmpty() && channel && guildId == m_listGuildId && guessMemberListId(*channel) == m_memberList.id)
-            listId = m_memberList.id;
-        if (listId.isEmpty() || listId != m_memberList.id || guildId != m_listGuildId) {
-            // Another list: the Gateway sends it from scratch.
-            m_memberList = {};
-            m_memberList.id = listId;
-            m_memberListSynced = false;
+        GuildMemberLists& guild = m_memberLists[guildId];
+        if (!guild.channelLists.contains(channelId)) {
+            // A channel not opened before may share a list already here; otherwise the Gateway sends it.
+            const Channel* channel = this->channel(guildId, channelId);
+            const QString guess = channel ? guessMemberListId(*channel) : QString();
+            if (guild.lists.contains(guess))
+                guild.channelLists.insert(channelId, guess);
         }
         m_listGuildId = guildId;
         m_listChannelId = channelId;
@@ -648,36 +653,39 @@ void Session::subscribeMemberList(const QString& guildId, const QString& channel
 
 const MemberList* Session::memberList(const QString& guildId, const QString& channelId) const
 {
-    if (!m_memberListSynced || guildId != m_listGuildId || channelId != m_listChannelId)
+    const auto guild = m_memberLists.constFind(guildId);
+    if (guild == m_memberLists.cend())
         return nullptr;
-    return &m_memberList;
+    const auto list = guild->lists.constFind(guild->channelLists.value(channelId));
+    return list == guild->lists.cend() ? nullptr : &*list;
 }
 
 void Session::onMemberListUpdate(const QJsonObject& data)
 {
     const QString guildId = data.value(u"guild_id").toString();
-    if (guildId != m_listGuildId)
+    const auto guild = m_memberLists.find(guildId);
+    if (guild == m_memberLists.end())
         return;
     const QString listId = data.value(u"id").toString();
     const QJsonArray ops = data.value(u"ops").toArray();
-    if (m_memberList.id.isEmpty()) {
-        // The first full list after subscribing tells which list the channel uses.
+    auto list = guild->lists.find(listId);
+    if (list == guild->lists.end()) {
+        // A new list starts with a full copy of its rows.
         const bool sync = std::any_of(ops.begin(), ops.end(), [](const QJsonValue& op) {
             return op.toObject().value(u"op").toString() == u"SYNC";
         });
         if (!sync)
             return;
-        m_memberList.id = listId;
-        m_memberListIds.insert(m_listChannelId, listId);
+        // The first one after subscribing tells which list the channel on screen uses.
+        if (guildId == m_listGuildId && !guild->channelLists.contains(m_listChannelId))
+            guild->channelLists.insert(m_listChannelId, listId);
+        list = guild->lists.insert(listId, MemberList{listId, guildId});
         qCInfo(lcGateway) << "member list" << listId << "received," << data.value(u"member_count").toInt() << "members";
     }
-    if (listId != m_memberList.id)
-        return;
 
-    m_memberList.guildId = guildId;
-    m_memberList.memberCount = data.value(u"member_count").toInt();
-    m_memberList.onlineCount = data.value(u"online_count").toInt();
-    QList<MemberListItem>& items = m_memberList.items;
+    list->memberCount = data.value(u"member_count").toInt();
+    list->onlineCount = data.value(u"online_count").toInt();
+    QList<MemberListItem>& items = list->items;
     auto reserveRows = [&items](qsizetype count) {
         if (items.size() < count)
             items.resize(count);
@@ -693,7 +701,6 @@ void Session::onMemberListUpdate(const QJsonObject& data)
             reserveRows(first + rows.size());
             for (qsizetype i = 0; i < rows.size(); ++i)
                 items[first + i] = memberListItem(guildId, rows.at(i).toObject());
-            m_memberListSynced = true;
         } else if (type == u"INSERT") {
             reserveRows(index);
             items.insert(index, memberListItem(guildId, op.value(u"item").toObject()));
@@ -743,13 +750,29 @@ MemberListItem Session::memberListItem(const QString& guildId, const QJsonObject
     return item;
 }
 
+void Session::setLocalActivity(const QString& source, const QJsonObject& activity)
+{
+    if (activity.isEmpty() ? !m_localActivities.contains(source) : m_localActivities.value(source) == activity)
+        return;
+    if (activity.isEmpty())
+        m_localActivities.remove(source);
+    else
+        m_localActivities.insert(source, activity);
+    m_presenceTimer.start();
+}
+
 void Session::sendOwnPresence()
 {
+    m_presenceTimer.stop();
+    if (!m_gatewayReady)
+        return; // READY sends it
     QJsonArray activities;
     if (m_selfCustomStatus.isActive())
         activities.append(Activity::customStatus(m_selfCustomStatus.text, m_selfCustomStatus.emojiName,
                                                  m_selfCustomStatus.emojiId)
                               .toJson());
+    for (const QJsonObject& activity : std::as_const(m_localActivities))
+        activities.append(activity);
     m_gateway->updatePresence(statusToString(m_selfStatus), activities);
 }
 

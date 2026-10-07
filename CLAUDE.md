@@ -360,6 +360,23 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   depreciado, mas funcional) mais o opcode 3. Banner com imagem e temas de perfil exigem Nitro: ficam fora.
 - **Falta o teste real** com uma conta.
 
+### Rich presence (jogo e Spotify)
+
+- **Jogos:** `core/GameDetector` baixa a lista pública `GET /applications/detectable` (~13 MB), guarda uma versão
+  compacta em `detectable.tsv` (pasta de dados do app, renovada a cada 3 dias) e compara com os processos abertos a
+  cada 15 s (`platform/ProcessList`). Regras da lista: o nome pode ser o fim de um caminho (`_retail_/wow.exe`);
+  `>nome` exige nome exato mais os `arguments` na linha de comando; launchers são ignorados. No Linux, jogos do
+  Proton/Wine são achados pelo primeiro argumento `.exe`. Atividade enviada: tipo 0 com `application_id`.
+- **Spotify:** `core/SpotifyPresence` usa a conexão do Spotify na conta (`GET /users/@me/connections`, respeitando
+  `show_activity`), pega o token em `.../connections/spotify/{id}/access-token`, abre o `wss://dealer.spotify.com`
+  e assina `PUT /v1/me/notifications/player?connection_id=...`. Se a assinatura falhar, consulta `/v1/me/player`
+  a cada 15 s. Atividade tipo 2 "Spotify", flags 48, `sync_id`, `party.id = spotify:<user>`, capa `spotify:<id>`.
+- **Envio:** `Session::setLocalActivity` junta jogo e música ao status personalizado no opcode 3 (agrupado em 1 s,
+  e só depois do READY). Interruptores em Configurações > Activity Privacy (`activity/shareGames`,
+  `activity/shareSpotify`), ligados em `app/RichPresence`.
+- **Limitação:** no Flatpak o sandbox não enxerga os processos do sistema, então jogos não são detectados lá.
+- **Falta o teste real** com uma conta.
+
 ### Fase 4 (lançamento)
 
 - **Fora de escopo por decisão do dono:** atualização automática, testes de áudio por plataforma e

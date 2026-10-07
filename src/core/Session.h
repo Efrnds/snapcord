@@ -6,6 +6,8 @@
 
 #include <QHash>
 #include <QJsonArray>
+#include <QJsonObject>
+#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QStringList>
@@ -111,6 +113,11 @@ public:
     void updateProfile(const ProfileChanges& changes, ResultCallback callback);
     void setStatus(UserStatus status);
     void setCustomStatus(const CustomStatus& status);
+    // Activities this client detects itself (the game being played, the Spotify song), shared with the
+    // status. `source` keeps them apart ("game", "spotify"); an empty activity removes that source's one.
+    void setLocalActivity(const QString& source, const QJsonObject& activity);
+
+    RestClient* rest() const { return m_rest; }
 
 signals:
     // `statusChanged` is false when only the activities changed (e.g. the next song).
@@ -135,6 +142,8 @@ signals:
     void typingStarted(const QString& channelId, const QString& userId);
     // A message that deserves a notification: a direct message or a mention.
     void notificationMessage(const Message& message);
+    // Connected accounts (Spotify, Steam...) were added, removed or changed.
+    void connectionsChanged();
 
 private:
     void onDispatch(const QString& event, const QJsonObject& data);
@@ -186,12 +195,19 @@ private:
     UserStatus m_selfStatus = UserStatus::Online;
     CustomStatus m_selfCustomStatus;
     QList<Activity> m_selfActivities; // from the user's sessions, without the custom status
+    QMap<QString, QJsonObject> m_localActivities; // by source, in a stable order
+    QTimer m_presenceTimer; // groups activity changes that come close together into one update
+    bool m_gatewayReady = false;
     QHash<QString, CachedProfile> m_profiles; // by "userId/guildId"
-    // Only the member list of the channel on screen is followed.
-    QString m_listGuildId;
+    // Member lists of every guild opened in this session. The Gateway keeps a guild subscribed (and keeps
+    // sending its updates) after the user leaves it, and does not send the list again on coming back.
+    struct GuildMemberLists
+    {
+        QHash<QString, MemberList> lists;        // by list ID, once the Gateway sent it in full
+        QHash<QString, QString> channelLists;    // channel ID -> list ID
+    };
+    QHash<QString, GuildMemberLists> m_memberLists; // by guild ID
+    QString m_listGuildId;   // the channel on screen
     QString m_listChannelId;
     QJsonArray m_listRanges;
-    MemberList m_memberList;   // empty ID = waiting for the Gateway to say which list the channel uses
-    bool m_memberListSynced = false;
-    QHash<QString, QString> m_memberListIds; // channel ID -> list ID
 };

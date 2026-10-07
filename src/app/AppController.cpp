@@ -2,6 +2,7 @@
 
 #include "LoginWindow.h"
 #include "MainWindow.h"
+#include "RichPresence.h"
 #include "VoiceController.h"
 #include "core/RestClient.h"
 #include "core/Session.h"
@@ -46,6 +47,8 @@ void AppController::showLogin()
 void AppController::showMain(const QString& token)
 {
     m_session = new Session(this);
+    // Lives and dies with the session.
+    new RichPresence(m_session, m_session);
     m_voice = new VoiceController(m_session, this);
     m_main = new MainWindow(m_session, m_voice);
     m_main->setAttribute(Qt::WA_DeleteOnClose);

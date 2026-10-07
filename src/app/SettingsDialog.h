@@ -153,6 +153,7 @@ private:
     QWidget* buildVoicePage();
     QWidget* buildAppearancePage();
     QWidget* buildNotificationsPage();
+    QWidget* buildActivityPage();
     QWidget* buildLanguagePage();
     void apply();
     void applyAppearance();
