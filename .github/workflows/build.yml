@@ -19,7 +19,9 @@ jobs:
         include:
           - { name: windows, os: windows-latest }
           - { name: linux, os: ubuntu-24.04 }
-          - { name: macos, os: macos-latest }
+          # macos-latest is Tahoe (26+): its SDK dropped AGL.framework, which Qt 6.8.3 still links.
+          # Stay on 15 until we move to Qt ≥ 6.8.4 / 6.9.2 (QTBUG-137687).
+          - { name: macos, os: macos-15 }
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
