@@ -16,6 +16,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     MemberListView.cpp MemberListView.h
     MentionPopup.cpp MentionPopup.h
     MessageView.cpp MessageView.h
+    Motion.cpp Motion.h
     Notifier.cpp Notifier.h
     RichPresence.cpp RichPresence.h
     ProfileCard.cpp ProfileCard.h

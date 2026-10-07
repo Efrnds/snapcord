@@ -55,7 +55,7 @@ private:
     void openCustomStatus();
     void updateIncomingCall(const QString& channelId);
     QImage userPicture(const QString& userId);
-    QPixmap memberAvatar(const QString& userId, bool speaking);
+    QPixmap memberAvatar(const QString& userId);
     // `showStatus` adds the recipient's status dot (one-to-one conversations in the sidebar).
     QPixmap privateChannelAvatar(const PrivateChannel& channel, int size, bool loadPicture = true, bool showStatus = false);
     QString locationName(const QString& guildId, const QString& channelId) const;

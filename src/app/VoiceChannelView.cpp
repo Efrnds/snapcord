@@ -1,6 +1,7 @@
 #include "VoiceChannelView.h"
 
 #include "Avatar.h"
+#include "Motion.h"
 #include "Theme.h"
 
 #include <QContextMenuEvent>
@@ -23,12 +24,19 @@ constexpr int GridMargin = 16;
 
 ParticipantTile::ParticipantTile(QWidget* parent)
     : QWidget(parent)
+    , m_speaking(new Motion::Value(this, 0.0, Motion::Normal))
 {
 }
 
 void ParticipantTile::setParticipant(const Participant& participant)
 {
+    // A tile reused for someone else starts from their state instead of animating from the previous person's.
+    const bool samePerson = participant.userId == m_participant.userId;
     m_participant = participant;
+    if (samePerson)
+        m_speaking->animateTo(participant.speaking ? 1.0 : 0.0);
+    else
+        m_speaking->setValue(participant.speaking ? 1.0 : 0.0);
     update();
 }
 
@@ -37,7 +45,7 @@ void ParticipantTile::setSpeaking(bool speaking)
     if (m_participant.speaking == speaking)
         return;
     m_participant.speaking = speaking;
-    update();
+    m_speaking->animateTo(speaking ? 1.0 : 0.0);
 }
 
 void ParticipantTile::contextMenuEvent(QContextMenuEvent* event)
@@ -91,9 +99,11 @@ void ParticipantTile::paintEvent(QPaintEvent*)
     if (m_participant.muted)
         drawIndicator(QStringLiteral(":/icons/mic-off.svg"));
 
-    if (m_participant.speaking) {
+    if (const qreal speaking = m_speaking->value(); speaking > 0.0) {
+        QColor border = Theme::instance().palette().success;
+        border.setAlphaF(speaking);
         painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(Theme::instance().palette().success, 3));
+        painter.setPen(QPen(border, 3));
         painter.drawRoundedRect(tile.adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
     }
 }

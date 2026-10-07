@@ -9,6 +9,10 @@
 class QButtonGroup;
 class QVBoxLayout;
 
+namespace Motion {
+class Value;
+}
+
 // One entry of the server rail: a round icon that turns into a rounded square on hover/selection,
 // with the white "pill" indicator on the left edge, like Discord.
 class ServerButton : public QAbstractButton
@@ -32,6 +36,8 @@ protected:
     void leaveEvent(QEvent* event) override;
 
 private:
+    void updateTargets();
+
     QImage m_image;
     QString m_label;
     QIcon m_icon;
@@ -39,6 +45,8 @@ private:
     bool m_hovered = false;
     bool m_unread = false;
     int m_mentions = 0;
+    Motion::Value* m_pill;   // pill height on the left edge
+    Motion::Value* m_active; // 0 = round and grey, 1 = rounded square in the accent color
 };
 
 // Vertical server bar on the left: direct messages button, separator and the user's servers.

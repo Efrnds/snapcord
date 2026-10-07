@@ -7,6 +7,10 @@
 class QLabel;
 class QPushButton;
 
+namespace Motion {
+class Value;
+}
+
 // One participant tile in the voice channel view: avatar, name, mute/deafen icons and the speaking border.
 class ParticipantTile : public QWidget
 {
@@ -40,6 +44,7 @@ protected:
 
 private:
     Participant m_participant;
+    Motion::Value* m_speaking; // the green border fades in and out
 };
 
 // Center area shown when a voice channel is selected: the participants and a "Join Voice" button.

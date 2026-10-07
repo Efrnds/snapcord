@@ -1,6 +1,7 @@
 #include "AppController.h"
 #include "Demo.h"
 #include "Language.h"
+#include "Motion.h"
 #include "Theme.h"
 #include "core/Log.h"
 
@@ -35,10 +36,14 @@ int main(int argc, char* argv[])
 
     // Font family comes from Theme settings (default stack: Noto Sans / Inter / Segoe UI).
     Theme::instance().apply(app);
+    Motion::installWindowFades();
 
     if (demo) {
         // Dates and times in English too, so screenshots look the same on every machine.
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        // Screenshots must not catch a transition halfway.
+        if (!screenshotFolder.isEmpty())
+            Motion::suppress();
         DemoController controller;
         controller.start(screenshotFolder);
         return app.exec();

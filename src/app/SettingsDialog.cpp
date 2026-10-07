@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 
 #include "Language.h"
+#include "Motion.h"
 #include "Notifier.h"
 #include "RichPresence.h"
 #include "Theme.h"
@@ -413,7 +414,10 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     if constexpr (RichPresence::Enabled)
         m_settingsPages->addWidget(buildActivityPage());
     m_settingsPages->addWidget(buildLanguagePage());
-    connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, &QStackedWidget::setCurrentIndex);
+    connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, [this](int row) {
+        Motion::crossFade(m_settingsPages);
+        m_settingsPages->setCurrentIndex(row);
+    });
     navigation->setCurrentRow(0);
 
     auto* layout = new QHBoxLayout(this);
@@ -1059,6 +1063,13 @@ QWidget* SettingsDialog::buildAppearancePage()
         Theme::instance().setSettings(settings);
         refreshColorSwatches();
     });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Motion")));
+    auto* reduceMotion = new QCheckBox(tr("Reduce motion"));
+    reduceMotion->setChecked(Motion::reduceMotion());
+    connect(reduceMotion, &QCheckBox::toggled, this, &Motion::setReduceMotion);
+    layout->addWidget(option(reduceMotion, tr("Turns off hover fades, popup fades and other transitions.")));
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Import / export")));

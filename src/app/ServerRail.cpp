@@ -1,5 +1,6 @@
 #include "ServerRail.h"
 
+#include "Motion.h"
 #include "Theme.h"
 
 #include <QButtonGroup>
@@ -29,10 +30,20 @@ QString initials(const QString& name)
 ServerButton::ServerButton(QWidget* parent)
     : QAbstractButton(parent)
     , m_accent(Theme::instance().accent())
+    , m_pill(new Motion::Value(this))
+    , m_active(new Motion::Value(this))
 {
     setCheckable(true);
     setCursor(Qt::PointingHandCursor);
     setFixedSize(sizeHint());
+    connect(this, &QAbstractButton::toggled, this, &ServerButton::updateTargets);
+}
+
+void ServerButton::updateTargets()
+{
+    // Pill: tall when selected, medium on hover, a small dot when there is something unread.
+    m_pill->animateTo(isChecked() ? 40.0 : m_hovered ? 20.0 : m_unread ? 8.0 : 0.0);
+    m_active->animateTo(isChecked() || m_hovered ? 1.0 : 0.0);
 }
 
 void ServerButton::setImage(const QImage& image)
@@ -44,14 +55,14 @@ void ServerButton::setImage(const QImage& image)
 void ServerButton::enterEvent(QEnterEvent* event)
 {
     m_hovered = true;
-    update();
+    updateTargets();
     QAbstractButton::enterEvent(event);
 }
 
 void ServerButton::leaveEvent(QEvent* event)
 {
     m_hovered = false;
-    update();
+    updateTargets();
     QAbstractButton::leaveEvent(event);
 }
 
@@ -61,6 +72,7 @@ void ServerButton::setUnreadState(bool unread, int mentions)
         return;
     m_unread = unread;
     m_mentions = mentions;
+    updateTargets();
     update();
 }
 
@@ -69,16 +81,16 @@ void ServerButton::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 
-    const bool active = isChecked() || m_hovered;
+    const qreal active = m_active->value();
     const QRectF iconRect((width() - IconSize) / 2.0, (height() - IconSize) / 2.0, IconSize, IconSize);
-    const qreal radius = active ? 16.0 : IconSize / 2.0;
+    const qreal radius = IconSize / 2.0 + (16.0 - IconSize / 2.0) * active;
 
-    // Pill on the left edge: tall when selected, medium on hover, a small dot when there is something unread.
-    if (isChecked() || m_hovered || m_unread) {
-        const qreal pillHeight = isChecked() ? 40.0 : m_hovered ? 20.0 : 8.0;
+    // The pill grows out of the left edge: it starts narrow and reaches full width at the size of the unread dot.
+    if (const qreal pillHeight = m_pill->value(); pillHeight > 0.5) {
+        const qreal pillWidth = 8.0 * qMin(1.0, pillHeight / 8.0);
         painter.setPen(Qt::NoPen);
         painter.setBrush(Qt::white);
-        painter.drawRoundedRect(QRectF(-4, (height() - pillHeight) / 2, 8, pillHeight), 4, 4);
+        painter.drawRoundedRect(QRectF(-4 - (8.0 - pillWidth), (height() - pillHeight) / 2, 8, pillHeight), 4, 4);
     }
 
     QPainterPath shape;
@@ -90,7 +102,7 @@ void ServerButton::paintEvent(QPaintEvent*)
         painter.drawImage(iconRect, m_image);
     } else {
         painter.setPen(Qt::NoPen);
-        painter.setBrush(active ? m_accent : Theme::instance().palette().bg2);
+        painter.setBrush(Motion::mix(Theme::instance().palette().bg2, m_accent, active));
         painter.drawPath(shape);
         if (!m_icon.isNull()) {
             m_icon.paint(&painter, iconRect.adjusted(12, 12, -12, -12).toRect());
@@ -99,7 +111,7 @@ void ServerButton::paintEvent(QPaintEvent*)
             font.setPixelSize(m_label.size() > 2 ? 14 : 16);
             font.setWeight(QFont::DemiBold);
             painter.setFont(font);
-            painter.setPen(active ? Qt::white : Theme::instance().palette().text);
+            painter.setPen(Motion::mix(Theme::instance().palette().text, Qt::white, active));
             painter.drawText(iconRect, Qt::AlignCenter, m_label);
         }
     }

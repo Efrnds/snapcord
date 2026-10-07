@@ -2,6 +2,7 @@
 
 #include "Avatar.h"
 #include "ImageCache.h"
+#include "Motion.h"
 #include "Theme.h"
 #include "core/Session.h"
 
@@ -130,11 +131,12 @@ namespace {
 class MemberDelegate : public QStyledItemDelegate
 {
 public:
-    MemberDelegate(Session* session, ImageCache* images, MemberListModel* model, QObject* parent)
-        : QStyledItemDelegate(parent)
+    MemberDelegate(Session* session, ImageCache* images, MemberListModel* model, QAbstractItemView* view)
+        : QStyledItemDelegate(view)
         , m_session(session)
         , m_images(images)
         , m_model(model)
+        , m_animator(new Motion::ItemAnimator(view->viewport()))
     {
     }
 
@@ -183,10 +185,13 @@ private:
     {
         const Theme::Palette& colors = Theme::instance().palette();
         const bool hovered = option.state & QStyle::State_MouseOver;
+        const qreal hover = m_animator->level(item.userId, hovered, option.rect);
         const QRect row = option.rect.adjusted(8, 1, -8, -1);
-        if (hovered) {
+        if (hover > 0.0) {
+            QColor background = colors.hover;
+            background.setAlphaF(background.alphaF() * hover);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(colors.hover);
+            painter->setBrush(background);
             painter->drawRoundedRect(row, 4, 4);
         }
 
@@ -195,8 +200,8 @@ private:
         const Presence presence = m_session->presence(item.userId);
         const bool offline = isOffline(presence.status);
         // Like Discord, offline members are faded until hovered.
-        if (offline && !hovered)
-            painter->setOpacity(0.35);
+        if (offline)
+            painter->setOpacity(0.35 + 0.65 * hover);
 
         const QRect avatarRect(row.left() + 8, row.center().y() - AvatarSize / 2, AvatarSize, AvatarSize);
         painter->drawPixmap(avatarRect.topLeft(), avatar(user, name, offline ? UserStatus::Unknown : presence.status,
@@ -211,7 +216,7 @@ private:
         font.setWeight(QFont::Medium);
         painter->setFont(font);
         const QColor roleColor = this->roleColor(item.roleIds);
-        painter->setPen(roleColor.isValid() ? roleColor : hovered ? colors.text : colors.textMuted);
+        painter->setPen(roleColor.isValid() ? roleColor : Motion::mix(colors.textMuted, colors.text, hover));
         const QRect nameRect = subtitle.isEmpty() ? QRect(textLeft, row.top(), textWidth, row.height())
                                                   : QRect(textLeft, row.top() + 3, textWidth, row.height() / 2);
         painter->drawText(nameRect, Qt::AlignLeft | (subtitle.isEmpty() ? Qt::AlignVCenter : Qt::AlignBottom),
@@ -274,6 +279,7 @@ private:
     Session* m_session;
     ImageCache* m_images;
     MemberListModel* m_model;
+    Motion::ItemAnimator* m_animator;
     mutable QHash<QString, QPixmap> m_avatars;
 };
 
