@@ -228,8 +228,6 @@ private:
     QLabel* m_wallpaperPathLabel = nullptr;
     QSlider* m_wallpaperOpacity = nullptr;
     QLabel* m_wallpaperOpacityLabel = nullptr;
-    QSlider* m_wallpaperBlur = nullptr;
-    QLabel* m_wallpaperBlurLabel = nullptr;
     QSlider* m_wallpaperFrost = nullptr;
     QLabel* m_wallpaperFrostLabel = nullptr;
     QButtonGroup* m_presetGroup = nullptr;

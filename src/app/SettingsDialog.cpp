@@ -978,7 +978,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Chat wallpaper")));
     auto* wallHint = new QLabel(
-        tr("Optional image behind chat. Soft blur is a light downscale (CPU-friendly), frost dims it."));
+        tr("Optional image behind the UI. Kept light: no blur, large images are capped in memory."));
     wallHint->setObjectName(QStringLiteral("settingsHint"));
     wallHint->setWordWrap(true);
     layout->addWidget(wallHint);
@@ -1040,23 +1040,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     };
     addPercentSlider(tr("Wallpaper opacity"), m_wallpaperOpacity, m_wallpaperOpacityLabel, 0, 100,
                      current.wallpaperOpacity);
-    layout->addWidget(new QLabel(tr("Soft blur")));
-    m_wallpaperBlur = new QSlider(Qt::Horizontal);
-    m_wallpaperBlur->setRange(0, 12);
-    m_wallpaperBlur->setValue(current.wallpaperBlur);
-    m_wallpaperBlurLabel = new QLabel(QString::number(current.wallpaperBlur));
-    m_wallpaperBlurLabel->setObjectName(QStringLiteral("settingsHint"));
-    {
-        auto* row = new QHBoxLayout;
-        row->addWidget(m_wallpaperBlur, 1);
-        row->addWidget(m_wallpaperBlurLabel);
-        layout->addLayout(row);
-    }
-    connect(m_wallpaperBlur, &QSlider::valueChanged, this, [this](int v) {
-        m_wallpaperBlurLabel->setText(QString::number(v));
-        applyAppearance();
-    });
-    addPercentSlider(tr("Frost overlay"), m_wallpaperFrost, m_wallpaperFrostLabel, 0, 80,
+    addPercentSlider(tr("Dim overlay"), m_wallpaperFrost, m_wallpaperFrostLabel, 0, 80,
                      current.wallpaperFrost);
 
     layout->addSpacing(12);
@@ -1220,7 +1204,6 @@ void SettingsDialog::refreshAppearanceControls()
     const QSignalBlocker blockGrad(m_gradientEnabled);
     const QSignalBlocker blockAppWide(m_wallpaperAppWide);
     const QSignalBlocker blockOpacity(m_wallpaperOpacity);
-    const QSignalBlocker blockBlur(m_wallpaperBlur);
     const QSignalBlocker blockFrost(m_wallpaperFrost);
 
     if (m_presetGroup) {
@@ -1282,11 +1265,6 @@ void SettingsDialog::refreshAppearanceControls()
         m_wallpaperOpacity->setValue(appearance.wallpaperOpacity);
         if (m_wallpaperOpacityLabel)
             m_wallpaperOpacityLabel->setText(tr("%1%").arg(appearance.wallpaperOpacity));
-    }
-    if (m_wallpaperBlur) {
-        m_wallpaperBlur->setValue(appearance.wallpaperBlur);
-        if (m_wallpaperBlurLabel)
-            m_wallpaperBlurLabel->setText(QString::number(appearance.wallpaperBlur));
     }
     if (m_wallpaperFrost) {
         m_wallpaperFrost->setValue(appearance.wallpaperFrost);
@@ -1407,8 +1385,6 @@ void SettingsDialog::applyAppearance()
         settings.gradientEnabled = m_gradientEnabled->isChecked();
     if (m_wallpaperOpacity)
         settings.wallpaperOpacity = m_wallpaperOpacity->value();
-    if (m_wallpaperBlur)
-        settings.wallpaperBlur = m_wallpaperBlur->value();
     if (m_wallpaperFrost)
         settings.wallpaperFrost = m_wallpaperFrost->value();
     Theme::instance().setSettings(settings);

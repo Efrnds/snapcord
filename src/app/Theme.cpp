@@ -122,15 +122,15 @@ QJsonValue colorToJson(const QColor& color)
     return color.isValid() ? QJsonValue(color.name(QColor::HexRgb)) : QJsonValue();
 }
 
-// Cheap soft blur: downscale then upscale (good enough for wallpaper frosted look).
-QImage softBlur(QImage image, int strength)
+// Keep wallpapers small in RAM — no blur, just a max edge length.
+QImage lightWallpaper(QImage image)
 {
-    if (strength <= 0 || image.isNull())
+    if (image.isNull())
         return image;
-    const int factor = qBound(2, strength, 12);
-    const QSize small(qMax(1, image.width() / factor), qMax(1, image.height() / factor));
-    return image.scaled(small, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
-        .scaled(image.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    constexpr int MaxEdge = 1920;
+    if (image.width() <= MaxEdge && image.height() <= MaxEdge)
+        return image;
+    return image.scaled(MaxEdge, MaxEdge, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 }
 
 bool sameColor(const QColor& a, const QColor& b)
@@ -567,7 +567,6 @@ void Theme::normalize(Settings& settings) const
     settings.saturation = qBound(-50, settings.saturation, 50);
     settings.panelOpacity = qBound(40, settings.panelOpacity, 100);
     settings.wallpaperOpacity = qBound(0, settings.wallpaperOpacity, 100);
-    settings.wallpaperBlur = qBound(0, settings.wallpaperBlur, 12);
     settings.wallpaperFrost = qBound(0, settings.wallpaperFrost, 80);
     if (settings.chatDensity != ChatDensity::Compact
         && settings.chatDensity != ChatDensity::Comfortable)
@@ -618,8 +617,8 @@ void Theme::load()
     m_settings.fontFamily = settings.value(QStringLiteral("appearance/fontFamily")).toString();
     m_settings.wallpaperPath = settings.value(QStringLiteral("appearance/wallpaperPath")).toString();
     m_settings.wallpaperOpacity = settings.value(QStringLiteral("appearance/wallpaperOpacity"), 35).toInt();
-    m_settings.wallpaperBlur = settings.value(QStringLiteral("appearance/wallpaperBlur"), 0).toInt();
     m_settings.wallpaperFrost = settings.value(QStringLiteral("appearance/wallpaperFrost"), 25).toInt();
+    settings.remove(QStringLiteral("appearance/wallpaperBlur")); // dropped: was a soft-blur cost
     m_settings.wallpaperAppWide = settings.value(QStringLiteral("appearance/wallpaperAppWide"), true).toBool();
     m_settings.gradientEnabled = settings.value(QStringLiteral("appearance/gradientEnabled"), false).toBool();
     m_settings.gradientTop = readColor(settings, QStringLiteral("appearance/gradientTop"));
@@ -654,7 +653,6 @@ void Theme::save() const
     settings.setValue(QStringLiteral("appearance/fontFamily"), m_settings.fontFamily);
     settings.setValue(QStringLiteral("appearance/wallpaperPath"), m_settings.wallpaperPath);
     settings.setValue(QStringLiteral("appearance/wallpaperOpacity"), m_settings.wallpaperOpacity);
-    settings.setValue(QStringLiteral("appearance/wallpaperBlur"), m_settings.wallpaperBlur);
     settings.setValue(QStringLiteral("appearance/wallpaperFrost"), m_settings.wallpaperFrost);
     settings.setValue(QStringLiteral("appearance/wallpaperAppWide"), m_settings.wallpaperAppWide);
     settings.setValue(QStringLiteral("appearance/gradientEnabled"), m_settings.gradientEnabled);
@@ -703,7 +701,6 @@ void Theme::setSettings(Settings settings)
         && settings.fontFamily == m_settings.fontFamily
         && settings.wallpaperPath == m_settings.wallpaperPath
         && settings.wallpaperOpacity == m_settings.wallpaperOpacity
-        && settings.wallpaperBlur == m_settings.wallpaperBlur
         && settings.wallpaperFrost == m_settings.wallpaperFrost
         && settings.wallpaperAppWide == m_settings.wallpaperAppWide
         && settings.gradientEnabled == m_settings.gradientEnabled
@@ -713,8 +710,7 @@ void Theme::setSettings(Settings settings)
         return;
     }
 
-    const bool wallpaperChanged = settings.wallpaperPath != m_settings.wallpaperPath
-        || settings.wallpaperBlur != m_settings.wallpaperBlur;
+    const bool wallpaperChanged = settings.wallpaperPath != m_settings.wallpaperPath;
 
     m_settings = std::move(settings);
     if (wallpaperChanged)
@@ -929,7 +925,6 @@ void Theme::clearCustomization()
     settings.tokenOverrides.clear();
     settings.wallpaperPath.clear();
     settings.wallpaperOpacity = 35;
-    settings.wallpaperBlur = 0;
     settings.wallpaperFrost = 25;
     settings.wallpaperAppWide = true;
     settings.gradientEnabled = false;
@@ -950,8 +945,7 @@ void Theme::reloadWallpaper()
     QImage image(m_settings.wallpaperPath);
     if (image.isNull())
         return;
-    image = softBlur(image, m_settings.wallpaperBlur);
-    m_wallpaper = QPixmap::fromImage(image);
+    m_wallpaper = QPixmap::fromImage(lightWallpaper(image));
 }
 
 QJsonObject Theme::toJson() const
@@ -975,7 +969,6 @@ QJsonObject Theme::toJson() const
     root.insert(QStringLiteral("fontFamily"), m_settings.fontFamily);
     root.insert(QStringLiteral("wallpaperPath"), m_settings.wallpaperPath);
     root.insert(QStringLiteral("wallpaperOpacity"), m_settings.wallpaperOpacity);
-    root.insert(QStringLiteral("wallpaperBlur"), m_settings.wallpaperBlur);
     root.insert(QStringLiteral("wallpaperFrost"), m_settings.wallpaperFrost);
     root.insert(QStringLiteral("wallpaperAppWide"), m_settings.wallpaperAppWide);
     root.insert(QStringLiteral("gradientEnabled"), m_settings.gradientEnabled);
@@ -1029,8 +1022,6 @@ QString Theme::applyJson(const QJsonObject& json)
         settings.wallpaperPath = json.value(QStringLiteral("wallpaperPath")).toString();
     if (json.contains(QStringLiteral("wallpaperOpacity")))
         settings.wallpaperOpacity = json.value(QStringLiteral("wallpaperOpacity")).toInt();
-    if (json.contains(QStringLiteral("wallpaperBlur")))
-        settings.wallpaperBlur = json.value(QStringLiteral("wallpaperBlur")).toInt();
     if (json.contains(QStringLiteral("wallpaperFrost")))
         settings.wallpaperFrost = json.value(QStringLiteral("wallpaperFrost")).toInt();
     if (json.contains(QStringLiteral("wallpaperAppWide")))

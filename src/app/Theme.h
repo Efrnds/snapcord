@@ -77,8 +77,7 @@ public:
         QString fontFamily;       // empty => default stack (Noto/Inter/Segoe)
         QString wallpaperPath;
         int wallpaperOpacity = 35; // 0–100
-        int wallpaperBlur = 0;     // 0–12 (downscale/blur strength)
-        int wallpaperFrost = 25;   // 0–80 dim overlay (cheap frost, not GPU blur)
+        int wallpaperFrost = 25;   // 0–80 dim overlay (solid color, not blur)
         bool wallpaperAppWide = true; // wallpaper behind the whole main window
         bool gradientEnabled = false;
         QColor gradientTop;
