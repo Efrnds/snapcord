@@ -24,14 +24,17 @@
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QProcess>
 #include <QRadioButton>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QWheelEvent>
 
 #include "core/Session.h"
 
@@ -300,6 +303,8 @@ void LayoutStudio::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     const Theme::Palette& c = Theme::instance().palette();
+    // Fill opaque first — parent scroll views can otherwise bleed a light Fusion Window color.
+    painter.fillRect(rect(), c.bg2);
     const QRect area = rect().adjusted(8, 8, -8, -8);
     const int railW = qMax(18, area.width() / 10);
     const int sideW = qMax(48, area.width() / 4);
@@ -369,6 +374,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     , m_meterTimer(new QTimer(this))
 {
     setObjectName(QStringLiteral("settingsDialog"));
+    setAttribute(Qt::WA_StyledBackground, true);
     setWindowTitle(tr("User Settings"));
     resize(860, 640);
 
@@ -389,33 +395,36 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
         emit logoutRequested();
     });
 
-    auto* side = new QWidget;
-    side->setObjectName(QStringLiteral("settingsSide"));
-    side->setAttribute(Qt::WA_StyledBackground);
-    auto* sideLayout = new QVBoxLayout(side);
+    m_settingsSide = new QWidget;
+    m_settingsSide->setObjectName(QStringLiteral("settingsSide"));
+    m_settingsSide->setAttribute(Qt::WA_StyledBackground, true);
+    auto* sideLayout = new QVBoxLayout(m_settingsSide);
     sideLayout->setContentsMargins(12, 24, 12, 16);
     sideLayout->addWidget(navigation, 1);
     sideLayout->addWidget(logout);
 
-    auto* pages = new QStackedWidget;
-    pages->addWidget(buildVoicePage());
-    pages->addWidget(buildAppearancePage());
-    pages->addWidget(buildNotificationsPage());
-    pages->addWidget(buildLanguagePage());
-    connect(navigation, &QListWidget::currentRowChanged, pages, &QStackedWidget::setCurrentIndex);
+    m_settingsPages = new QStackedWidget;
+    m_settingsPages->addWidget(buildVoicePage());
+    m_settingsPages->addWidget(buildAppearancePage());
+    m_settingsPages->addWidget(buildNotificationsPage());
+    m_settingsPages->addWidget(buildLanguagePage());
+    connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, &QStackedWidget::setCurrentIndex);
     navigation->setCurrentRow(0);
 
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    layout->addWidget(side);
-    layout->addWidget(pages, 1);
+    layout->addWidget(m_settingsSide);
+    layout->addWidget(m_settingsPages, 1);
 
     m_meterTimer->setInterval(50);
     connect(m_meterTimer, &QTimer::timeout, this, [this] {
         const bool inCall = m_voice->state() == VoiceConnection::State::Connected;
         m_meter->setLevel(inCall ? m_voice->connection()->inputLevelDb() : m_testLevelDb.load());
     });
+
+    connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::applyDialogChrome);
+    applyDialogChrome();
 }
 
 SettingsDialog::~SettingsDialog()
@@ -649,6 +658,7 @@ QWidget* SettingsDialog::buildAppearancePage()
         m_presetCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     }
     layout->addWidget(m_presetCombo);
+    ignoreWheel(m_presetCombo);
     connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SettingsDialog::applyAppearance);
 
@@ -675,6 +685,26 @@ QWidget* SettingsDialog::buildAppearancePage()
     resetAll->setCursor(Qt::PointingHandCursor);
     layout->addWidget(resetAll, 0, Qt::AlignLeft);
     connect(resetAll, &QPushButton::clicked, this, [this] {
+        // Sync widgets first so any stray applyAppearance cannot re-write old slider values
+        // on top of the cleared theme (that left the dialog looking washed-out / broken).
+        m_syncingAppearance = true;
+        if (m_brightness)
+            m_brightness->setValue(0);
+        if (m_saturation)
+            m_saturation->setValue(0);
+        if (m_uiScale)
+            m_uiScale->setValue(100);
+        if (m_radius)
+            m_radius->setValue(4);
+        if (m_brightnessLabel)
+            m_brightnessLabel->setText(QStringLiteral("0"));
+        if (m_saturationLabel)
+            m_saturationLabel->setText(QStringLiteral("0"));
+        if (m_uiScaleLabel)
+            m_uiScaleLabel->setText(QStringLiteral("100%"));
+        if (m_radiusLabel)
+            m_radiusLabel->setText(QStringLiteral("4 px"));
+        m_syncingAppearance = false;
         Theme::instance().clearCustomization();
         refreshAppearanceControls();
     });
@@ -687,13 +717,18 @@ QWidget* SettingsDialog::buildAppearancePage()
         slider = new QSlider(Qt::Horizontal);
         slider->setRange(min, max);
         slider->setValue(value);
+        slider->setPageStep(1);
+        slider->setSingleStep(1);
         valueLabel = new QLabel(format(value));
         valueLabel->setObjectName(QStringLiteral("settingsHint"));
+        valueLabel->setMinimumWidth(48);
+        valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
         auto* row = new QHBoxLayout;
         row->addWidget(slider, 1);
         row->addWidget(valueLabel);
         layout->addLayout(row);
         bindLiveSlider(slider, valueLabel, format);
+        ignoreWheel(slider);
     };
     addToneSlider(tr("Brightness"), m_brightness, m_brightnessLabel, -40, 40, current.brightness,
                   [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
@@ -701,10 +736,8 @@ QWidget* SettingsDialog::buildAppearancePage()
                   [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
     addToneSlider(tr("UI scale"), m_uiScale, m_uiScaleLabel, 85, 130, current.uiScale,
                   [](int v) { return QStringLiteral("%1%").arg(v); });
-    addToneSlider(tr("Corner radius"), m_radius, m_radiusLabel, 0, 16, current.radius,
+    addToneSlider(tr("Corner radius"), m_radius, m_radiusLabel, 0, 12, current.radius,
                   [](int v) { return QStringLiteral("%1 px").arg(v); });
-    addToneSlider(tr("Panel opacity (rail & sidebar)"), m_panelOpacity, m_panelOpacityLabel, 40, 100,
-                  current.panelOpacity, [](int v) { return QStringLiteral("%1%").arg(v); });
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Accent color")));
@@ -853,6 +886,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     m_chatDensity->addItem(tr("Comfortable"), static_cast<int>(Theme::ChatDensity::Comfortable));
     m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(current.chatDensity)));
     layout->addWidget(m_chatDensity);
+    ignoreWheel(m_chatDensity);
     connect(m_chatDensity, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SettingsDialog::applyAppearance);
 
@@ -870,6 +904,7 @@ QWidget* SettingsDialog::buildAppearancePage()
         m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
     }
     layout->addWidget(m_fontFamily);
+    ignoreWheel(m_fontFamily);
     connect(m_fontFamily, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             &SettingsDialog::applyAppearance);
 
@@ -877,6 +912,8 @@ QWidget* SettingsDialog::buildAppearancePage()
     m_fontSize = new QSlider(Qt::Horizontal);
     m_fontSize->setRange(12, 18);
     m_fontSize->setValue(current.fontSize);
+    m_fontSize->setPageStep(1);
+    m_fontSize->setSingleStep(1);
     m_fontSizeLabel = new QLabel(QStringLiteral("%1 px").arg(m_fontSize->value()));
     m_fontSizeLabel->setObjectName(QStringLiteral("settingsHint"));
     auto* fontRow = new QHBoxLayout;
@@ -884,6 +921,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     fontRow->addWidget(m_fontSizeLabel);
     layout->addLayout(fontRow);
     bindLiveSlider(m_fontSize, m_fontSizeLabel, [](int v) { return QStringLiteral("%1 px").arg(v); });
+    ignoreWheel(m_fontSize);
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Discord Nitro colors")));
@@ -915,70 +953,6 @@ QWidget* SettingsDialog::buildAppearancePage()
         Theme::instance().setSettings(settings);
         refreshAppearanceControls();
     });
-
-    layout->addSpacing(12);
-    layout->addWidget(sectionLabel(tr("Chat wallpaper")));
-    auto* wallHint = new QLabel(
-        tr("Optional image behind the UI. Kept light: no blur, large images are capped in memory."));
-    wallHint->setObjectName(QStringLiteral("settingsHint"));
-    wallHint->setWordWrap(true);
-    layout->addWidget(wallHint);
-    m_wallpaperPathLabel = new QLabel(current.wallpaperPath.isEmpty() ? tr("No wallpaper")
-                                                                      : current.wallpaperPath);
-    m_wallpaperPathLabel->setObjectName(QStringLiteral("settingsHint"));
-    m_wallpaperPathLabel->setWordWrap(true);
-    layout->addWidget(m_wallpaperPathLabel);
-    auto* wallButtons = new QHBoxLayout;
-    auto* chooseWall = new QPushButton(tr("Choose image…"));
-    chooseWall->setObjectName(QStringLiteral("secondaryButton"));
-    chooseWall->setCursor(Qt::PointingHandCursor);
-    auto* clearWall = new QPushButton(tr("Clear wallpaper"));
-    clearWall->setObjectName(QStringLiteral("secondaryButton"));
-    clearWall->setCursor(Qt::PointingHandCursor);
-    wallButtons->addWidget(chooseWall);
-    wallButtons->addWidget(clearWall);
-    wallButtons->addStretch();
-    layout->addLayout(wallButtons);
-    connect(chooseWall, &QPushButton::clicked, this, [this] {
-        const QString path = QFileDialog::getOpenFileName(
-            this, tr("Chat wallpaper"), QString(),
-            tr("Images (*.png *.jpg *.jpeg *.webp *.bmp)"));
-        if (path.isEmpty())
-            return;
-        Theme::Settings settings = Theme::instance().settings();
-        settings.wallpaperPath = path;
-        Theme::instance().setSettings(settings);
-        refreshAppearanceControls();
-    });
-    connect(clearWall, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        settings.wallpaperPath.clear();
-        Theme::instance().setSettings(settings);
-        refreshAppearanceControls();
-    });
-    m_wallpaperAppWide = new QCheckBox(tr("Wallpaper behind the whole window (not only chat)"));
-    m_wallpaperAppWide->setChecked(current.wallpaperAppWide);
-    layout->addWidget(m_wallpaperAppWide);
-    connect(m_wallpaperAppWide, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
-
-    auto addPercentSlider = [&](const QString& title, QSlider*& slider, QLabel*& valueLabel, int min, int max,
-                                int value) {
-        layout->addWidget(new QLabel(title));
-        slider = new QSlider(Qt::Horizontal);
-        slider->setRange(min, max);
-        slider->setValue(value);
-        valueLabel = new QLabel(QStringLiteral("%1%").arg(value));
-        valueLabel->setObjectName(QStringLiteral("settingsHint"));
-        auto* row = new QHBoxLayout;
-        row->addWidget(slider, 1);
-        row->addWidget(valueLabel);
-        layout->addLayout(row);
-        bindLiveSlider(slider, valueLabel, [](int v) { return QStringLiteral("%1%").arg(v); });
-    };
-    addPercentSlider(tr("Wallpaper opacity"), m_wallpaperOpacity, m_wallpaperOpacityLabel, 0, 100,
-                     current.wallpaperOpacity);
-    addPercentSlider(tr("Dim overlay"), m_wallpaperFrost, m_wallpaperFrostLabel, 0, 80,
-                     current.wallpaperFrost);
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Gradient")));
@@ -1072,12 +1046,14 @@ QWidget* SettingsDialog::buildAppearancePage()
     refreshColorSwatches();
     connect(&Theme::instance(), &Theme::changed, this, &SettingsDialog::refreshColorSwatches);
 
-    auto* scroll = new QScrollArea;
-    scroll->setWidget(content);
-    scroll->setWidgetResizable(true);
-    scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    return scroll;
+    m_appearanceScroll = new QScrollArea;
+    m_appearanceScroll->setWidget(content);
+    m_appearanceScroll->setWidgetResizable(true);
+    m_appearanceScroll->setFrameShape(QFrame::NoFrame);
+    m_appearanceScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_appearanceScroll->setAttribute(Qt::WA_StyledBackground, true);
+    content->setMinimumWidth(0);
+    return m_appearanceScroll;
 }
 
 void SettingsDialog::refreshColorSwatches()
@@ -1129,6 +1105,7 @@ void SettingsDialog::refreshColorSwatches()
 
 void SettingsDialog::refreshAppearanceControls()
 {
+    m_syncingAppearance = true;
     const Theme::Settings& appearance = Theme::instance().settings();
     const QSignalBlocker blockFont(m_fontSize);
     const QSignalBlocker blockFamily(m_fontFamily);
@@ -1136,13 +1113,9 @@ void SettingsDialog::refreshAppearanceControls()
     const QSignalBlocker blockScale(m_uiScale);
     const QSignalBlocker blockBright(m_brightness);
     const QSignalBlocker blockSat(m_saturation);
-    const QSignalBlocker blockPanel(m_panelOpacity);
     const QSignalBlocker blockDensity(m_chatDensity);
     const QSignalBlocker blockSync(m_syncDiscordAccent);
     const QSignalBlocker blockGrad(m_gradientEnabled);
-    const QSignalBlocker blockAppWide(m_wallpaperAppWide);
-    const QSignalBlocker blockOpacity(m_wallpaperOpacity);
-    const QSignalBlocker blockFrost(m_wallpaperFrost);
 
     if (m_presetCombo) {
         const QSignalBlocker blockPreset(m_presetCombo);
@@ -1152,7 +1125,7 @@ void SettingsDialog::refreshAppearanceControls()
     if (m_fontSize) {
         m_fontSize->setValue(appearance.fontSize);
         if (m_fontSizeLabel)
-            m_fontSizeLabel->setText(tr("%1 px").arg(appearance.fontSize));
+            m_fontSizeLabel->setText(QStringLiteral("%1 px").arg(appearance.fontSize));
     }
     if (m_fontFamily) {
         const int idx = m_fontFamily->findData(appearance.fontFamily);
@@ -1161,12 +1134,12 @@ void SettingsDialog::refreshAppearanceControls()
     if (m_radius) {
         m_radius->setValue(appearance.radius);
         if (m_radiusLabel)
-            m_radiusLabel->setText(tr("%1 px").arg(appearance.radius));
+            m_radiusLabel->setText(QStringLiteral("%1 px").arg(appearance.radius));
     }
     if (m_uiScale) {
         m_uiScale->setValue(appearance.uiScale);
         if (m_uiScaleLabel)
-            m_uiScaleLabel->setText(tr("%1%").arg(appearance.uiScale));
+            m_uiScaleLabel->setText(QStringLiteral("%1%").arg(appearance.uiScale));
     }
     if (m_brightness) {
         m_brightness->setValue(appearance.brightness);
@@ -1182,34 +1155,14 @@ void SettingsDialog::refreshAppearanceControls()
             m_saturationLabel->setText(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v));
         }
     }
-    if (m_panelOpacity) {
-        m_panelOpacity->setValue(appearance.panelOpacity);
-        if (m_panelOpacityLabel)
-            m_panelOpacityLabel->setText(tr("%1%").arg(appearance.panelOpacity));
-    }
     if (m_chatDensity)
         m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(appearance.chatDensity)));
     if (m_syncDiscordAccent)
         m_syncDiscordAccent->setChecked(appearance.syncDiscordAccent);
-    if (m_wallpaperAppWide)
-        m_wallpaperAppWide->setChecked(appearance.wallpaperAppWide);
     if (m_gradientEnabled)
         m_gradientEnabled->setChecked(appearance.gradientEnabled);
-    if (m_wallpaperPathLabel) {
-        m_wallpaperPathLabel->setText(appearance.wallpaperPath.isEmpty() ? tr("No wallpaper")
-                                                                         : appearance.wallpaperPath);
-    }
-    if (m_wallpaperOpacity) {
-        m_wallpaperOpacity->setValue(appearance.wallpaperOpacity);
-        if (m_wallpaperOpacityLabel)
-            m_wallpaperOpacityLabel->setText(tr("%1%").arg(appearance.wallpaperOpacity));
-    }
-    if (m_wallpaperFrost) {
-        m_wallpaperFrost->setValue(appearance.wallpaperFrost);
-        if (m_wallpaperFrostLabel)
-            m_wallpaperFrostLabel->setText(tr("%1%").arg(appearance.wallpaperFrost));
-    }
     refreshColorSwatches();
+    m_syncingAppearance = false;
 }
 
 void SettingsDialog::exportTheme()
@@ -1249,9 +1202,13 @@ void SettingsDialog::pickColor(const QColor& initial, const QString& title,
                                const std::function<void(QColor)>& onPicked)
 {
     // Native portal pickers on Linux often hang the whole Qt app; use Qt's own dialog.
-    auto* dialog = new QColorDialog(initial.isValid() ? initial : Qt::white, this);
+    // DontUseNativeDialog must be set BEFORE setCurrentColor — enabling it recreates the
+    // widgets and would wipe the color back to black (empty HTML / HSV 0).
+    const QColor start = initial.isValid() ? initial : QColor(Qt::white);
+    auto* dialog = new QColorDialog(this);
     dialog->setWindowTitle(title);
     dialog->setOption(QColorDialog::DontUseNativeDialog, true);
+    dialog->setCurrentColor(start);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
     connect(dialog, &QColorDialog::colorSelected, this, [onPicked](const QColor& color) {
@@ -1259,6 +1216,7 @@ void SettingsDialog::pickColor(const QColor& initial, const QString& title,
             onPicked(color);
     });
     dialog->open();
+    dialog->setCurrentColor(start);
 }
 
 QString SettingsDialog::presetDisplayName(const QString& id, const QString& fallback)
@@ -1299,14 +1257,43 @@ void SettingsDialog::bindLiveSlider(QSlider* slider, QLabel* label, const std::f
     connect(slider, &QSlider::valueChanged, this, [this, slider, label, format](int value) {
         if (label)
             label->setText(format(value));
+        if (m_syncingAppearance)
+            return;
         if (!slider->isSliderDown())
             applyAppearance();
     });
-    connect(slider, &QSlider::sliderReleased, this, &SettingsDialog::applyAppearance);
+    connect(slider, &QSlider::sliderReleased, this, [this] {
+        if (!m_syncingAppearance)
+            applyAppearance();
+    });
+}
+
+void SettingsDialog::ignoreWheel(QWidget* widget)
+{
+    if (widget)
+        widget->installEventFilter(this);
+}
+
+bool SettingsDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::Wheel) {
+        // Wheel over sliders/combos must scroll the Appearance page, not nudge the control.
+        Q_UNUSED(watched);
+        if (m_appearanceScroll) {
+            if (auto* bar = m_appearanceScroll->verticalScrollBar()) {
+                const auto* wheel = static_cast<const QWheelEvent*>(event);
+                bar->setValue(bar->value() - wheel->angleDelta().y());
+            }
+        }
+        return true;
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 void SettingsDialog::applyAppearance()
 {
+    if (m_syncingAppearance)
+        return;
     Theme::Settings settings = Theme::instance().settings();
     if (m_presetCombo)
         settings.presetId = m_presetCombo->currentData().toString();
@@ -1322,20 +1309,12 @@ void SettingsDialog::applyAppearance()
         settings.brightness = m_brightness->value();
     if (m_saturation)
         settings.saturation = m_saturation->value();
-    if (m_panelOpacity)
-        settings.panelOpacity = m_panelOpacity->value();
     if (m_chatDensity)
         settings.chatDensity = static_cast<Theme::ChatDensity>(m_chatDensity->currentData().toInt());
     if (m_syncDiscordAccent)
         settings.syncDiscordAccent = m_syncDiscordAccent->isChecked();
-    if (m_wallpaperAppWide)
-        settings.wallpaperAppWide = m_wallpaperAppWide->isChecked();
     if (m_gradientEnabled)
         settings.gradientEnabled = m_gradientEnabled->isChecked();
-    if (m_wallpaperOpacity)
-        settings.wallpaperOpacity = m_wallpaperOpacity->value();
-    if (m_wallpaperFrost)
-        settings.wallpaperFrost = m_wallpaperFrost->value();
     Theme::instance().setSettings(settings);
     refreshColorSwatches();
 }
@@ -1398,9 +1377,51 @@ void SettingsDialog::updateModeWidgets()
     m_meter->setThresholdVisible(!pushToTalk && !m_automaticSensitivity->isChecked());
 }
 
+void SettingsDialog::applyDialogChrome()
+{
+    // Fusion QDialog keeps a light Window brush across stylesheet swaps; paint + palette
+    // keep the modal on the active theme even after "Reset all customization".
+    const Theme::Palette& c = Theme::instance().palette();
+    auto tint = [&](QWidget* widget, const QColor& background) {
+        if (!widget)
+            return;
+        QPalette pal = widget->palette();
+        pal.setColor(QPalette::Window, background);
+        pal.setColor(QPalette::Base, background);
+        pal.setColor(QPalette::AlternateBase, c.bg1);
+        pal.setColor(QPalette::Text, c.text);
+        pal.setColor(QPalette::WindowText, c.text);
+        pal.setColor(QPalette::Button, c.button);
+        pal.setColor(QPalette::ButtonText, c.textBright);
+        pal.setColor(QPalette::Highlight, c.selected);
+        pal.setColor(QPalette::HighlightedText, c.textBright);
+        widget->setPalette(pal);
+        widget->setAutoFillBackground(true);
+    };
+
+    tint(this, c.bg2);
+    tint(m_settingsSide, c.bg1);
+    tint(m_settingsPages, c.bg2);
+
+    for (QScrollArea* scroll : findChildren<QScrollArea*>()) {
+        tint(scroll, c.bg2);
+        tint(scroll->viewport(), c.bg2);
+        if (QWidget* inner = scroll->widget())
+            tint(inner, c.bg2);
+    }
+    update();
+}
+
+void SettingsDialog::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.fillRect(rect(), Theme::instance().palette().bg2);
+}
+
 void SettingsDialog::showEvent(QShowEvent* event)
 {
     QDialog::showEvent(event);
+    applyDialogChrome();
     // Outside of a call, open the microphone just for the level meter while the dialog is visible.
     if (m_voice->state() != VoiceConnection::State::Connected)
         startMicTest();

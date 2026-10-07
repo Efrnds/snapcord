@@ -18,9 +18,13 @@ class AudioEngine;
 class QButtonGroup;
 class QCheckBox;
 class QComboBox;
+class QEvent;
 class QLabel;
 class QRadioButton;
+class QPaintEvent;
+class QScrollArea;
 class QSlider;
+class QStackedWidget;
 class QTimer;
 class VoiceController;
 
@@ -142,6 +146,8 @@ signals:
 protected:
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     QWidget* buildVoicePage();
@@ -150,6 +156,7 @@ private:
     QWidget* buildLanguagePage();
     void apply();
     void applyAppearance();
+    void applyDialogChrome();
     void updateModeWidgets();
     void startMicTest();
     void stopMicTest();
@@ -161,6 +168,7 @@ private:
     void exportTheme();
     void importTheme();
     void bindLiveSlider(QSlider* slider, QLabel* label, const std::function<QString(int)>& format);
+    void ignoreWheel(QWidget* widget);
     static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
@@ -196,11 +204,12 @@ private:
     QLabel* m_brightnessLabel = nullptr;
     QSlider* m_saturation = nullptr;
     QLabel* m_saturationLabel = nullptr;
-    QSlider* m_panelOpacity = nullptr;
-    QLabel* m_panelOpacityLabel = nullptr;
-    QCheckBox* m_wallpaperAppWide = nullptr;
     LayoutStudio* m_layoutStudio = nullptr;
     QLabel* m_customizedLabel = nullptr;
+    QScrollArea* m_appearanceScroll = nullptr;
+    QWidget* m_settingsSide = nullptr;
+    QStackedWidget* m_settingsPages = nullptr;
+    bool m_syncingAppearance = false;
     ColorSwatch* m_accentSwatch = nullptr;
     ColorSwatch* m_bg0Swatch = nullptr;
     ColorSwatch* m_bg1Swatch = nullptr;
@@ -211,11 +220,6 @@ private:
     ColorSwatch* m_gradientBottomSwatch = nullptr;
     QCheckBox* m_syncDiscordAccent = nullptr;
     QCheckBox* m_gradientEnabled = nullptr;
-    QLabel* m_wallpaperPathLabel = nullptr;
-    QSlider* m_wallpaperOpacity = nullptr;
-    QLabel* m_wallpaperOpacityLabel = nullptr;
-    QSlider* m_wallpaperFrost = nullptr;
-    QLabel* m_wallpaperFrostLabel = nullptr;
     QComboBox* m_presetCombo = nullptr;
     QVector<ColorSwatch*> m_accentChips;
     QMap<QString, ColorSwatch*> m_tokenSwatches;

@@ -5,11 +5,9 @@
 #include <QFile>
 #include <QFont>
 #include <QFontDatabase>
-#include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMap>
-#include <QPainter>
 #include <QPalette>
 #include <QSettings>
 #include <QVariant>
@@ -122,17 +120,6 @@ QJsonValue colorToJson(const QColor& color)
     return color.isValid() ? QJsonValue(color.name(QColor::HexRgb)) : QJsonValue();
 }
 
-// Keep wallpapers small in RAM — no blur, just a max edge length.
-QImage lightWallpaper(QImage image)
-{
-    if (image.isNull())
-        return image;
-    constexpr int MaxEdge = 1920;
-    if (image.width() <= MaxEdge && image.height() <= MaxEdge)
-        return image;
-    return image.scaled(MaxEdge, MaxEdge, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-}
-
 bool sameColor(const QColor& a, const QColor& b)
 {
     if (!a.isValid() && !b.isValid())
@@ -161,16 +148,6 @@ QColor shiftValue(QColor color, int valueDelta)
 QColor shiftSaturation(QColor color, int satDelta)
 {
     return colorFromHsvDelta(color, satDelta, 0);
-}
-
-QString rgba(const QColor& color, int opacityPercent)
-{
-    const int alpha = qBound(0, qRound(255 * opacityPercent / 100.0), 255);
-    return QStringLiteral("rgba(%1, %2, %3, %4)")
-        .arg(color.red())
-        .arg(color.green())
-        .arg(color.blue())
-        .arg(alpha);
 }
 
 Theme::Palette withAccent(Theme::Palette palette, const QColor& accent)
@@ -463,11 +440,33 @@ QVector<QColor> Theme::accentSwatches()
 
 QStringList Theme::fontFamilyChoices()
 {
-    // Empty string = default stack. Only list families that usually exist on desktop OSes.
+    // Empty string = default stack. Candidates are checked with hasFamily — nothing is
+    // bundled, so a longer list costs almost nothing (names only, no font files in the app).
     QStringList choices{QString()};
-    const QStringList candidates{QStringLiteral("Noto Sans"), QStringLiteral("Inter"),
-                                 QStringLiteral("Segoe UI"), QStringLiteral("Cantarell"),
-                                 QStringLiteral("DejaVu Sans")};
+    const QStringList candidates{
+        // Preferred Discord-like UI sans
+        QStringLiteral("Inter"),
+        QStringLiteral("Noto Sans"),
+        QStringLiteral("Manrope"),
+        // Common on Linux desktops
+        QStringLiteral("Adwaita Sans"),
+        QStringLiteral("Cantarell"),
+        QStringLiteral("Ubuntu"),
+        QStringLiteral("Source Sans 3"),
+        QStringLiteral("Source Sans Pro"),
+        QStringLiteral("IBM Plex Sans"),
+        QStringLiteral("Fira Sans"),
+        QStringLiteral("Open Sans"),
+        QStringLiteral("Roboto"),
+        QStringLiteral("Liberation Sans"),
+        QStringLiteral("DejaVu Sans"),
+        QStringLiteral("Carlito"),
+        // Common on Windows / macOS
+        QStringLiteral("Segoe UI"),
+        QStringLiteral("SF Pro Text"),
+        QStringLiteral("Helvetica Neue"),
+        QStringLiteral("Arial"),
+    };
     for (const QString& family : candidates) {
         if (QFontDatabase::hasFamily(family))
             choices.push_back(family);
@@ -561,13 +560,10 @@ int Theme::messageTightGap() const
 void Theme::normalize(Settings& settings) const
 {
     settings.fontSize = qBound(12, settings.fontSize, 18);
-    settings.radius = qBound(0, settings.radius, 16);
+    settings.radius = qBound(0, settings.radius, 12);
     settings.uiScale = qBound(85, settings.uiScale, 130);
     settings.brightness = qBound(-40, settings.brightness, 40);
     settings.saturation = qBound(-50, settings.saturation, 50);
-    settings.panelOpacity = qBound(40, settings.panelOpacity, 100);
-    settings.wallpaperOpacity = qBound(0, settings.wallpaperOpacity, 100);
-    settings.wallpaperFrost = qBound(0, settings.wallpaperFrost, 80);
     if (settings.chatDensity != ChatDensity::Compact
         && settings.chatDensity != ChatDensity::Comfortable)
         settings.chatDensity = ChatDensity::Normal;
@@ -611,15 +607,16 @@ void Theme::load()
     m_settings.uiScale = settings.value(QStringLiteral("appearance/uiScale"), 100).toInt();
     m_settings.brightness = settings.value(QStringLiteral("appearance/brightness"), 0).toInt();
     m_settings.saturation = settings.value(QStringLiteral("appearance/saturation"), 0).toInt();
-    m_settings.panelOpacity = settings.value(QStringLiteral("appearance/panelOpacity"), 100).toInt();
+    settings.remove(QStringLiteral("appearance/panelOpacity")); // dropped: no visible glass benefit
     m_settings.chatDensity = static_cast<ChatDensity>(
         settings.value(QStringLiteral("appearance/chatDensity"), static_cast<int>(ChatDensity::Normal)).toInt());
     m_settings.fontFamily = settings.value(QStringLiteral("appearance/fontFamily")).toString();
-    m_settings.wallpaperPath = settings.value(QStringLiteral("appearance/wallpaperPath")).toString();
-    m_settings.wallpaperOpacity = settings.value(QStringLiteral("appearance/wallpaperOpacity"), 35).toInt();
-    m_settings.wallpaperFrost = settings.value(QStringLiteral("appearance/wallpaperFrost"), 25).toInt();
-    settings.remove(QStringLiteral("appearance/wallpaperBlur")); // dropped: was a soft-blur cost
-    m_settings.wallpaperAppWide = settings.value(QStringLiteral("appearance/wallpaperAppWide"), true).toBool();
+    // Wallpaper was dropped (RAM cost with little benefit); scrub leftover keys.
+    settings.remove(QStringLiteral("appearance/wallpaperPath"));
+    settings.remove(QStringLiteral("appearance/wallpaperOpacity"));
+    settings.remove(QStringLiteral("appearance/wallpaperFrost"));
+    settings.remove(QStringLiteral("appearance/wallpaperAppWide"));
+    settings.remove(QStringLiteral("appearance/wallpaperBlur"));
     m_settings.gradientEnabled = settings.value(QStringLiteral("appearance/gradientEnabled"), false).toBool();
     m_settings.gradientTop = readColor(settings, QStringLiteral("appearance/gradientTop"));
     m_settings.gradientBottom = readColor(settings, QStringLiteral("appearance/gradientBottom"));
@@ -636,7 +633,6 @@ void Theme::load()
     settings.endArray();
 
     normalize(m_settings);
-    reloadWallpaper();
 }
 
 void Theme::save() const
@@ -648,13 +644,14 @@ void Theme::save() const
     settings.setValue(QStringLiteral("appearance/uiScale"), m_settings.uiScale);
     settings.setValue(QStringLiteral("appearance/brightness"), m_settings.brightness);
     settings.setValue(QStringLiteral("appearance/saturation"), m_settings.saturation);
-    settings.setValue(QStringLiteral("appearance/panelOpacity"), m_settings.panelOpacity);
+    settings.remove(QStringLiteral("appearance/panelOpacity"));
     settings.setValue(QStringLiteral("appearance/chatDensity"), static_cast<int>(m_settings.chatDensity));
     settings.setValue(QStringLiteral("appearance/fontFamily"), m_settings.fontFamily);
-    settings.setValue(QStringLiteral("appearance/wallpaperPath"), m_settings.wallpaperPath);
-    settings.setValue(QStringLiteral("appearance/wallpaperOpacity"), m_settings.wallpaperOpacity);
-    settings.setValue(QStringLiteral("appearance/wallpaperFrost"), m_settings.wallpaperFrost);
-    settings.setValue(QStringLiteral("appearance/wallpaperAppWide"), m_settings.wallpaperAppWide);
+    settings.remove(QStringLiteral("appearance/wallpaperPath"));
+    settings.remove(QStringLiteral("appearance/wallpaperOpacity"));
+    settings.remove(QStringLiteral("appearance/wallpaperFrost"));
+    settings.remove(QStringLiteral("appearance/wallpaperAppWide"));
+    settings.remove(QStringLiteral("appearance/wallpaperBlur"));
     settings.setValue(QStringLiteral("appearance/gradientEnabled"), m_settings.gradientEnabled);
     settings.setValue(QStringLiteral("appearance/syncDiscordAccent"), m_settings.syncDiscordAccent);
     writeColor(settings, QStringLiteral("appearance/customAccent"), m_settings.customAccent);
@@ -696,13 +693,8 @@ void Theme::setSettings(Settings settings)
         && settings.uiScale == m_settings.uiScale
         && settings.brightness == m_settings.brightness
         && settings.saturation == m_settings.saturation
-        && settings.panelOpacity == m_settings.panelOpacity
         && settings.chatDensity == m_settings.chatDensity
         && settings.fontFamily == m_settings.fontFamily
-        && settings.wallpaperPath == m_settings.wallpaperPath
-        && settings.wallpaperOpacity == m_settings.wallpaperOpacity
-        && settings.wallpaperFrost == m_settings.wallpaperFrost
-        && settings.wallpaperAppWide == m_settings.wallpaperAppWide
         && settings.gradientEnabled == m_settings.gradientEnabled
         && sameColor(settings.gradientTop, m_settings.gradientTop)
         && sameColor(settings.gradientBottom, m_settings.gradientBottom)
@@ -710,11 +702,7 @@ void Theme::setSettings(Settings settings)
         return;
     }
 
-    const bool wallpaperChanged = settings.wallpaperPath != m_settings.wallpaperPath;
-
     m_settings = std::move(settings);
-    if (wallpaperChanged)
-        reloadWallpaper();
     save();
 
     if (auto* app = qobject_cast<QApplication*>(QCoreApplication::instance()))
@@ -804,8 +792,7 @@ QString Theme::buildStyleSheet() const
         qss.replace(QLatin1String(token), value);
     };
 
-    replace("@bg0Panel", rgba(m_palette.bg0, m_settings.panelOpacity));
-    replace("@bg1Panel", rgba(m_palette.bg1, m_settings.panelOpacity));
+    // Longer / more-specific tokens first so a short prefix cannot eat a longer one.
     replace("@bg0", hex(m_palette.bg0));
     replace("@bg1", hex(m_palette.bg1));
     replace("@bg2", hex(m_palette.bg2));
@@ -834,19 +821,20 @@ QString Theme::buildStyleSheet() const
     replace("@profilePrimary", hex(profilePrimary()));
     replace("@profileAccent", hex(profileAccent()));
 
-    // Tokens must not share a prefix (@radius would eat @radiusLg and produce invalid QSS → square corners).
+    // @rSm / @rLg — never share a common prefix that could eat the longer token.
     const int radius = m_settings.radius;
-    const int radiusLg = radius == 0 ? 0 : radius + 4;
+    const int radiusLg = radius == 0 ? 0 : qMin(radius + 4, 16);
     replace("@rLg", QString::number(radiusLg) + QStringLiteral("px"));
     replace("@rSm", QString::number(radius) + QStringLiteral("px"));
 
-    const int scaled = qMax(10, qRound(font * m_settings.uiScale / 100.0));
+    // Each uiScale step moves the base font by 1px (100 = fontSize as-is).
+    const int scaled = qBound(10, font + (m_settings.uiScale - 100), 48);
     // Longer font tokens first so "@fontSize" does not eat "@fontSizeSm".
     replace("@fontSizeDisplay", QString::number(scaled + 14) + QStringLiteral("px"));
     replace("@fontSizeTitle", QString::number(scaled + 6) + QStringLiteral("px"));
     replace("@fontSizeHero", QString::number(scaled + 10) + QStringLiteral("px"));
-    replace("@fontSizeHint", QString::number(scaled - 1) + QStringLiteral("px"));
-    replace("@fontSizeSm", QString::number(scaled - 2) + QStringLiteral("px"));
+    replace("@fontSizeHint", QString::number(qMax(9, scaled - 1)) + QStringLiteral("px"));
+    replace("@fontSizeSm", QString::number(qMax(9, scaled - 2)) + QStringLiteral("px"));
     replace("@fontSizeMd", QString::number(scaled + 1) + QStringLiteral("px"));
     replace("@fontSizeLg", QString::number(scaled + 2) + QStringLiteral("px"));
     replace("@fontSizeXl", QString::number(scaled + 4) + QStringLiteral("px"));
@@ -872,9 +860,9 @@ void Theme::apply(QApplication& app)
     m_palette = resolvePalette();
     applyAppFont(app);
     applyQtPalette(app);
-    const QString qss = buildStyleSheet();
-    if (app.styleSheet() != qss)
-        app.setStyleSheet(qss);
+    // Always re-set: skipping when equal left QDialog chrome stuck on a light Fusion
+    // palette after clearCustomization / preset switches on Linux.
+    app.setStyleSheet(buildStyleSheet());
     emit changed();
 }
 
@@ -909,9 +897,9 @@ bool Theme::hasCustomization() const
     return m_settings.customAccent.isValid() || m_settings.customBg0.isValid()
         || m_settings.customBg1.isValid() || m_settings.customBg2.isValid()
         || m_settings.profilePrimary.isValid() || m_settings.profileAccent.isValid()
-        || !m_settings.tokenOverrides.isEmpty() || !m_settings.wallpaperPath.isEmpty()
+        || !m_settings.tokenOverrides.isEmpty()
         || m_settings.gradientEnabled || m_settings.brightness != 0 || m_settings.saturation != 0
-        || m_settings.panelOpacity != 100 || m_settings.radius != 4 || m_settings.uiScale != 100;
+        || m_settings.radius != 4 || m_settings.uiScale != 100;
 }
 
 void Theme::clearCustomization()
@@ -924,29 +912,13 @@ void Theme::clearCustomization()
     settings.profilePrimary = {};
     settings.profileAccent = {};
     settings.tokenOverrides.clear();
-    settings.wallpaperPath.clear();
-    settings.wallpaperOpacity = 35;
-    settings.wallpaperFrost = 25;
-    settings.wallpaperAppWide = true;
     settings.gradientEnabled = false;
     settings.brightness = 0;
     settings.saturation = 0;
-    settings.panelOpacity = 100;
     settings.radius = 4;
     settings.uiScale = 100;
     settings.syncDiscordAccent = false;
     setSettings(settings);
-}
-
-void Theme::reloadWallpaper()
-{
-    m_wallpaper = {};
-    if (m_settings.wallpaperPath.isEmpty())
-        return;
-    QImage image(m_settings.wallpaperPath);
-    if (image.isNull())
-        return;
-    m_wallpaper = QPixmap::fromImage(lightWallpaper(image));
 }
 
 QJsonObject Theme::toJson() const
@@ -965,13 +937,8 @@ QJsonObject Theme::toJson() const
     root.insert(QStringLiteral("uiScale"), m_settings.uiScale);
     root.insert(QStringLiteral("brightness"), m_settings.brightness);
     root.insert(QStringLiteral("saturation"), m_settings.saturation);
-    root.insert(QStringLiteral("panelOpacity"), m_settings.panelOpacity);
     root.insert(QStringLiteral("chatDensity"), static_cast<int>(m_settings.chatDensity));
     root.insert(QStringLiteral("fontFamily"), m_settings.fontFamily);
-    root.insert(QStringLiteral("wallpaperPath"), m_settings.wallpaperPath);
-    root.insert(QStringLiteral("wallpaperOpacity"), m_settings.wallpaperOpacity);
-    root.insert(QStringLiteral("wallpaperFrost"), m_settings.wallpaperFrost);
-    root.insert(QStringLiteral("wallpaperAppWide"), m_settings.wallpaperAppWide);
     root.insert(QStringLiteral("gradientEnabled"), m_settings.gradientEnabled);
     root.insert(QStringLiteral("gradientTop"), colorToJson(m_settings.gradientTop));
     root.insert(QStringLiteral("gradientBottom"), colorToJson(m_settings.gradientBottom));
@@ -1013,20 +980,10 @@ QString Theme::applyJson(const QJsonObject& json)
         settings.brightness = json.value(QStringLiteral("brightness")).toInt(settings.brightness);
     if (json.contains(QStringLiteral("saturation")))
         settings.saturation = json.value(QStringLiteral("saturation")).toInt(settings.saturation);
-    if (json.contains(QStringLiteral("panelOpacity")))
-        settings.panelOpacity = json.value(QStringLiteral("panelOpacity")).toInt(settings.panelOpacity);
     if (json.contains(QStringLiteral("chatDensity")))
         settings.chatDensity = static_cast<ChatDensity>(json.value(QStringLiteral("chatDensity")).toInt());
     if (json.contains(QStringLiteral("fontFamily")))
         settings.fontFamily = json.value(QStringLiteral("fontFamily")).toString();
-    if (json.contains(QStringLiteral("wallpaperPath")))
-        settings.wallpaperPath = json.value(QStringLiteral("wallpaperPath")).toString();
-    if (json.contains(QStringLiteral("wallpaperOpacity")))
-        settings.wallpaperOpacity = json.value(QStringLiteral("wallpaperOpacity")).toInt();
-    if (json.contains(QStringLiteral("wallpaperFrost")))
-        settings.wallpaperFrost = json.value(QStringLiteral("wallpaperFrost")).toInt();
-    if (json.contains(QStringLiteral("wallpaperAppWide")))
-        settings.wallpaperAppWide = json.value(QStringLiteral("wallpaperAppWide")).toBool();
     if (json.contains(QStringLiteral("gradientEnabled")))
         settings.gradientEnabled = json.value(QStringLiteral("gradientEnabled")).toBool();
     if (json.contains(QStringLiteral("gradientTop")))

@@ -3,7 +3,6 @@
 #include <QColor>
 #include <QMap>
 #include <QObject>
-#include <QPixmap>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -11,7 +10,7 @@
 class QApplication;
 class QJsonObject;
 
-// Appearance system: palettes + optional wallpaper/gradient, applied through QSS tokens
+// Appearance system: palettes + optional chat gradient, applied through QSS tokens
 // and a shared Palette for hand-painted widgets.
 class Theme : public QObject
 {
@@ -68,17 +67,12 @@ public:
         QColor profileAccent;     // invalid => use effective accent
         QMap<QString, QColor> tokenOverrides; // advanced per-token colors (bg3, text, …)
         int fontSize = 14;        // 12–18
-        int radius = 4;           // 0–16
-        int uiScale = 100;        // 85–130 (%), scales QSS font tokens
+        int radius = 4;           // 0–12 (Fusion squares corners when radius ≥ half widget height)
+        int uiScale = 100;        // 85–130; each step = ±1px on the base font size
         int brightness = 0;       // -40..40, shifts background values
         int saturation = 0;       // -50..50, shifts accent/status saturation
-        int panelOpacity = 100;   // 40–100, rail + sidebar glass over wallpaper
         ChatDensity chatDensity = ChatDensity::Normal;
         QString fontFamily;       // empty => default stack (Noto/Inter/Segoe)
-        QString wallpaperPath;
-        int wallpaperOpacity = 35; // 0–100
-        int wallpaperFrost = 25;   // 0–80 dim overlay (solid color, not blur)
-        bool wallpaperAppWide = true; // wallpaper behind the whole main window
         bool gradientEnabled = false;
         QColor gradientTop;
         QColor gradientBottom;
@@ -92,7 +86,6 @@ public:
     QColor accent() const { return m_palette.accent; }
     QColor profilePrimary() const;
     QColor profileAccent() const;
-    const QPixmap& wallpaperPixmap() const { return m_wallpaper; }
 
     // Extra vertical gap before a message that starts a group (avatar + name).
     int messageGroupGap() const;
@@ -110,7 +103,7 @@ public:
     QColor tokenColor(const QString& id) const;
     void setTokenOverride(const QString& id, const QColor& color); // invalid clears
     bool hasCustomization() const;
-    void clearCustomization(); // keeps preset + font prefs, drops color/wallpaper overrides
+    void clearCustomization(); // keeps preset + font prefs, drops color/gradient overrides
 
     QJsonObject toJson() const;
     // Returns an empty string on success, or a short error message.
@@ -136,12 +129,10 @@ private:
     QString buildStyleSheet() const;
     void applyQtPalette(QApplication& app) const;
     void applyAppFont(QApplication& app) const;
-    void reloadWallpaper();
     void normalize(Settings& settings) const;
 
     Settings m_settings;
     Palette m_palette;
-    QPixmap m_wallpaper;
     QColor m_discordAccent;
     QColor m_discordBanner;
 };

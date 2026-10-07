@@ -865,12 +865,6 @@
         <translation>Brilho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="754"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="756"/>
-        <source>%1</source>
-        <translation>%1</translation>
-    </message>
-    <message>
         <location filename="../src/app/SettingsDialog.cpp" line="755"/>
         <source>Saturation</source>
         <translation>Saturação</translation>
@@ -879,11 +873,6 @@
         <location filename="../src/app/SettingsDialog.cpp" line="757"/>
         <source>UI scale</source>
         <translation>Escala da interface</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="761"/>
-        <source>Panel opacity (rail &amp; sidebar)</source>
-        <translation>Opacidade dos painéis (barra e lista)</translation>
     </message>
     <message>
         <location filename="../src/app/SettingsDialog.cpp" line="784"/>
@@ -991,68 +980,6 @@
         <translation>Aplicar cores do Discord agora</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="979"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1003"/>
-        <source>Chat wallpaper</source>
-        <translation>Papel de parede do chat</translation>
-    </message>
-    <message>
-        <source>Optional image behind chat. Soft blur is a light downscale (CPU-friendly), frost dims it.</source>
-        <translation type="vanished">Imagem opcional atrás do chat. O soft blur é um redimensionamento leve (leve na CPU); o frost escurece.</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="985"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1261"/>
-        <source>No wallpaper</source>
-        <translation>Sem papel de parede</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="991"/>
-        <source>Choose image…</source>
-        <translation>Escolher imagem…</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="994"/>
-        <source>Clear wallpaper</source>
-        <translation>Limpar papel de parede</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1004"/>
-        <source>Images (*.png *.jpg *.jpeg *.webp *.bmp)</source>
-        <translation>Imagens (*.png *.jpg *.jpeg *.webp *.bmp)</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="758"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="762"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1029"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1037"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1231"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1250"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1267"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1272"/>
-        <source>%1%</source>
-        <translation>%1%</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1018"/>
-        <source>Wallpaper behind the whole window (not only chat)</source>
-        <translation>Papel de parede atrás da janela inteira (não só o chat)</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1041"/>
-        <source>Wallpaper opacity</source>
-        <translation>Opacidade do papel de parede</translation>
-    </message>
-    <message>
-        <source>Soft blur</source>
-        <translation type="vanished">Desfoque suave</translation>
-    </message>
-    <message>
-        <source>Frost overlay</source>
-        <translation type="vanished">Sobreposição fosca</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1047"/>
         <source>Gradient</source>
         <translation>Gradiente</translation>
     </message>
@@ -1264,16 +1191,6 @@
         <location filename="../src/app/SettingsDialog.cpp" line="1226"/>
         <source>%1 px</source>
         <translation>%1 px</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="981"/>
-        <source>Optional image behind the UI. Kept light: no blur, large images are capped in memory.</source>
-        <translation>Imagem opcional atrás da interface. Leve: sem blur; imagens grandes são limitadas na memória.</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1043"/>
-        <source>Dim overlay</source>
-        <translation>Sobreposição de escurecimento</translation>
     </message>
     <message>
         <location filename="../src/app/SettingsDialog.cpp" line="1406"/>

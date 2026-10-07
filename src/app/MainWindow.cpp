@@ -35,7 +35,7 @@ constexpr auto LastChannelKey = "ui/lastChannel/";
 
 } // namespace
 
-// Paints app-wide wallpaper behind the rail / sidebar / chat columns.
+// Solid theme background behind the rail / sidebar / chat columns.
 class MainWindow::AppShell : public QWidget
 {
 public:
@@ -45,26 +45,7 @@ protected:
     void paintEvent(QPaintEvent*) override
     {
         QPainter painter(this);
-        const Theme::Settings& appearance = Theme::instance().settings();
-        const Theme::Palette& colors = Theme::instance().palette();
-        painter.fillRect(rect(), colors.bg2);
-
-        if (!appearance.wallpaperAppWide)
-            return;
-
-        const QPixmap& wallpaper = Theme::instance().wallpaperPixmap();
-        if (!wallpaper.isNull() && appearance.wallpaperOpacity > 0) {
-            painter.setOpacity(appearance.wallpaperOpacity / 100.0);
-            const QSize scaled = wallpaper.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
-            const QPoint topLeft((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
-            painter.drawPixmap(QRect(topLeft, scaled), wallpaper);
-            painter.setOpacity(1.0);
-        }
-        if (appearance.wallpaperFrost > 0 && !wallpaper.isNull()) {
-            QColor frost = colors.bg2;
-            frost.setAlpha(qRound(255 * appearance.wallpaperFrost / 100.0));
-            painter.fillRect(rect(), frost);
-        }
+        painter.fillRect(rect(), Theme::instance().palette().bg2);
     }
 };
 

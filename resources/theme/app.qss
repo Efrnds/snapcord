@@ -9,7 +9,7 @@ QMainWindow {
     background: @bg2;
 }
 #chatArea {
-    /* ChatView paints bg / wallpaper / gradient itself. */
+    /* ChatView paints bg / gradient itself. */
     background: transparent;
 }
 
@@ -83,18 +83,18 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
     background: none;
 }
 
-/* Server rail — @bg0Panel allows glass opacity over wallpaper */
+/* Server rail */
 #serverRail, #serverRailContent, #serverRail QScrollArea {
-    background: @bg0Panel;
+    background: @bg0;
 }
 #railSeparator {
     background: @hover;
     border-radius: 1px;
 }
 
-/* Channel sidebar — translucent when panel opacity < 100 */
+/* Channel sidebar */
 #channelSidebar {
-    background: @bg1Panel;
+    background: @bg1;
 }
 #sidebarHeader {
     border-bottom: 1px solid @border;
@@ -455,12 +455,24 @@ QCheckBox {
     font-size: @fontSizeMd;
 }
 
-/* Settings */
+/* Settings — solid fills; SettingsDialog also tints palettes in code because Fusion
+   QDialog can keep a light Window color after stylesheet swaps (reset bug). */
+QDialog {
+    background: @bg2;
+    color: @text;
+}
+#settingsDialog {
+    background: @bg2;
+}
 #settingsSide {
     background: @bg1;
 }
 #settingsContent {
     background: @bg2;
+}
+#settingsDialog QScrollArea {
+    background: @bg2;
+    border: none;
 }
 #settingsNavigation {
     background: transparent;
@@ -521,11 +533,12 @@ QCheckBox {
 QComboBox {
     background: @surface;
     color: @text;
-    /* Fusion needs a real border for border-radius to clip the fill. */
+    /* Fusion needs a real border for border-radius to clip the fill.
+       min-height keeps half-height above max @rSm (12px) so corners stay round. */
     border: 1px solid @border;
     border-radius: @rSm;
     padding: 8px 28px 8px 12px;
-    min-height: 22px;
+    min-height: 28px;
 }
 QComboBox:hover, QComboBox:focus {
     border-color: @textMuted;
