@@ -17,7 +17,7 @@
 
 namespace {
 
-// Chrome version Snapcord presents itself as. It matches the browser imitated at the TLS level.
+// Chrome version Snapcord presents itself as. Needs an occasional bump to stay close to current Chrome.
 constexpr auto ChromeVersion = "150.0.0.0";
 
 // Used until the current build number has been fetched from discord.com.

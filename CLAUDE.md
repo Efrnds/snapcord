@@ -309,9 +309,9 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
     `X-Debug-Options`, `Referer` e `Origin` (só em métodos que alteram algo). WebSockets com `Origin: https://discord.com`.
   - O **build number** é lido do site (`discord.com/app` → script `sentry`), guardado por 1 dia. A chave
     `discord/clientBuildNumber` do QSettings força um valor, se a busca parar de funcionar.
-  - A versão do Chrome (`ChromeVersion`) deve acompanhar o alvo do curl-impersonate.
-  - **Próximo passo combinado:** trocar a rede do gateway, da API e do login pelo **curl-impersonate**
-    (lexiforest, alvo `chrome150`), para a assinatura TLS/HTTP2 ser igual à do Chrome.
+  - A versão do Chrome (`ChromeVersion`) é fixa e precisa ser atualizada de tempos em tempos.
+  - **Fora de escopo (decisão fechada):** imitar a assinatura TLS/HTTP2 do Chrome (curl-impersonate). A rede
+    continua sendo a do Qt.
 - **Captcha no login por QR:** não é suportado e acontece na prática.
   - A alternativa é o **login por token**, na própria tela de login ("Log in with a token instead").
   - O token é validado com `GET /users/@me` antes de ser salvo.
