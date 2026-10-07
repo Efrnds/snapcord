@@ -2,6 +2,7 @@
 
 #include "EmojiPicker.h"
 #include "ImageCache.h"
+#include "MemberListView.h"
 #include "MessageView.h"
 #include "Theme.h"
 #include "VoiceController.h"
@@ -24,6 +25,7 @@
 #include <QPaintEvent>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QSettings>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -31,6 +33,7 @@
 namespace {
 
 constexpr qint64 TypingDurationMs = 10000;
+constexpr auto MemberListKey = "ui/memberList";
 const char* const QuickReactions[] = {"👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"};
 
 } // namespace
@@ -104,6 +107,8 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     , m_title(new QLabel)
     , m_topic(new QLabel)
     , m_callButton(new QPushButton)
+    , m_membersButton(new QToolButton)
+    , m_memberList(new MemberListView(session, images))
     , m_modeBar(new QWidget)
     , m_modeLabel(new QLabel)
     , m_composer(new Composer)
@@ -134,6 +139,22 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     headerLayout->addWidget(m_title);
     headerLayout->addWidget(m_topic, 1);
     headerLayout->addWidget(m_callButton);
+    headerLayout->addWidget(m_membersButton);
+
+    m_membersButton->setObjectName(QStringLiteral("headerIconButton"));
+    m_membersButton->setIcon(QIcon(QStringLiteral(":/icons/members.svg")));
+    m_membersButton->setIconSize(QSize(22, 22));
+    m_membersButton->setCursor(Qt::PointingHandCursor);
+    m_membersButton->setCheckable(true);
+    m_membersButton->setChecked(QSettings().value(QLatin1String(MemberListKey), true).toBool());
+    connect(m_membersButton, &QToolButton::toggled, this, [this](bool shown) {
+        QSettings().setValue(QLatin1String(MemberListKey), shown);
+        updateMemberList();
+    });
+    connect(m_memberList, &MemberListView::memberClicked, this, [this](const QString& userId, const QPoint& position) {
+        emit memberProfileRequested(userId, m_guildId, position);
+    });
+    connect(m_memberList, &MemberListView::memberContextMenuRequested, this, &ChatView::memberContextMenuRequested);
 
     // Reply / edit bar above the composer.
     m_modeBar->setObjectName(QStringLiteral("composerModeBar"));
@@ -182,12 +203,23 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     bottom->addWidget(inputBox);
     bottom->addWidget(m_statusLabel);
 
+    // The member list sits next to the messages, under the header.
+    auto* messages = new QVBoxLayout;
+    messages->setContentsMargins(0, 0, 0, 0);
+    messages->setSpacing(0);
+    messages->addWidget(m_list, 1);
+    messages->addLayout(bottom);
+    auto* body = new QHBoxLayout;
+    body->setContentsMargins(0, 0, 0, 0);
+    body->setSpacing(0);
+    body->addLayout(messages, 1);
+    body->addWidget(m_memberList);
+
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(header);
-    layout->addWidget(m_list, 1);
-    layout->addLayout(bottom);
+    layout->addLayout(body, 1);
 
     // Messages.
     connect(m_composer, &Composer::submitted, this, &ChatView::submit);
@@ -200,6 +232,9 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     connect(m_list, &MessageListView::linkActivated, this, &ChatView::openLink);
     connect(m_list, &MessageListView::reactionClicked, this, &ChatView::toggleReaction);
     connect(m_list, &MessageListView::replyClicked, this, &ChatView::jumpTo);
+    connect(m_list, &MessageListView::userClicked, this, [this](const QString& userId, const QPoint& position) {
+        emit profileRequested(userId, m_guildId, position);
+    });
     connect(m_list, &MessageListView::messageContextMenuRequested, this, &ChatView::showMessageMenu);
     connect(m_list, &MessageListView::topReached, this, [this] {
         if (!m_channelId.isEmpty() && m_session->messages()->hasOlder(m_channelId))
@@ -259,10 +294,12 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
 {
     if (channelId == m_channelId && guildId == m_guildId) {
         refreshHeader();
+        updateMemberList();
         return;
     }
     m_guildId = guildId;
     m_channelId = channelId;
+    updateMemberList();
     cancelMode();
     m_composer->clear();
     m_typing.clear();
@@ -272,6 +309,17 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
     m_model->setChannel(channelId);
     refreshHeader();
     m_composer->setFocus();
+}
+
+void ChatView::updateMemberList()
+{
+    // Direct messages have no member list.
+    const bool guild = !m_guildId.isEmpty();
+    m_membersButton->setVisible(guild);
+    m_membersButton->setToolTip(m_membersButton->isChecked() ? tr("Hide Member List") : tr("Show Member List"));
+    if (guild)
+        m_memberList->setChannel(m_guildId, m_channelId);
+    m_memberList->setVisible(guild && m_membersButton->isChecked());
 }
 
 void ChatView::refreshHeader()

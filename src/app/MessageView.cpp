@@ -738,6 +738,11 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
             }
         }
     }
+    if (!l.system && (l.avatarRect.contains(p) || l.nameRect.contains(p)) && !message.author.id.isEmpty()) {
+        hit.kind = Hit::Author;
+        hit.url = message.author.id;
+        return hit;
+    }
     if (!l.replyRect.isNull() && l.replyRect.contains(p) && !message.referencedDeleted) {
         hit.kind = Hit::Reply;
         hit.url = message.referencedMessageId;
@@ -807,6 +812,12 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
     const auto hit = hitAt(event->position().toPoint());
     switch (hit.kind) {
     case MessageDelegate::Hit::Link:
+        // Mentions link to "user:<id>".
+        if (hit.url.startsWith(u"user:"))
+            emit userClicked(hit.url.mid(5), event->globalPosition().toPoint());
+        else
+            emit linkActivated(hit.url);
+        break;
     case MessageDelegate::Hit::Image:
     case MessageDelegate::Hit::File:
         emit linkActivated(hit.url);
@@ -816,6 +827,9 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
         break;
     case MessageDelegate::Hit::Reply:
         emit replyClicked(hit.url);
+        break;
+    case MessageDelegate::Hit::Author:
+        emit userClicked(hit.url, event->globalPosition().toPoint());
         break;
     case MessageDelegate::Hit::Spoiler:
         m_delegate->revealSpoilers(hit.messageId);

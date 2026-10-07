@@ -22,6 +22,7 @@ enum Opcode {
     Dispatch = 0,
     Heartbeat = 1,
     Identify = 2,
+    PresenceUpdate = 3,
     VoiceStateUpdate = 4,
     Resume = 6,
     Reconnect = 7,
@@ -29,6 +30,7 @@ enum Opcode {
     InvalidSession = 9,
     Hello = 10,
     HeartbeatAck = 11,
+    GuildSubscriptionsBulk = 37,
 };
 
 bool isFatalCloseCode(int code)
@@ -92,12 +94,30 @@ void Gateway::updateVoiceState(const QString& guildId, const QString& channelId,
                            });
 }
 
-void Gateway::requestGuildMembers(const QString& guildId, const QStringList& userIds)
+void Gateway::requestGuildMembers(const QString& guildId, const QStringList& userIds, bool presences)
 {
-    send(RequestGuildMembers, QJsonObject{
-                                  {QStringLiteral("guild_id"), QJsonArray{guildId}},
-                                  {QStringLiteral("user_ids"), QJsonArray::fromStringList(userIds)},
-                              });
+    QJsonObject request{
+        {QStringLiteral("guild_id"), QJsonArray{guildId}},
+        {QStringLiteral("user_ids"), QJsonArray::fromStringList(userIds)},
+    };
+    if (presences)
+        request.insert(QStringLiteral("presences"), true);
+    send(RequestGuildMembers, request);
+}
+
+void Gateway::updatePresence(const QString& status, const QJsonArray& activities)
+{
+    send(PresenceUpdate, QJsonObject{
+                             {QStringLiteral("status"), status},
+                             {QStringLiteral("since"), 0},
+                             {QStringLiteral("activities"), activities},
+                             {QStringLiteral("afk"), false},
+                         });
+}
+
+void Gateway::updateGuildSubscriptions(const QString& guildId, const QJsonObject& subscription)
+{
+    send(GuildSubscriptionsBulk, QJsonObject{{QStringLiteral("subscriptions"), QJsonObject{{guildId, subscription}}}});
 }
 
 void Gateway::onBinaryMessage(const QByteArray& message)

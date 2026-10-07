@@ -2,6 +2,7 @@
 
 #include "core/ZlibStream.h"
 
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QTimer>
@@ -25,7 +26,12 @@ public:
     // Opcode 4: joins, moves between or leaves (empty channelId) voice channels.
     void updateVoiceState(const QString& guildId, const QString& channelId, bool selfMute, bool selfDeaf);
     // Opcode 8: asks for member objects of specific users (e.g. people in voice channels we don't know yet).
-    void requestGuildMembers(const QString& guildId, const QStringList& userIds);
+    // With `presences`, the reply also carries their status and activities.
+    void requestGuildMembers(const QString& guildId, const QStringList& userIds, bool presences = false);
+    // Opcode 3: this session's status ("online", "idle", "dnd", "invisible") and activities.
+    void updatePresence(const QString& status, const QJsonArray& activities);
+    // Opcode 37: what this session follows in a guild (typing, activities, member list rows of a channel).
+    void updateGuildSubscriptions(const QString& guildId, const QJsonObject& subscription);
 
     QString sessionId() const { return m_sessionId; }
 

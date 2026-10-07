@@ -1,6 +1,8 @@
 #include "UserPanel.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
+#include <QMouseEvent>
 #include <QIcon>
 #include <QLabel>
 #include <QToolButton>
@@ -22,6 +24,7 @@ QToolButton* makePanelButton()
 
 UserPanel::UserPanel(QWidget* parent)
     : QWidget(parent)
+    , m_profileArea(new QWidget)
     , m_avatar(new QLabel)
     , m_name(new QLabel)
     , m_status(new QLabel)
@@ -55,11 +58,23 @@ UserPanel::UserPanel(QWidget* parent)
     buttons->addWidget(m_deafen);
     buttons->addWidget(m_settings);
 
+    // Avatar and names form one clickable area, like Discord's.
+    m_profileArea->setObjectName(QStringLiteral("userPanelProfile"));
+    m_profileArea->setAttribute(Qt::WA_StyledBackground);
+    m_profileArea->setAttribute(Qt::WA_Hover);
+    m_profileArea->setCursor(Qt::PointingHandCursor);
+    m_profileArea->setToolTip(tr("Profile and status"));
+    m_profileArea->installEventFilter(this);
+    auto* profile = new QHBoxLayout(m_profileArea);
+    profile->setContentsMargins(2, 2, 6, 2);
+    profile->setSpacing(8);
+    profile->addWidget(m_avatar);
+    profile->addLayout(names, 1);
+
     auto* layout = new QHBoxLayout(this);
-    layout->setContentsMargins(8, 0, 8, 0);
-    layout->setSpacing(8);
-    layout->addWidget(m_avatar);
-    layout->addLayout(names, 1);
+    layout->setContentsMargins(6, 0, 8, 0);
+    layout->setSpacing(4);
+    layout->addWidget(m_profileArea, 1);
     layout->addLayout(buttons);
 
     connect(m_mute, &QToolButton::clicked, this, &UserPanel::muteClicked);
@@ -72,8 +87,19 @@ UserPanel::UserPanel(QWidget* parent)
 void UserPanel::setUser(const QString& displayName, const QString& status, const QPixmap& avatar)
 {
     m_name->setText(m_name->fontMetrics().elidedText(displayName, Qt::ElideRight, 90));
-    m_status->setText(status);
+    m_status->setText(m_status->fontMetrics().elidedText(status, Qt::ElideRight, 90));
+    m_status->setToolTip(status);
     m_avatar->setPixmap(avatar);
+}
+
+bool UserPanel::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == m_profileArea && event->type() == QEvent::MouseButtonRelease
+        && static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+        emit profileRequested();
+        return true;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void UserPanel::setVoiceState(bool muted, bool deafened)

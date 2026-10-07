@@ -178,6 +178,74 @@
     </message>
 </context>
 <context>
+    <name>CustomStatusDialog</name>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="309"/>
+        <source>Set a custom status</source>
+        <translation>Definir status personalizado</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="321"/>
+        <source>Choose an emoji</source>
+        <translation>Escolher um emoji</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="323"/>
+        <source>What&apos;s on your mind?</source>
+        <translation>No que você está pensando?</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="325"/>
+        <source>Today</source>
+        <translation>Hoje</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="326"/>
+        <source>4 hours</source>
+        <translation>4 horas</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="327"/>
+        <source>1 hour</source>
+        <translation>1 hora</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="328"/>
+        <source>30 minutes</source>
+        <translation>30 minutos</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="329"/>
+        <source>Don&apos;t clear</source>
+        <translation>Não limpar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="336"/>
+        <source>Clear Status</source>
+        <translation>Limpar status</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="338"/>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="339"/>
+        <source>Save</source>
+        <translation>Salvar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="349"/>
+        <source>What&apos;s cookin&apos;?</source>
+        <translation>Qual é a boa?</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="352"/>
+        <source>Clear after</source>
+        <translation>Limpar depois de</translation>
+    </message>
+</context>
+<context>
     <name>EmojiPicker</name>
     <message>
         <location filename="../src/app/EmojiPicker.cpp" line="67"/>
@@ -446,7 +514,7 @@
     <message>
         <location filename="../src/app/MainWindow.cpp" line="488"/>
         <source>Online</source>
-        <translation>Online</translation>
+        <translation type="vanished">Online</translation>
     </message>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="508"/>
@@ -518,6 +586,44 @@
         <location filename="../src/core/Markdown.cpp" line="106"/>
         <source>%1 ago</source>
         <translation>há %1</translation>
+    </message>
+</context>
+<context>
+    <name>MemberListView</name>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="38"/>
+        <source>Playing %1</source>
+        <translation>Jogando %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="40"/>
+        <source>Streaming %1</source>
+        <translation>Transmitindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="42"/>
+        <source>Listening to %1</source>
+        <translation>Ouvindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="44"/>
+        <source>Watching %1</source>
+        <translation>Assistindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="46"/>
+        <source>Competing in %1</source>
+        <translation>Competindo em %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="165"/>
+        <source>Online</source>
+        <translation>Online</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="167"/>
+        <source>Offline</source>
+        <translation>Offline</translation>
     </message>
 </context>
 <context>
@@ -600,6 +706,262 @@
     </message>
 </context>
 <context>
+    <name>ProfileCard</name>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="189"/>
+        <source>Online</source>
+        <translation>Disponível</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="191"/>
+        <source>Idle</source>
+        <translation>Ausente</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="193"/>
+        <source>Do Not Disturb</source>
+        <translation>Não perturbar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="195"/>
+        <source>Invisible</source>
+        <translation>Invisível</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="197"/>
+        <source>Offline</source>
+        <translation>Offline</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="372"/>
+        <source>About Me</source>
+        <translation>Sobre mim</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="392"/>
+        <source>Member Since</source>
+        <translation>Membro desde</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="394"/>
+        <source>Discord: %1</source>
+        <translation>Discord: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="396"/>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="402"/>
+        <source>Roles</source>
+        <translation>Cargos</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="414"/>
+        <source>Connections</source>
+        <translation>Conexões</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="427"/>
+        <source>Mutual servers: %1</source>
+        <translation>Servidores em comum: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="433"/>
+        <source>Loading profile…</source>
+        <translation>Carregando perfil…</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="435"/>
+        <source>Could not load the full profile: %1</source>
+        <translation>Não foi possível carregar o perfil completo: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="459"/>
+        <source>Live on %1</source>
+        <translation>Ao vivo na %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="462"/>
+        <source>Listening to %1</source>
+        <translation>Ouvindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="465"/>
+        <source>Watching %1</source>
+        <translation>Assistindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="468"/>
+        <source>Competing in %1</source>
+        <translation>Competindo em %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="471"/>
+        <source>Playing</source>
+        <translation>Jogando</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="492"/>
+        <source>by %1</source>
+        <translation>de %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="494"/>
+        <source>on %1</source>
+        <translation>em %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="501"/>
+        <source>(%1 of %2)</source>
+        <translation>(%1 de %2)</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="547"/>
+        <source>Message</source>
+        <translation>Mensagem</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="555"/>
+        <source>Edit Profile</source>
+        <translation>Editar perfil</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="581"/>
+        <source>Edit Custom Status</source>
+        <translation>Editar status personalizado</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="581"/>
+        <source>Set Custom Status</source>
+        <translation>Definir status personalizado</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="600"/>
+        <source>%1 left</source>
+        <translation>faltam %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileCard.cpp" line="602"/>
+        <source>%1 elapsed</source>
+        <translation>%1 decorrido</translation>
+    </message>
+</context>
+<context>
+    <name>ProfileEditDialog</name>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="70"/>
+        <source>Remove Avatar</source>
+        <translation>Remover avatar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="72"/>
+        <location filename="../src/app/ProfileEditor.cpp" line="287"/>
+        <source>Save Changes</source>
+        <translation>Salvar alterações</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="75"/>
+        <source>Edit Profile</source>
+        <translation>Editar perfil</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="81"/>
+        <source>Add your pronouns</source>
+        <translation>Adicione seus pronomes</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="82"/>
+        <source>Tell people a little about yourself</source>
+        <translation>Conte um pouco sobre você</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="90"/>
+        <source>Change Avatar</source>
+        <translation>Trocar avatar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="96"/>
+        <source>Default</source>
+        <translation>Padrão</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="101"/>
+        <source>Banner pictures and profile themes need Discord Nitro and can be set in the official app.</source>
+        <translation>Imagens de banner e temas de perfil exigem Discord Nitro e podem ser definidos no app oficial.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="105"/>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="113"/>
+        <source>Display Name</source>
+        <translation>Nome exibido</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="116"/>
+        <source>Pronouns</source>
+        <translation>Pronomes</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="119"/>
+        <source>Avatar</source>
+        <translation>Avatar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="122"/>
+        <location filename="../src/app/ProfileEditor.cpp" line="166"/>
+        <source>Banner Color</source>
+        <translation>Cor do banner</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="126"/>
+        <source>About Me</source>
+        <translation>Sobre mim</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="136"/>
+        <source>Preview</source>
+        <translation>Prévia</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="191"/>
+        <source>Could not load your profile: %1</source>
+        <translation>Não foi possível carregar seu perfil: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="238"/>
+        <source>Choose Avatar</source>
+        <translation>Escolher avatar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="240"/>
+        <source>Images (%1)</source>
+        <translation>Imagens (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="247"/>
+        <source>This file is not a picture Snapcord can open.</source>
+        <translation>Este arquivo não é uma imagem que o Snapcord consiga abrir.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ProfileEditor.cpp" line="276"/>
+        <source>Saving…</source>
+        <translation>Salvando…</translation>
+    </message>
+</context>
+<context>
+    <name>ProfilePopup</name>
+    <message>
+        <location filename="../src/app/ProfilePopup.cpp" line="161"/>
+        <source>Unknown user</source>
+        <translation>Usuário desconhecido</translation>
+    </message>
+</context>
+<context>
     <name>RemoteAuth</name>
     <message>
         <location filename="../src/core/RemoteAuth.cpp" line="56"/>
@@ -643,6 +1005,19 @@
         <location filename="../src/app/ServerRail.cpp" line="140"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
+    </message>
+</context>
+<context>
+    <name>Session</name>
+    <message>
+        <location filename="../src/core/Session.cpp" line="770"/>
+        <source>Discord asked for a captcha. Make this change in the official app.</source>
+        <translation>O Discord pediu um captcha. Faça essa alteração no app oficial.</translation>
+    </message>
+    <message>
+        <location filename="../src/core/Session.cpp" line="778"/>
+        <source>Request failed (HTTP %1).</source>
+        <translation>A solicitação falhou (HTTP %1).</translation>
     </message>
 </context>
 <context>
@@ -1216,27 +1591,32 @@
 <context>
     <name>UserPanel</name>
     <message>
-        <location filename="../src/app/UserPanel.cpp" line="49"/>
+        <location filename="../src/app/UserPanel.cpp" line="52"/>
         <source>User Settings</source>
         <translation>Configurações de usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/UserPanel.cpp" line="82"/>
+        <location filename="../src/app/UserPanel.cpp" line="66"/>
+        <source>Profile and status</source>
+        <translation>Perfil e status</translation>
+    </message>
+    <message>
+        <location filename="../src/app/UserPanel.cpp" line="108"/>
         <source>Mute</source>
         <translation>Desativar microfone</translation>
     </message>
     <message>
-        <location filename="../src/app/UserPanel.cpp" line="82"/>
+        <location filename="../src/app/UserPanel.cpp" line="108"/>
         <source>Unmute</source>
         <translation>Ativar microfone</translation>
     </message>
     <message>
-        <location filename="../src/app/UserPanel.cpp" line="85"/>
+        <location filename="../src/app/UserPanel.cpp" line="111"/>
         <source>Deafen</source>
         <translation>Desativar áudio</translation>
     </message>
     <message>
-        <location filename="../src/app/UserPanel.cpp" line="85"/>
+        <location filename="../src/app/UserPanel.cpp" line="111"/>
         <source>Undeafen</source>
         <translation>Ativar áudio</translation>
     </message>
@@ -1244,17 +1624,17 @@
 <context>
     <name>VoiceChannelView</name>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="98"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="105"/>
         <source>No one is here yet.</source>
         <translation>Ainda não tem ninguém aqui.</translation>
     </message>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="99"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="106"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="181"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="190"/>
         <source>You don&apos;t have permission to join this channel.</source>
         <translation>Você não tem permissão para entrar neste canal.</translation>
     </message>

@@ -31,10 +31,12 @@ public:
 
 signals:
     void contextMenuRequested(const QString& userId, const QPoint& globalPosition);
+    void clicked(const QString& userId, const QPoint& globalPosition);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
 
 private:
     Participant m_participant;
@@ -59,6 +61,7 @@ public:
 signals:
     void joinRequested();
     void participantContextMenuRequested(const QString& userId, const QPoint& globalPosition);
+    void participantClicked(const QString& userId, const QPoint& globalPosition);
 
 protected:
     void resizeEvent(QResizeEvent* event) override;

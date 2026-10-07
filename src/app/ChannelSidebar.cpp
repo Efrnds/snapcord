@@ -4,6 +4,7 @@
 #include "UserPanel.h"
 #include "VoicePanel.h"
 
+#include <QCursor>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -360,8 +361,10 @@ void ChannelSidebar::onItemClicked(QTreeWidgetItem* item)
             m_collapsedCategories.remove(id);
         return;
     }
-    if (kind == ItemKind::VoiceMember)
+    if (kind == ItemKind::VoiceMember) {
+        emit memberClicked(id, QCursor::pos());
         return;
+    }
     setSelectedChannel(id);
     emit channelClicked(id, kind);
 }
