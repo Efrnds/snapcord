@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
@@ -42,6 +43,12 @@ void ParticipantTile::setSpeaking(bool speaking)
 void ParticipantTile::contextMenuEvent(QContextMenuEvent* event)
 {
     emit contextMenuRequested(m_participant.userId, event->globalPos());
+}
+
+void ParticipantTile::mouseReleaseEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton)
+        emit clicked(m_participant.userId, event->globalPosition().toPoint());
 }
 
 void ParticipantTile::paintEvent(QPaintEvent*)
@@ -157,6 +164,8 @@ void VoiceChannelView::setParticipants(const QList<ParticipantTile::Participant>
     while (m_tiles.size() < participants.size()) {
         auto* tile = new ParticipantTile(m_grid);
         connect(tile, &ParticipantTile::contextMenuRequested, this, &VoiceChannelView::participantContextMenuRequested);
+        connect(tile, &ParticipantTile::clicked, this, &VoiceChannelView::participantClicked);
+        tile->setCursor(Qt::PointingHandCursor);
         tile->show();
         m_tiles.append(tile);
     }

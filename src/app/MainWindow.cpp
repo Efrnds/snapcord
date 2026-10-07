@@ -7,6 +7,9 @@
 #include "ImageCache.h"
 #include "IncomingCallWindow.h"
 #include "Notifier.h"
+#include "ProfileCard.h"
+#include "ProfileEditor.h"
+#include "ProfilePopup.h"
 #include "ServerRail.h"
 #include "SettingsDialog.h"
 #include "Theme.h"
@@ -16,6 +19,7 @@
 #include "VoicePanel.h"
 #include "core/Session.h"
 
+#include <QDesktopServices>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -104,6 +108,12 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
             scheduleRefresh();
     });
     connect(m_session, &Session::usersChanged, this, scheduleRefresh);
+    connect(m_session, &Session::presenceChanged, this, [this, scheduleRefresh](const QString& userId, bool statusChanged) {
+        if (userId == m_session->self().id)
+            refreshUserPanel();
+        else if (statusChanged && m_guildId.isEmpty())
+            scheduleRefresh(); // status dots in the direct message list
+    });
     connect(m_session, &Session::privateChannelsChanged, this, [this, scheduleRefresh] {
         if (m_guildId.isEmpty())
             scheduleRefresh();
@@ -152,6 +162,13 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         openChannel(id);
     });
     connect(m_sidebar, &ChannelSidebar::memberContextMenuRequested, this, &MainWindow::showUserMenu);
+    connect(m_sidebar, &ChannelSidebar::memberClicked, this, [this](const QString& userId, const QPoint& position) {
+        showProfile(userId, m_guildId, position);
+    });
+    connect(m_voiceView, &VoiceChannelView::participantClicked, this, [this](const QString& userId, const QPoint& position) {
+        showProfile(userId, m_guildId, position);
+    });
+    connect(m_chatView, &ChatView::profileRequested, this, &MainWindow::showProfile);
     connect(m_voiceView, &VoiceChannelView::participantContextMenuRequested, this, &MainWindow::showUserMenu);
     connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] { m_voice->join(m_guildId, m_channelId); });
     connect(m_sidebar->voicePanel(), &VoicePanel::detailsRequested, this, [this] {
@@ -163,6 +180,7 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     connect(userPanel, &UserPanel::muteClicked, m_voice, &VoiceController::toggleMute);
     connect(userPanel, &UserPanel::deafenClicked, m_voice, &VoiceController::toggleDeafen);
     connect(userPanel, &UserPanel::settingsRequested, this, &MainWindow::openSettings);
+    connect(userPanel, &UserPanel::profileRequested, this, &MainWindow::showOwnProfile);
     connect(m_sidebar->voicePanel(), &VoicePanel::disconnectRequested, m_voice, &VoiceController::leave);
 
     connect(m_voice, &VoiceController::selfStateChanged, this, &MainWindow::refreshUserPanel);
@@ -306,7 +324,7 @@ void MainWindow::refreshChannels()
             const Call* call = m_session->call(channel.id);
             const bool inCall = call && !call->voiceStates.isEmpty();
             m_sidebar->addDirectMessage(channel.id, m_session->privateChannelName(channel),
-                                        privateChannelAvatar(channel, 32, index++ < PicturesToLoad || inCall), inCall,
+                                        privateChannelAvatar(channel, 32, index++ < PicturesToLoad || inCall, true), inCall,
                                         m_session->mentionCount(channel.id));
             if (inCall)
                 addCallMembers(QString(), channel.id);
@@ -419,7 +437,7 @@ void MainWindow::updateIncomingCall(const QString& channelId)
     }
 }
 
-QPixmap MainWindow::privateChannelAvatar(const PrivateChannel& channel, int size, bool loadPicture)
+QPixmap MainWindow::privateChannelAvatar(const PrivateChannel& channel, int size, bool loadPicture, bool showStatus)
 {
     const QString name = m_session->privateChannelName(channel);
     QImage picture;
@@ -432,6 +450,12 @@ QPixmap MainWindow::privateChannelAvatar(const PrivateChannel& channel, int size
             picture = userPicture(channel.recipientIds.value(0));
         }
     }
+    if (showStatus && !channel.isGroup()) {
+        // Users who are not friends have no known presence: no dot, rather than a misleading "offline".
+        const UserStatus status = m_session->presence(channel.recipientIds.value(0)).status;
+        if (status != UserStatus::Unknown)
+            return makeAvatar(name, picture, size, devicePixelRatioF(), false, Theme::instance().palette().bg1, status);
+    }
     return makeAvatar(name, picture, size, devicePixelRatioF());
 }
 
@@ -439,9 +463,15 @@ void MainWindow::refreshUserPanel()
 {
     const User& self = m_session->self();
     const QString name = self.displayName().isEmpty() ? tr("Connecting…") : self.displayName();
-    m_sidebar->userPanel()->setUser(name, tr("Online"),
+    // The custom status replaces the status name, like in Discord.
+    const UserStatus status = m_session->selfStatus();
+    const CustomStatus custom = m_session->selfCustomStatus();
+    QString statusText = ProfileCard::statusName(status);
+    if (custom.isActive())
+        statusText = custom.text.isEmpty() ? custom.emojiName : (custom.emojiName.isEmpty() ? custom.text : custom.emojiName + u' ' + custom.text);
+    m_sidebar->userPanel()->setUser(name, statusText,
                                     makeAvatar(name, userPicture(self.id), 32, devicePixelRatioF(), false,
-                                               Theme::instance().profilePrimary()));
+                                               Theme::instance().profilePrimary(), status));
     m_sidebar->userPanel()->setVoiceState(m_voice->isSelfMuted(), m_voice->isSelfDeafened());
 }
 
@@ -453,10 +483,17 @@ void MainWindow::onSpeakingChanged(const QString& userId, bool speaking)
 
 void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPosition)
 {
-    if (userId == m_session->self().id)
-        return;
-
     QMenu menu(this);
+    QAction* profile = menu.addAction(tr("Profile"));
+    connect(profile, &QAction::triggered, this, [this, userId, globalPosition] {
+        showProfile(userId, m_guildId, globalPosition);
+    });
+    if (userId == m_session->self().id) {
+        menu.exec(globalPosition);
+        return;
+    }
+    menu.addSeparator();
+
     auto* widget = new QWidget;
     widget->setObjectName(QStringLiteral("volumeMenuWidget"));
     auto* label = new QLabel(tr("User Volume"));
@@ -490,6 +527,54 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
         m_voice->setUserVolume(userId, muted ? 0.0f : 1.0f);
     });
     menu.exec(globalPosition);
+}
+
+void MainWindow::showProfile(const QString& userId, const QString& guildId, const QPoint& globalPosition)
+{
+    if (userId.isEmpty())
+        return;
+    auto* popup = new ProfilePopup(m_session, m_images, userId, guildId, this);
+    connectProfilePopup(popup);
+    popup->popupAt(globalPosition);
+}
+
+void MainWindow::showOwnProfile()
+{
+    // In a server, the own profile shows that server's roles too.
+    auto* popup = new ProfilePopup(m_session, m_images, m_session->self().id, m_guildId, this);
+    connectProfilePopup(popup);
+    popup->popupAbove(m_sidebar->userPanel());
+}
+
+void MainWindow::connectProfilePopup(ProfilePopup* popup)
+{
+    // A popup still waiting for its profile is dropped when another user is clicked meanwhile.
+    if (m_pendingProfile && !m_pendingProfile->isVisible())
+        m_pendingProfile->deleteLater();
+    m_pendingProfile = popup;
+    // Dialogs open after the popup has closed, outside of its event handling.
+    connect(popup, &ProfilePopup::editProfileRequested, this, &MainWindow::openProfileEditor, Qt::QueuedConnection);
+    connect(popup, &ProfilePopup::customStatusRequested, this, &MainWindow::openCustomStatus, Qt::QueuedConnection);
+    connect(popup, &ProfilePopup::openChannelRequested, this, [this](const QString& channelId) {
+        if (!channelId.isEmpty())
+            showChannel(QString(), channelId);
+    });
+    connect(popup, &ProfilePopup::linkActivated, this, [](const QString& url) {
+        if (url.startsWith(u"http://") || url.startsWith(u"https://"))
+            QDesktopServices::openUrl(QUrl(url));
+    });
+}
+
+void MainWindow::openProfileEditor()
+{
+    ProfileEditDialog dialog(m_session, m_images, this);
+    dialog.exec();
+}
+
+void MainWindow::openCustomStatus()
+{
+    CustomStatusDialog dialog(m_session, m_images, this);
+    dialog.exec();
 }
 
 void MainWindow::openSettings()

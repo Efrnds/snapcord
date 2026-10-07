@@ -1,6 +1,7 @@
 #include "core/Models.h"
 
 #include <QJsonArray>
+#include <QTimeZone>
 
 namespace {
 
@@ -58,6 +59,7 @@ Role Role::fromJson(const QJsonObject& json)
     role.name = string(json, u"name");
     role.permissions = permissionBits(json.value(u"permissions"));
     role.position = json.value(u"position").toInt();
+    role.color = json.value(u"color").toInt();
     return role;
 }
 
@@ -93,6 +95,184 @@ PrivateChannel PrivateChannel::fromJson(const QJsonObject& json)
     for (const QJsonValue& id : json.value(u"recipient_ids").toArray())
         channel.recipientIds.append(id.toString());
     return channel;
+}
+
+UserStatus statusFromString(const QString& text)
+{
+    if (text == u"online")
+        return UserStatus::Online;
+    if (text == u"idle")
+        return UserStatus::Idle;
+    if (text == u"dnd")
+        return UserStatus::DoNotDisturb;
+    if (text == u"invisible")
+        return UserStatus::Invisible;
+    if (text == u"offline")
+        return UserStatus::Offline;
+    return UserStatus::Unknown;
+}
+
+QString statusToString(UserStatus status)
+{
+    switch (status) {
+    case UserStatus::Online:
+        return QStringLiteral("online");
+    case UserStatus::Idle:
+        return QStringLiteral("idle");
+    case UserStatus::DoNotDisturb:
+        return QStringLiteral("dnd");
+    case UserStatus::Invisible:
+        return QStringLiteral("invisible");
+    case UserStatus::Offline:
+        return QStringLiteral("offline");
+    case UserStatus::Unknown:
+        break;
+    }
+    return QStringLiteral("unknown");
+}
+
+Activity Activity::fromJson(const QJsonObject& json)
+{
+    Activity activity;
+    activity.type = json.value(u"type").toInt();
+    activity.name = string(json, u"name");
+    activity.details = string(json, u"details");
+    activity.state = string(json, u"state");
+    activity.url = string(json, u"url");
+    activity.applicationId = string(json, u"application_id");
+    activity.syncId = string(json, u"sync_id");
+    const QJsonObject timestamps = json.value(u"timestamps").toObject();
+    // Usually numbers, but some clients send them as strings.
+    auto time = [&](QStringView key) {
+        const QJsonValue value = timestamps.value(key);
+        return value.isString() ? value.toString().toLongLong() : value.toInteger();
+    };
+    activity.start = time(u"start");
+    activity.end = time(u"end");
+    const QJsonObject assets = json.value(u"assets").toObject();
+    activity.largeImage = string(assets, u"large_image");
+    activity.largeText = string(assets, u"large_text");
+    activity.smallImage = string(assets, u"small_image");
+    activity.smallText = string(assets, u"small_text");
+    const QJsonObject emoji = json.value(u"emoji").toObject();
+    activity.emojiName = string(emoji, u"name");
+    activity.emojiId = string(emoji, u"id");
+    activity.emojiAnimated = emoji.value(u"animated").toBool();
+    const QJsonArray size = json.value(u"party").toObject().value(u"size").toArray();
+    activity.partySize = size.at(0).toInt();
+    activity.partyMax = size.at(1).toInt();
+    return activity;
+}
+
+Activity Activity::customStatus(const QString& text, const QString& emojiName, const QString& emojiId)
+{
+    Activity activity;
+    activity.type = Custom;
+    activity.name = QStringLiteral("Custom Status");
+    activity.state = text;
+    activity.emojiName = emojiName;
+    activity.emojiId = emojiId;
+    return activity;
+}
+
+QJsonObject Activity::toJson() const
+{
+    QJsonObject json{{QStringLiteral("type"), type}, {QStringLiteral("name"), name}};
+    if (!state.isEmpty())
+        json.insert(QStringLiteral("state"), state);
+    if (!details.isEmpty())
+        json.insert(QStringLiteral("details"), details);
+    if (!emojiName.isEmpty() || !emojiId.isEmpty()) {
+        QJsonObject emoji{{QStringLiteral("name"), emojiName}};
+        if (!emojiId.isEmpty()) {
+            emoji.insert(QStringLiteral("id"), emojiId);
+            emoji.insert(QStringLiteral("animated"), emojiAnimated);
+        }
+        json.insert(QStringLiteral("emoji"), emoji);
+    }
+    return json;
+}
+
+const Activity* Presence::customStatus() const
+{
+    for (const Activity& activity : activities) {
+        if (activity.type == Activity::Custom)
+            return &activity;
+    }
+    return nullptr;
+}
+
+Presence Presence::fromJson(const QJsonObject& json)
+{
+    Presence presence;
+    presence.status = statusFromString(string(json, u"status"));
+    for (const QJsonValue& value : json.value(u"activities").toArray())
+        presence.activities.append(Activity::fromJson(value.toObject()));
+    return presence;
+}
+
+CustomStatus CustomStatus::fromJson(const QJsonValue& value)
+{
+    const QJsonObject json = value.toObject();
+    CustomStatus status;
+    status.text = string(json, u"text");
+    status.emojiName = string(json, u"emoji_name");
+    status.emojiId = json.value(u"emoji_id").isString() ? string(json, u"emoji_id") : QString();
+    if (json.value(u"expires_at").isString())
+        status.expiresAt = QDateTime::fromString(string(json, u"expires_at"), Qt::ISODateWithMs);
+    return status;
+}
+
+UserProfile UserProfile::fromJson(const QJsonObject& json)
+{
+    UserProfile profile;
+    const QJsonObject userJson = json.value(u"user").toObject();
+    profile.user = User::fromJson(userJson);
+    const QJsonObject details = json.value(u"user_profile").toObject();
+    profile.bio = details.contains(u"bio") ? string(details, u"bio") : string(userJson, u"bio");
+    profile.pronouns = string(details, u"pronouns");
+    profile.banner = details.value(u"banner").isString() ? string(details, u"banner") : string(userJson, u"banner");
+    const QJsonValue accent = details.value(u"accent_color").isDouble() ? details.value(u"accent_color")
+                                                                        : userJson.value(u"accent_color");
+    if (accent.isDouble())
+        profile.accentColor = accent.toInt();
+    if (json.value(u"premium_since").isString())
+        profile.premiumSince = QDateTime::fromString(string(json, u"premium_since"), Qt::ISODateWithMs);
+
+    for (const QJsonValue& value : json.value(u"badges").toArray()) {
+        const QJsonObject badge = value.toObject();
+        profile.badges.append({string(badge, u"id"), string(badge, u"description"), string(badge, u"icon"),
+                               string(badge, u"link")});
+    }
+    for (const QJsonValue& value : json.value(u"connected_accounts").toArray()) {
+        const QJsonObject account = value.toObject();
+        profile.connections.append({string(account, u"type"), string(account, u"name"),
+                                    account.value(u"verified").toBool()});
+    }
+    for (const QJsonValue& value : json.value(u"mutual_guilds").toArray())
+        profile.mutualGuildIds.append(string(value.toObject(), u"id"));
+
+    const QJsonObject member = json.value(u"guild_member").toObject();
+    if (!member.isEmpty()) {
+        profile.nick = string(member, u"nick");
+        for (const QJsonValue& role : member.value(u"roles").toArray())
+            profile.roleIds.append(role.toString());
+        profile.joinedAt = QDateTime::fromString(string(member, u"joined_at"), Qt::ISODateWithMs);
+    }
+    // A server profile overrides the bio and pronouns where it sets them.
+    const QJsonObject memberProfile = json.value(u"guild_member_profile").toObject();
+    profile.guildId = string(memberProfile, u"guild_id");
+    if (!string(memberProfile, u"bio").isEmpty())
+        profile.bio = string(memberProfile, u"bio");
+    if (!string(memberProfile, u"pronouns").isEmpty())
+        profile.pronouns = string(memberProfile, u"pronouns");
+    return profile;
+}
+
+QDateTime snowflakeTime(const QString& id)
+{
+    constexpr qint64 DiscordEpoch = 1420070400000;
+    return QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(id.toULongLong() >> 22) + DiscordEpoch, QTimeZone::UTC);
 }
 
 bool snowflakeLess(const QString& a, const QString& b)

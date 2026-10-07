@@ -181,6 +181,9 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     connect(m_list, &MessageListView::linkActivated, this, &ChatView::openLink);
     connect(m_list, &MessageListView::reactionClicked, this, &ChatView::toggleReaction);
     connect(m_list, &MessageListView::replyClicked, this, &ChatView::jumpTo);
+    connect(m_list, &MessageListView::userClicked, this, [this](const QString& userId, const QPoint& position) {
+        emit profileRequested(userId, m_guildId, position);
+    });
     connect(m_list, &MessageListView::messageContextMenuRequested, this, &ChatView::showMessageMenu);
     connect(m_list, &MessageListView::topReached, this, [this] {
         if (!m_channelId.isEmpty() && m_session->messages()->hasOlder(m_channelId))

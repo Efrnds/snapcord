@@ -20,8 +20,14 @@ signals:
     void muteClicked();
     void deafenClicked();
     void settingsRequested();
+    // The avatar and name were clicked: show the user's own profile.
+    void profileRequested();
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    QWidget* m_profileArea;
     QLabel* m_avatar;
     QLabel* m_name;
     QLabel* m_status;

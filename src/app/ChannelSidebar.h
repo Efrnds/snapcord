@@ -54,6 +54,7 @@ public:
 signals:
     void channelClicked(const QString& channelId, ChannelSidebar::ItemKind kind);
     void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
+    void memberClicked(const QString& userId, const QPoint& globalPosition);
 
 private:
     void onItemClicked(QTreeWidgetItem* item);

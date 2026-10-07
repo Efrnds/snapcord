@@ -14,6 +14,9 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     MainWindow.cpp MainWindow.h
     MessageView.cpp MessageView.h
     Notifier.cpp Notifier.h
+    ProfileCard.cpp ProfileCard.h
+    ProfileEditor.cpp ProfileEditor.h
+    ProfilePopup.cpp ProfilePopup.h
     ServerRail.cpp ServerRail.h
     SettingsDialog.cpp SettingsDialog.h
     Theme.cpp Theme.h

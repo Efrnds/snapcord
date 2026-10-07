@@ -185,6 +185,13 @@ QCheckBox {
     color: @textMuted;
     font-size: @fontSizeSm;
 }
+#userPanelProfile {
+    background: transparent;
+    border-radius: 4px;
+}
+#userPanelProfile:hover {
+    background: @hover;
+}
 #userPanel QToolButton {
     background: transparent;
     border: none;
@@ -534,4 +541,61 @@ QMessageBox QPushButton {
 }
 QMessageBox QPushButton:hover {
     background: @accentHover;
+}
+
+/* Profile popout and editor */
+#profilePopup {
+    background: @bg3;
+    border: 1px solid @bg1;
+    border-radius: 8px;
+}
+#profilePopup QScrollArea, #profileCard {
+    background: @bg3;
+}
+#profileBox {
+    background: @bg4;
+    border-radius: 8px;
+}
+#profileName {
+    color: @textBright;
+    font-size: @fontSizeTitle;
+    font-weight: 700;
+}
+#profileUsername {
+    color: @text;
+    font-size: @fontSize;
+}
+#profileSection {
+    color: @textBright;
+    font-size: @fontSizeSm;
+    font-weight: 700;
+}
+#profileText {
+    color: @text;
+    font-size: @fontSize;
+}
+#profileActivityName {
+    color: @textBright;
+    font-size: @fontSize;
+    font-weight: 600;
+}
+#profileMuted {
+    color: @textMuted;
+    font-size: @fontSizeSm;
+}
+#profileProgress {
+    background: @button;
+    border: none;
+    border-radius: 2px;
+}
+#profileProgress::chunk {
+    background: @textBright;
+    border-radius: 2px;
+}
+#profileEditor {
+    background: @bg2;
+}
+#profileError {
+    color: @danger;
+    font-size: @fontSize;
 }

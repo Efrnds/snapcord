@@ -49,6 +49,10 @@ public:
     // Marks the channel as read if the newest message is on screen and the window is active.
     void markReadIfVisible();
 
+signals:
+    // A user's name, avatar or mention was clicked. `guildId` is empty in direct messages.
+    void profileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
+
 private:
     void submit(const QString& text);
     void startReply(const QString& messageId);

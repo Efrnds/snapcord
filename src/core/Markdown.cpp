@@ -110,13 +110,17 @@ QString formatTimestamp(qint64 seconds, QChar style)
     }
 }
 
-QString mentionHtml(const QString& text, bool self)
+QString mentionHtml(const QString& text, bool self, const QString& userId = {})
 {
     // Mentions of the current user are highlighted more strongly, like in Discord.
     const char* background = self ? "#5865f2" : "#3c4270";
     const char* color = self ? "#ffffff" : "#c9cdfb";
-    return QStringLiteral("<span style=\"background-color:%1;color:%2;\">%3</span>")
-        .arg(QLatin1String(background), QLatin1String(color), text.toHtmlEscaped());
+    const QString span = QStringLiteral("<span style=\"background-color:%1;color:%2;\">%3</span>")
+                             .arg(QLatin1String(background), QLatin1String(color), text.toHtmlEscaped());
+    // User mentions are links, so clicking one opens the profile.
+    if (userId.isEmpty())
+        return span;
+    return QStringLiteral("<a href=\"user:%1\" style=\"text-decoration:none;\">%2</a>").arg(userId, span);
 }
 
 QString linkHtml(const QString& url, const QString& label)
@@ -158,7 +162,8 @@ QString protectInline(const QString& escaped, const Context& context, Fragments&
     });
     text = replaceAll(text, userMention, [&](const QRegularExpressionMatch& m) {
         const QString name = context.userName ? context.userName(m.captured(1)) : QString();
-        return fragments.add(mentionHtml(u'@' + (name.isEmpty() ? m.captured(1) : name), m.captured(1) == context.selfUserId));
+        return fragments.add(mentionHtml(u'@' + (name.isEmpty() ? m.captured(1) : name), m.captured(1) == context.selfUserId,
+                                         m.captured(1)));
     });
     text = replaceAll(text, roleMention, [&](const QRegularExpressionMatch& m) {
         const QString name = context.roleName ? context.roleName(m.captured(1)) : QString();

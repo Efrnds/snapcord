@@ -4,6 +4,7 @@
 #include "core/Permissions.h"
 #include "core/RestClient.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -215,6 +216,13 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
     if (event == u"READY") {
         loadReady(data);
     } else if (event == u"READY_SUPPLEMENTAL") {
+        const QJsonObject presences = data.value(u"merged_presences").toObject();
+        for (const QJsonValue& value : presences.value(u"friends").toArray())
+            storePresence(value.toObject());
+        for (const QJsonValue& guildPresences : presences.value(u"guilds").toArray()) {
+            for (const QJsonValue& value : guildPresences.toArray())
+                storePresence(value.toObject());
+        }
         for (const QJsonValue& value : data.value(u"guilds").toArray()) {
             const QJsonObject object = value.toObject();
             const QString id = object.value(u"id").toString();
@@ -269,7 +277,21 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
     } else if (event == u"GUILD_MEMBERS_CHUNK") {
         for (const QJsonValue& member : data.value(u"members").toArray())
             storeMember(guildId, member.toObject());
+        for (const QJsonValue& presence : data.value(u"presences").toArray())
+            storePresence(presence.toObject());
         emit usersChanged();
+    } else if (event == u"PRESENCE_UPDATE") {
+        storePresence(data);
+    } else if (event == u"SESSIONS_REPLACE") {
+        loadSessions(data.value(u"sessions").toArray());
+    } else if (event == u"USER_SETTINGS_UPDATE") {
+        // Only the settings that changed are sent.
+        if (data.contains(u"status"))
+            m_selfStatus = statusFromString(data.value(u"status").toString());
+        if (data.contains(u"custom_status"))
+            m_selfCustomStatus = CustomStatus::fromJson(data.value(u"custom_status"));
+        if (data.contains(u"status") || data.contains(u"custom_status"))
+            emit presenceChanged(m_self.id, true);
     } else if ((event == u"CHANNEL_CREATE" || event == u"CHANNEL_UPDATE") && guildId.isEmpty()) {
         for (const QJsonValue& recipient : data.value(u"recipients").toArray())
             storeUser(recipient.toObject());
@@ -374,7 +396,10 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
     } else if (event == u"USER_UPDATE") {
         if (data.value(u"id").toString() == m_self.id) {
             m_self = User::fromJson(data);
+            // The cached profile is stale now (bio, banner color and pronouns change here too).
+            forgetOwnProfile();
             emit usersChanged();
+            emit selfProfileChanged();
         }
     }
 }
@@ -399,6 +424,17 @@ void Session::loadReady(const QJsonObject& data)
 
     for (const QJsonValue& value : data.value(u"users").toArray())
         storeUser(value.toObject());
+
+    m_presences.clear();
+    m_requestedPresences.clear();
+    m_profiles.clear();
+    m_selfActivities.clear();
+    const QJsonObject userSettings = data.value(u"user_settings").toObject();
+    m_selfStatus = statusFromString(userSettings.value(u"status").toString());
+    if (m_selfStatus == UserStatus::Unknown)
+        m_selfStatus = UserStatus::Online;
+    m_selfCustomStatus = CustomStatus::fromJson(userSettings.value(u"custom_status"));
+    loadSessions(data.value(u"sessions").toArray());
 
     for (const QJsonValue& value : data.value(u"private_channels").toArray()) {
         const QJsonObject json = value.toObject();
@@ -434,9 +470,248 @@ void Session::loadReady(const QJsonObject& data)
             m_guildOrder.append(id);
     }
 
+    // Identify sent the "unknown" status; announce the real one, with the custom status, like the official client.
+    sendOwnPresence();
+
     emit ready();
     emit guildListChanged();
     emit privateChannelsChanged();
+}
+
+void Session::storePresence(const QJsonObject& json)
+{
+    // Deduplicated payloads carry only "user_id"; the rest have a partial user object.
+    const QString userId = json.contains(u"user_id") ? json.value(u"user_id").toString()
+                                                     : json.value(u"user").toObject().value(u"id").toString();
+    if (userId.isEmpty() || userId == m_self.id)
+        return;
+    const Presence presence = Presence::fromJson(json);
+    const auto it = m_presences.constFind(userId);
+    const bool statusChanged = it == m_presences.cend() || it->status != presence.status;
+    m_presences.insert(userId, presence);
+    emit presenceChanged(userId, statusChanged);
+}
+
+void Session::loadSessions(const QJsonArray& sessions)
+{
+    // The "all" session merges every connected client of this account (a game on the official client, Spotify...).
+    QJsonObject merged;
+    for (const QJsonValue& value : sessions) {
+        const QJsonObject session = value.toObject();
+        if (session.value(u"session_id").toString() == u"all") {
+            merged = session;
+            break;
+        }
+    }
+    if (merged.isEmpty() && !sessions.isEmpty())
+        merged = sessions.first().toObject();
+    m_selfActivities.clear();
+    for (const QJsonValue& value : merged.value(u"activities").toArray()) {
+        const Activity activity = Activity::fromJson(value.toObject());
+        if (activity.type != Activity::Custom)
+            m_selfActivities.append(activity);
+    }
+    emit presenceChanged(m_self.id, false);
+}
+
+Presence Session::presence(const QString& userId) const
+{
+    if (userId != m_self.id || userId.isEmpty())
+        return m_presences.value(userId);
+    Presence own;
+    own.status = m_selfStatus;
+    if (m_selfCustomStatus.isActive())
+        own.activities.append(Activity::customStatus(m_selfCustomStatus.text, m_selfCustomStatus.emojiName,
+                                                     m_selfCustomStatus.emojiId));
+    own.activities.append(m_selfActivities);
+    return own;
+}
+
+void Session::requestPresence(const QString& guildId, const QString& userId)
+{
+    if (guildId.isEmpty() || userId == m_self.id || m_presences.contains(userId) || m_requestedPresences.contains(userId))
+        return;
+    m_requestedPresences.insert(userId);
+    m_gateway->requestGuildMembers(guildId, {userId}, true);
+}
+
+void Session::sendOwnPresence()
+{
+    QJsonArray activities;
+    if (m_selfCustomStatus.isActive())
+        activities.append(Activity::customStatus(m_selfCustomStatus.text, m_selfCustomStatus.emojiName,
+                                                 m_selfCustomStatus.emojiId)
+                              .toJson());
+    m_gateway->updatePresence(statusToString(m_selfStatus), activities);
+}
+
+namespace {
+
+constexpr qint64 ProfileLifetimeMs = 3 * 60 * 1000;
+
+// Discord errors look like {"message": "Invalid Form Body", "errors": {"bio": {"_errors": [{"message": "..."}]}}};
+// the first field error is the most useful part.
+QString findFieldError(const QJsonObject& errors)
+{
+    for (auto it = errors.begin(); it != errors.end(); ++it) {
+        const QJsonObject object = it.value().toObject();
+        const QJsonArray list = object.value(u"_errors").toArray();
+        if (!list.isEmpty())
+            return list.first().toObject().value(u"message").toString();
+        const QString nested = findFieldError(object);
+        if (!nested.isEmpty())
+            return nested;
+    }
+    return {};
+}
+
+QString errorText(const RestClient::Response& response)
+{
+    const QJsonObject body = response.body.object();
+    if (body.contains(u"captcha_key"))
+        return QCoreApplication::translate("Session", "Discord asked for a captcha. Make this change in the official app.");
+    const QString field = findFieldError(body.value(u"errors").toObject());
+    if (!field.isEmpty())
+        return field;
+    if (body.contains(u"message"))
+        return body.value(u"message").toString();
+    if (!response.networkError.isEmpty())
+        return response.networkError;
+    return QCoreApplication::translate("Session", "Request failed (HTTP %1).").arg(response.status);
+}
+
+} // namespace
+
+void Session::fetchProfile(const QString& userId, const QString& guildId, ProfileCallback callback)
+{
+    const QString key = userId + u'/' + guildId;
+    const auto cached = m_profiles.constFind(key);
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (cached != m_profiles.cend() && (cached->fetchedAt == 0 || now - cached->fetchedAt < ProfileLifetimeMs)) {
+        callback(&cached->profile, QString());
+        return;
+    }
+
+    QString path = QStringLiteral("/users/%1/profile?with_mutual_guilds=true&with_mutual_friends_count=false").arg(userId);
+    if (!guildId.isEmpty())
+        path += QStringLiteral("&guild_id=") + guildId;
+    m_rest->get(path, [this, key, guildId, callback](const RestClient::Response& response) {
+        if (!response.ok()) {
+            callback(nullptr, errorText(response));
+            return;
+        }
+        UserProfile profile = UserProfile::fromJson(response.body.object());
+        if (profile.guildId.isEmpty())
+            profile.guildId = guildId;
+        if (!profile.user.id.isEmpty() && profile.user.id != m_self.id)
+            m_users.insert(profile.user.id, profile.user); // the freshest name and picture
+        // Profiles are only kept while a popup might reopen them; this bounds the cache.
+        if (m_profiles.size() > 64)
+            m_profiles.clear();
+        m_profiles.insert(key, {profile, QDateTime::currentMSecsSinceEpoch()});
+        callback(&profile, QString());
+    });
+}
+
+void Session::forgetOwnProfile()
+{
+    const QString prefix = m_self.id + u'/';
+    for (auto it = m_profiles.begin(); it != m_profiles.end();) {
+        if (it.key().startsWith(prefix) && it->fetchedAt != 0)
+            it = m_profiles.erase(it);
+        else
+            ++it;
+    }
+}
+
+void Session::cacheProfile(const UserProfile& profile)
+{
+    m_profiles.insert(profile.user.id + u'/' + profile.guildId, {profile, 0});
+}
+
+void Session::updateProfile(const ProfileChanges& changes, ResultCallback callback)
+{
+    QJsonObject account;
+    if (changes.globalName)
+        account.insert(QStringLiteral("global_name"),
+                       changes.globalName->isEmpty() ? QJsonValue() : QJsonValue(*changes.globalName));
+    if (changes.avatar)
+        account.insert(QStringLiteral("avatar"), changes.avatar->isEmpty() ? QJsonValue() : QJsonValue(*changes.avatar));
+
+    QJsonObject profile;
+    if (changes.pronouns)
+        profile.insert(QStringLiteral("pronouns"), *changes.pronouns);
+    if (changes.bio)
+        profile.insert(QStringLiteral("bio"), *changes.bio);
+    if (changes.accentColor)
+        profile.insert(QStringLiteral("accent_color"), *changes.accentColor < 0 ? QJsonValue() : QJsonValue(*changes.accentColor));
+
+    // The display name and picture belong to the account; the rest to the profile. Two requests, one after the other.
+    auto patchProfile = [this, profile, callback] {
+        if (profile.isEmpty()) {
+            callback(QString());
+            return;
+        }
+        m_rest->patch(QStringLiteral("/users/@me/profile"), QJsonDocument(profile),
+                      [this, callback](const RestClient::Response& response) {
+                          if (!response.ok()) {
+                              callback(errorText(response));
+                              return;
+                          }
+                          forgetOwnProfile();
+                          emit selfProfileChanged();
+                          callback(QString());
+                      });
+    };
+    if (account.isEmpty()) {
+        patchProfile();
+        return;
+    }
+    m_rest->patch(QStringLiteral("/users/@me"), QJsonDocument(account),
+                  [this, patchProfile, callback](const RestClient::Response& response) {
+                      if (!response.ok()) {
+                          callback(errorText(response));
+                          return;
+                      }
+                      const User updated = User::fromJson(response.body.object());
+                      if (updated.id == m_self.id) {
+                          m_self = updated;
+                          emit usersChanged();
+                      }
+                      patchProfile();
+                  });
+}
+
+void Session::patchSettings(const QJsonObject& changes)
+{
+    // The legacy JSON settings endpoint still syncs status and custom status to the other clients.
+    m_rest->patch(QStringLiteral("/users/@me/settings"), QJsonDocument(changes), nullptr);
+}
+
+void Session::setStatus(UserStatus status)
+{
+    m_selfStatus = status;
+    patchSettings({{QStringLiteral("status"), statusToString(status)}});
+    sendOwnPresence();
+    emit presenceChanged(m_self.id, true);
+}
+
+void Session::setCustomStatus(const CustomStatus& status)
+{
+    m_selfCustomStatus = status;
+    QJsonValue value;
+    if (!status.isEmpty()) {
+        QJsonObject json{{QStringLiteral("text"), status.text.isEmpty() ? QJsonValue() : QJsonValue(status.text)},
+                         {QStringLiteral("emoji_name"), status.emojiName.isEmpty() ? QJsonValue() : QJsonValue(status.emojiName)},
+                         {QStringLiteral("emoji_id"), status.emojiId.isEmpty() ? QJsonValue() : QJsonValue(status.emojiId)},
+                         {QStringLiteral("expires_at"), status.expiresAt.isValid()
+                                                            ? QJsonValue(status.expiresAt.toUTC().toString(Qt::ISODateWithMs))
+                                                            : QJsonValue()}};
+        value = json;
+    }
+    patchSettings({{QStringLiteral("custom_status"), value}});
+    sendOwnPresence();
+    emit presenceChanged(m_self.id, true);
 }
 
 void Session::loadReadStates(const QJsonValue& value)
@@ -696,6 +971,8 @@ void Session::loadGuild(const QJsonObject& data)
         storeMember(guild.id, member.toObject());
     for (const QJsonValue& state : data.value(u"voice_states").toArray())
         applyVoiceState(VoiceState::fromJson(state.toObject(), guild.id));
+    for (const QJsonValue& presence : data.value(u"presences").toArray())
+        storePresence(presence.toObject());
 }
 
 void Session::applyVoiceState(const VoiceState& state)

@@ -55,7 +55,7 @@ class MessageDelegate : public QStyledItemDelegate
 public:
     struct Hit
     {
-        enum Kind { None, Link, Spoiler, Image, File, Reaction, Reply } kind = None;
+        enum Kind { None, Link, Spoiler, Image, File, Reaction, Reply, Author } kind = None;
         QString url;
         QString messageId;
         int reactionIndex = -1;
@@ -105,6 +105,7 @@ signals:
     void linkActivated(const QString& url);
     void reactionClicked(const QString& messageId, int reactionIndex);
     void replyClicked(const QString& messageId);
+    void userClicked(const QString& userId, const QPoint& globalPosition);
     void messageContextMenuRequested(const QString& messageId, const QPoint& globalPosition);
     void topReached();
 

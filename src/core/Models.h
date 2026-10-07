@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QHash>
 #include <QJsonObject>
 #include <QList>
@@ -63,6 +64,7 @@ struct Role
     QString name;
     quint64 permissions = 0;
     int position = 0;
+    int color = 0; // 0xRRGGBB, 0 = no color
 
     static Role fromJson(const QJsonObject& json);
 };
@@ -142,6 +144,104 @@ struct GuildSettings
     bool suppressRoles = false;
     QSet<QString> mutedChannels;
 };
+
+// Online status of a user. `Unknown` means "no presence received yet".
+enum class UserStatus { Unknown, Online, Idle, DoNotDisturb, Invisible, Offline };
+
+UserStatus statusFromString(const QString& text);
+QString statusToString(UserStatus status);
+
+// Something a user is doing: a game, music, a stream, or their custom status.
+struct Activity
+{
+    enum Type { Playing = 0, Streaming = 1, Listening = 2, Watching = 3, Custom = 4, Competing = 5, Hang = 6 };
+
+    int type = Playing;
+    QString name;
+    QString details;
+    QString state;
+    QString url;
+    QString applicationId;
+    QString syncId; // Spotify track ID
+    QString largeImage;
+    QString largeText;
+    QString smallImage;
+    QString smallText;
+    QString emojiName; // custom status emoji: the Unicode character, or the name of a custom emoji
+    QString emojiId;
+    bool emojiAnimated = false;
+    qint64 start = 0; // milliseconds since the epoch, 0 = unknown
+    qint64 end = 0;
+    int partySize = 0;
+    int partyMax = 0;
+
+    bool isSpotify() const { return type == Listening && !syncId.isEmpty() && name == u"Spotify"; }
+    static Activity fromJson(const QJsonObject& json);
+    // A custom status activity, as sent in presence updates.
+    static Activity customStatus(const QString& text, const QString& emojiName, const QString& emojiId);
+    QJsonObject toJson() const;
+};
+
+struct Presence
+{
+    UserStatus status = UserStatus::Unknown;
+    QList<Activity> activities;
+
+    const Activity* customStatus() const;
+    static Presence fromJson(const QJsonObject& json);
+};
+
+// The current user's own custom status, from their settings.
+struct CustomStatus
+{
+    QString text;
+    QString emojiName;
+    QString emojiId;
+    QDateTime expiresAt; // invalid = never
+
+    bool isEmpty() const { return text.isEmpty() && emojiName.isEmpty() && emojiId.isEmpty(); }
+    bool isActive() const { return !isEmpty() && (!expiresAt.isValid() || expiresAt > QDateTime::currentDateTimeUtc()); }
+    static CustomStatus fromJson(const QJsonValue& json);
+};
+
+struct ProfileBadge
+{
+    QString id;
+    QString description;
+    QString icon;
+    QString link;
+};
+
+struct ConnectedAccount
+{
+    QString type; // "steam", "spotify", "github"...
+    QString name;
+    bool verified = false;
+};
+
+// What GET /users/{id}/profile returns: the extended user profile, plus the guild member when asked for.
+struct UserProfile
+{
+    User user;
+    QString bio;
+    QString pronouns;
+    QString banner;  // image hash, empty = no banner image
+    int accentColor = -1; // banner color as 0xRRGGBB, -1 = none
+    QDateTime premiumSince;
+    QList<ProfileBadge> badges;
+    QList<ConnectedAccount> connections;
+    QStringList mutualGuildIds;
+    // Guild-specific part (only when requested with a guild).
+    QString guildId;
+    QString nick;
+    QStringList roleIds;
+    QDateTime joinedAt;
+
+    static UserProfile fromJson(const QJsonObject& json);
+};
+
+// When an account was created, from its snowflake ID.
+QDateTime snowflakeTime(const QString& id);
 
 // Snowflake IDs compare numerically; this keeps a stable order for equal positions.
 bool snowflakeLess(const QString& a, const QString& b);

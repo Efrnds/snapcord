@@ -7,7 +7,7 @@
 #include <array>
 
 QPixmap makeAvatar(const QString& name, const QImage& picture, int size, qreal devicePixelRatio, bool speakingRing,
-                   const QColor& statusRing)
+                   const QColor& statusRing, UserStatus status)
 {
     static const std::array<QColor, 6> palette = {
         QColor(0x58, 0x65, 0xf2), QColor(0x75, 0x7e, 0x8a), QColor(0x3b, 0xa5, 0x5c),
@@ -54,12 +54,55 @@ QPixmap makeAvatar(const QString& name, const QImage& picture, int size, qreal d
 
     if (statusRing.isValid()) {
         const qreal dot = size * 0.375;
-        const QRectF ring(size - dot, size - dot, dot, dot);
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(statusRing);
-        painter.drawEllipse(ring);
-        painter.setBrush(QColor(0x23, 0xa5, 0x59));
-        painter.drawEllipse(ring.adjusted(dot * 0.2, dot * 0.2, -dot * 0.2, -dot * 0.2));
+        drawStatusDot(painter, QRectF(size - dot, size - dot, dot, dot), status, statusRing);
     }
     return pixmap;
+}
+
+QColor statusColor(UserStatus status)
+{
+    switch (status) {
+    case UserStatus::Online:
+        return QColor(0x23, 0xa5, 0x59);
+    case UserStatus::Idle:
+        return QColor(0xf0, 0xb2, 0x32);
+    case UserStatus::DoNotDisturb:
+        return QColor(0xf2, 0x3f, 0x43);
+    default:
+        return QColor(0x80, 0x84, 0x8e);
+    }
+}
+
+void drawStatusDot(QPainter& painter, const QRectF& rect, UserStatus status, const QColor& background)
+{
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(background);
+    painter.drawEllipse(rect);
+
+    // The shapes follow Discord's: a dot, a crescent moon, a dot with a bar, or a hollow ring.
+    const qreal border = rect.width() * 0.2;
+    const QRectF inner = rect.adjusted(border, border, -border, -border);
+    const qreal d = inner.width();
+    painter.setBrush(statusColor(status));
+    painter.drawEllipse(inner);
+    painter.setBrush(background);
+    switch (status) {
+    case UserStatus::Online:
+        break;
+    case UserStatus::Idle:
+        painter.drawEllipse(QRectF(inner.left() - d * 0.1, inner.top() - d * 0.1, d * 0.62, d * 0.62));
+        break;
+    case UserStatus::DoNotDisturb: {
+        const qreal height = d * 0.25;
+        painter.drawRoundedRect(QRectF(inner.left() + d * 0.18, inner.center().y() - height / 2, d * 0.64, height),
+                                height / 2, height / 2);
+        break;
+    }
+    default:
+        painter.drawEllipse(inner.adjusted(d * 0.25, d * 0.25, -d * 0.25, -d * 0.25));
+        break;
+    }
+    painter.restore();
 }

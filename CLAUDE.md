@@ -324,6 +324,24 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Build com o app aberto:** `scripts\build.ps1 -Target <alvo>` compila só um alvo, útil quando o
   `Snapcord.exe` está aberto e não pode ser sobrescrito.
 
+### Perfis e presença
+
+- **Presença:** `Session` guarda status e atividades vindos de `READY_SUPPLEMENTAL` (`merged_presences`),
+  `PRESENCE_UPDATE`, `GUILD_MEMBERS_CHUNK` e `GUILD_CREATE`. Ao abrir o perfil de um membro de servidor sem
+  presença conhecida, pede pelo opcode 8 com `presences: true`.
+- **Própria presença:** status e status personalizado vêm do `user_settings` do READY; as atividades das outras
+  sessões vêm de `SESSIONS_REPLACE` (sessão `all`). Depois do READY o app envia opcode 3 com o status real e o
+  status personalizado.
+- **Perfil:** `GET /users/{id}/profile` (com `guild_id` dentro de servidores, para cargos e data de entrada),
+  em cache por 3 minutos. Interface em `app/ProfileCard` (cartão), `app/ProfilePopup` (popout) e
+  `app/ProfileEditor` (editar perfil e status personalizado).
+- **Abrir perfil:** clicando no avatar/nome de uma mensagem, numa @menção (links `user:<id>`), num membro em
+  canal de voz, no bloco da chamada, no menu de contexto ("Profile") e no próprio nome no painel do usuário.
+- **Edição:** `PATCH /users/@me` (nome exibido e avatar) e `PATCH /users/@me/profile` (pronomes, bio e cor do
+  banner). Status e status personalizado usam o endpoint legado `PATCH /users/@me/settings` (documentado como
+  depreciado, mas funcional) mais o opcode 3. Banner com imagem e temas de perfil exigem Nitro: ficam fora.
+- **Falta o teste real** com uma conta.
+
 ### Fase 4 (lançamento)
 
 - **Fora de escopo por decisão do dono:** atualização automática, testes de áudio por plataforma e

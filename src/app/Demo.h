@@ -1,7 +1,11 @@
 #pragma once
 
+#include <QDialog>
+#include <QList>
 #include <QObject>
 #include <QPointer>
+
+#include <functional>
 
 class MainWindow;
 class Session;
@@ -20,9 +24,19 @@ public:
     void start(const QString& screenshotFolder);
 
 private:
+    struct Step
+    {
+        int delayMs = 0;
+        std::function<void()> action;
+    };
+
     void takeScreenshots(const QString& folder);
+    void runNextStep();
 
     Session* m_session = nullptr;
     VoiceController* m_voice = nullptr;
     QPointer<MainWindow> m_main;
+    QPointer<QDialog> m_editor;
+    QPointer<QDialog> m_settings;
+    QList<Step> m_steps;
 };

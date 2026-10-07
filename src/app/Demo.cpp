@@ -1,13 +1,16 @@
 #include "Demo.h"
 
 #include "ImageCache.h"
+#include "ProfileEditor.h"
 #include "MainWindow.h"
 #include "SettingsDialog.h"
 #include "VoiceController.h"
 #include "core/Session.h"
 
 #include <QApplication>
+#include <QDateTime>
 #include <QDir>
+#include <QFrame>
 #include <QJsonArray>
 #include <QLinearGradient>
 #include <QPainter>
@@ -93,6 +96,8 @@ const QString GroupTrip = QStringLiteral("400000000000000002");
 const QString DmTheo = QStringLiteral("400000000000000003");
 const QString DmLina = QStringLiteral("400000000000000004");
 const QString DmRafa = QStringLiteral("400000000000000005");
+const QString ModeratorRole = QStringLiteral("330000000000000001");
+const QString NightShiftRole = QStringLiteral("330000000000000002");
 
 QJsonObject channelJson(const QString& id, const QString& name, int type, int position, const QString& parent = {},
                         const QString& lastMessageId = {})
@@ -142,10 +147,18 @@ QJsonObject nightOwlsJson()
         voiceStateJson(QStringLiteral("Marina"), Gaming),
         voiceStateJson(QStringLiteral("Theo"), Gaming, false, true),
     };
+    QJsonArray roles{
+        QJsonObject{{QStringLiteral("id"), NightOwls}, {QStringLiteral("name"), QStringLiteral("@everyone")}},
+        QJsonObject{{QStringLiteral("id"), ModeratorRole}, {QStringLiteral("name"), QStringLiteral("Moderator")},
+                    {QStringLiteral("color"), 0xe67e22}, {QStringLiteral("position"), 2}},
+        QJsonObject{{QStringLiteral("id"), NightShiftRole}, {QStringLiteral("name"), QStringLiteral("Night Shift")},
+                    {QStringLiteral("color"), 0x1abc9c}, {QStringLiteral("position"), 1}},
+    };
     return {{QStringLiteral("id"), NightOwls},
             {QStringLiteral("name"), QStringLiteral("Night Owls")},
             {QStringLiteral("icon"), QStringLiteral("demo")},
             {QStringLiteral("owner_id"), SelfId},
+            {QStringLiteral("roles"), roles},
             {QStringLiteral("channels"), channels},
             {QStringLiteral("voice_states"), voiceStates}};
 }
@@ -217,10 +230,74 @@ QJsonObject readyJson()
         readState(DmTheo, QStringLiteral("600000000000000003")),
     };
 
+    const QJsonObject settings{
+        {QStringLiteral("status"), QStringLiteral("online")},
+        {QStringLiteral("custom_status"), QJsonObject{{QStringLiteral("text"), QStringLiteral("Building a voice client")},
+                                                      {QStringLiteral("emoji_name"), QStringLiteral("🛠️")}}},
+    };
+
     return {{QStringLiteral("user"), userJson(QStringLiteral("Sam"))},
+            {QStringLiteral("user_settings"), settings},
             {QStringLiteral("guilds"), guilds},
             {QStringLiteral("private_channels"), privateChannels},
             {QStringLiteral("read_state"), readStates}};
+}
+
+QJsonObject presenceJson(const QString& name, const QString& status, const QJsonArray& activities = {})
+{
+    return {{QStringLiteral("user_id"), person(name).id},
+            {QStringLiteral("status"), status},
+            {QStringLiteral("activities"), activities}};
+}
+
+// What friends are up to, as READY_SUPPLEMENTAL brings it.
+QJsonObject presencesJson()
+{
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    const QJsonObject game{{QStringLiteral("type"), 0},
+                           {QStringLiteral("name"), QStringLiteral("Stardew Valley")},
+                           {QStringLiteral("details"), QStringLiteral("Year 3, Summer")},
+                           {QStringLiteral("state"), QStringLiteral("Co-op farm")},
+                           {QStringLiteral("party"), QJsonObject{{QStringLiteral("size"), QJsonArray{2, 4}}}},
+                           {QStringLiteral("timestamps"), QJsonObject{{QStringLiteral("start"), now - 83 * 60 * 1000}}}};
+    const QJsonObject song{{QStringLiteral("type"), 2},
+                           {QStringLiteral("name"), QStringLiteral("Spotify")},
+                           {QStringLiteral("sync_id"), QStringLiteral("demo")},
+                           {QStringLiteral("details"), QStringLiteral("Midnight Drive")},
+                           {QStringLiteral("state"), QStringLiteral("The Neon Owls")},
+                           {QStringLiteral("assets"), QJsonObject{{QStringLiteral("large_text"), QStringLiteral("City Lights")}}},
+                           {QStringLiteral("timestamps"), QJsonObject{{QStringLiteral("start"), now - 95 * 1000},
+                                                                      {QStringLiteral("end"), now + 129 * 1000}}}};
+    const QJsonObject custom{{QStringLiteral("type"), 4},
+                             {QStringLiteral("name"), QStringLiteral("Custom Status")},
+                             {QStringLiteral("state"), QStringLiteral("Deadline mode, back at 6")},
+                             {QStringLiteral("emoji"), QJsonObject{{QStringLiteral("name"), QStringLiteral("📚")}}}};
+    const QJsonArray friends{
+        presenceJson(QStringLiteral("Alex"), QStringLiteral("online"), {game}),
+        presenceJson(QStringLiteral("Bia"), QStringLiteral("online"), {song}),
+        presenceJson(QStringLiteral("Kenji"), QStringLiteral("idle")),
+        presenceJson(QStringLiteral("Marina"), QStringLiteral("dnd"), {custom}),
+        presenceJson(QStringLiteral("Theo"), QStringLiteral("online")),
+        presenceJson(QStringLiteral("Lina"), QStringLiteral("offline")),
+        presenceJson(QStringLiteral("Rafa"), QStringLiteral("idle")),
+    };
+    return {{QStringLiteral("merged_presences"), QJsonObject{{QStringLiteral("friends"), friends}}}};
+}
+
+UserProfile demoProfile(const QString& name, const QString& guildId, const QString& bio, const QString& pronouns,
+                        int accentColor, const QStringList& roles = {})
+{
+    UserProfile profile = UserProfile::fromJson({{QStringLiteral("user"), userJson(name)}});
+    profile.bio = bio;
+    profile.pronouns = pronouns;
+    profile.accentColor = accentColor;
+    profile.guildId = guildId;
+    profile.mutualGuildIds = {NightOwls, servers()[2].id};
+    if (!guildId.isEmpty()) {
+        profile.roleIds = roles;
+        profile.joinedAt = QDateTime(QDate(2023, 4, 12), QTime(21, 0));
+    }
+    return profile;
 }
 
 QString timestamp(int hour, int minute)
@@ -417,7 +494,18 @@ void DemoController::start(const QString& screenshotFolder)
     m_main = new MainWindow(m_session, m_voice);
     m_main->resize(1280, 760);
 
-    m_session->startOffline({{QStringLiteral("READY"), readyJson()}});
+    m_session->startOffline({{QStringLiteral("READY"), readyJson()},
+                             {QStringLiteral("READY_SUPPLEMENTAL"), presencesJson()}});
+    const QString aboutAlex = QStringLiteral("Night owl, part-time farmer. Ask me about **co-op runs** 🌙");
+    const QString aboutSam = QStringLiteral("Making calls lighter, one frame at a time.");
+    m_session->cacheProfile(demoProfile(QStringLiteral("Alex"), NightOwls, aboutAlex, QStringLiteral("he/him"), 0x8e44ad,
+                                        {ModeratorRole, NightShiftRole}));
+    m_session->cacheProfile(demoProfile(QStringLiteral("Alex"), QString(), aboutAlex, QStringLiteral("he/him"), 0x8e44ad));
+    m_session->cacheProfile(demoProfile(QStringLiteral("Bia"), QString(), QStringLiteral("Playlist curator ♪"),
+                                        QStringLiteral("she/her"), -1));
+    m_session->cacheProfile(demoProfile(QStringLiteral("Sam"), NightOwls, aboutSam, QStringLiteral("they/them"), 0x2d7d9a,
+                                        {NightShiftRole}));
+    m_session->cacheProfile(demoProfile(QStringLiteral("Sam"), QString(), aboutSam, QStringLiteral("they/them"), 0x2d7d9a));
     m_session->messages()->preload(General, generalMessages());
     m_session->messages()->preload(DmBia, directMessages());
     m_voice->showDemoCall(NightOwls, Lounge, {person(QStringLiteral("Alex")).id, SelfId},
@@ -442,24 +530,67 @@ void DemoController::takeScreenshots(const QString& folder)
         widget->grab().save(QDir(folder).filePath(name + QStringLiteral(".png")));
     };
 
+    // Captures the open profile popout, then closes it.
+    auto savePopup = [this, save](const QString& name) {
+        if (auto* popup = m_main->findChild<QFrame*>(QStringLiteral("profilePopup"))) {
+            save(popup, name);
+            popup->close();
+        }
+    };
+    const QPoint popupPosition = m_main->mapToGlobal(QPoint(420, 120));
+
     // Each step waits a little so layouts and pictures settle before the capture.
-    QTimer::singleShot(800, this, [this, save] {
-        save(m_main, QStringLiteral("chat"));
-        m_main->showChannel(NightOwls, Lounge);
-        QTimer::singleShot(500, this, [this, save] {
-            save(m_main, QStringLiteral("voice"));
-            m_main->showChannel(QString(), DmBia);
-            QTimer::singleShot(500, this, [this, save] {
-                save(m_main, QStringLiteral("direct-messages"));
-                auto* settings = new SettingsDialog(m_voice, m_main);
-                settings->setAttribute(Qt::WA_DeleteOnClose);
-                settings->show();
-                QTimer::singleShot(800, this, [this, save, settings] {
-                    save(settings, QStringLiteral("settings"));
-                    settings->close();
-                    QApplication::quit();
-                });
-            });
-        });
+    m_steps = {
+        {800, [this, save] {
+             save(m_main, QStringLiteral("chat"));
+             m_main->showChannel(NightOwls, Lounge);
+         }},
+        {500, [this, save] {
+             save(m_main, QStringLiteral("voice"));
+             m_main->showChannel(QString(), DmBia);
+         }},
+        {500, [this, save, popupPosition] {
+             save(m_main, QStringLiteral("direct-messages"));
+             m_main->showChannel(NightOwls, General);
+             m_main->showProfile(person(QStringLiteral("Alex")).id, NightOwls, popupPosition);
+         }},
+        {400, [this, savePopup, popupPosition] {
+             savePopup(QStringLiteral("profile"));
+             m_main->showProfile(person(QStringLiteral("Bia")).id, QString(), popupPosition);
+         }},
+        {400, [this, savePopup] {
+             savePopup(QStringLiteral("profile-music"));
+             m_main->showOwnProfile();
+         }},
+        {400, [this, savePopup] {
+             savePopup(QStringLiteral("profile-self"));
+             m_editor = new ProfileEditDialog(m_session, new ImageCache(m_main), m_main);
+             m_editor->setAttribute(Qt::WA_DeleteOnClose);
+             m_editor->show();
+         }},
+        {600, [this, save] {
+             save(m_editor, QStringLiteral("profile-editor"));
+             m_editor->close();
+             m_settings = new SettingsDialog(m_voice, m_main);
+             m_settings->setAttribute(Qt::WA_DeleteOnClose);
+             m_settings->show();
+         }},
+        {800, [this, save] {
+             save(m_settings, QStringLiteral("settings"));
+             m_settings->close();
+             QApplication::quit();
+         }},
+    };
+    runNextStep();
+}
+
+void DemoController::runNextStep()
+{
+    if (m_steps.isEmpty())
+        return;
+    const Step step = m_steps.takeFirst();
+    QTimer::singleShot(step.delayMs, this, [this, step] {
+        step.action();
+        runNextStep();
     });
 }
