@@ -1,6 +1,7 @@
 qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     main.cpp
     AppController.cpp AppController.h
+    AttachmentTray.cpp AttachmentTray.h
     Avatar.cpp Avatar.h
     ChannelSidebar.cpp ChannelSidebar.h
     ChatView.cpp ChatView.h
@@ -13,6 +14,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     LoginWindow.cpp LoginWindow.h
     MainWindow.cpp MainWindow.h
     MemberListView.cpp MemberListView.h
+    MentionPopup.cpp MentionPopup.h
     MessageView.cpp MessageView.h
     Notifier.cpp Notifier.h
     RichPresence.cpp RichPresence.h

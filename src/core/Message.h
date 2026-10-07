@@ -91,6 +91,7 @@ struct Message
     QString nonce;
     bool pending = false;
     bool failed = false;
+    int uploadProgress = -1; // 0-100 while its files upload, -1 otherwise
 
     bool isSystemMessage() const { return type != Default && type != Reply && type != ChatInputCommand; }
 

@@ -7,6 +7,9 @@
 
 #include <functional>
 
+#include <QNetworkRequest>
+
+class QIODevice;
 class QNetworkAccessManager;
 class QNetworkReply;
 
@@ -25,6 +28,7 @@ public:
         bool ok() const { return status >= 200 && status < 300; }
     };
     using Callback = std::function<void(const Response&)>;
+    using ProgressCallback = std::function<void(qint64 sent, qint64 total)>;
 
     explicit RestClient(QObject* parent = nullptr);
 
@@ -38,8 +42,14 @@ public:
     void patch(const QString& path, const QJsonDocument& body, Callback callback);
     void put(const QString& path, Callback callback);
     void deleteResource(const QString& path, Callback callback);
+    // Uploads a file's bytes to a storage URL handed out by the API, without the API's headers. `device`
+    // must stay open until the callback runs.
+    void putToStorage(const QUrl& url, QIODevice* device, qint64 size, ProgressCallback progress, Callback callback);
 
 private:
+    QNetworkRequest apiRequest(const QString& path) const;
+    void finish(QNetworkReply* reply, ProgressCallback progress, Callback callback);
+    bool failIfOffline(const Callback& callback);
     void send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback);
 
     QNetworkAccessManager* m_network;

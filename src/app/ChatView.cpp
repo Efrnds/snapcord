@@ -1,8 +1,10 @@
 #include "ChatView.h"
 
+#include "AttachmentTray.h"
 #include "EmojiPicker.h"
 #include "ImageCache.h"
 #include "MemberListView.h"
+#include "MentionPopup.h"
 #include "MessageView.h"
 #include "Theme.h"
 #include "VoiceController.h"
@@ -10,22 +12,31 @@
 #include "core/MessageStore.h"
 #include "core/Permissions.h"
 #include "core/Session.h"
+#include "core/UploadLimits.h"
 
 #include <QApplication>
+#include <QBuffer>
 #include <QClipboard>
 #include <QDateTime>
 #include <QDesktopServices>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QMimeData>
+#include <QMimeDatabase>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSettings>
+#include <QTextBlock>
 #include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -35,6 +46,36 @@ namespace {
 constexpr qint64 TypingDurationMs = 10000;
 constexpr auto MemberListKey = "ui/memberList";
 const char* const QuickReactions[] = {"👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉"};
+constexpr int MaxUserSuggestions = 10;
+constexpr int MaxRoleSuggestions = 5;
+constexpr int MaxChannelSuggestions = 10;
+// Longest "@name" or "#name" being completed.
+constexpr int MaxMentionQuery = 32;
+
+QString formatSize(qint64 bytes)
+{
+    return QLocale().formattedDataSize(bytes, 0, QLocale::DataSizeTraditionalFormat);
+}
+
+// How well `name` matches what was typed: 0 starts with it, 1 contains it, 2 no match.
+int matchRank(const QString& name, const QString& needle)
+{
+    if (name.isEmpty())
+        return 2;
+    if (needle.isEmpty() || name.startsWith(needle, Qt::CaseInsensitive))
+        return 0;
+    return name.contains(needle, Qt::CaseInsensitive) ? 1 : 2;
+}
+
+QStringList localFiles(const QMimeData* data)
+{
+    QStringList files;
+    for (const QUrl& url : data->urls()) {
+        if (url.isLocalFile())
+            files.append(url.toLocalFile());
+    }
+    return files;
+}
 
 } // namespace
 
@@ -61,10 +102,11 @@ void Composer::adjustHeight()
 
 void Composer::keyPressEvent(QKeyEvent* event)
 {
+    if (m_popup && m_popup->handleKey(event))
+        return;
     if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && !(event->modifiers() & Qt::ShiftModifier)) {
-        const QString text = toPlainText().trimmed();
-        if (!text.isEmpty())
-            emit submitted(text);
+        // May be empty: a message can be only attachments; the chat view decides.
+        emit submitted(toPlainText().trimmed());
         return;
     }
     if (event->key() == Qt::Key_Up && toPlainText().isEmpty()) {
@@ -76,6 +118,29 @@ void Composer::keyPressEvent(QKeyEvent* event)
         return;
     }
     QPlainTextEdit::keyPressEvent(event);
+}
+
+bool Composer::canInsertFromMimeData(const QMimeData* source) const
+{
+    return !localFiles(source).isEmpty() || source->hasImage() || QPlainTextEdit::canInsertFromMimeData(source);
+}
+
+void Composer::insertFromMimeData(const QMimeData* source)
+{
+    const QStringList files = localFiles(source);
+    if (!files.isEmpty()) {
+        emit filesPasted(files);
+        return;
+    }
+    // Spreadsheets copy a picture of the cells along with their text; the text is what people mean then.
+    if (source->hasImage() && !source->hasText()) {
+        const QImage image = qvariant_cast<QImage>(source->imageData());
+        if (!image.isNull()) {
+            emit imagePasted(image);
+            return;
+        }
+    }
+    QPlainTextEdit::insertFromMimeData(source);
 }
 
 // --- ChatView ---------------------------------------------------------------------------------------
@@ -113,10 +178,14 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     , m_modeLabel(new QLabel)
     , m_composer(new Composer)
     , m_emojiButton(new QToolButton)
+    , m_attachButton(new QToolButton)
+    , m_tray(new AttachmentTray)
+    , m_mentionPopup(new MentionPopup(this))
     , m_statusLabel(new QLabel)
 {
     setObjectName(QStringLiteral("chatArea"));
     setAttribute(Qt::WA_StyledBackground, false);
+    setAcceptDrops(true);
     m_list->setModel(m_model);
     connect(&Theme::instance(), &Theme::changed, this, QOverload<>::of(&QWidget::update));
 
@@ -184,14 +253,34 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
         });
         picker->popupAt(m_emojiButton->mapToGlobal(QPoint(m_emojiButton->width(), 0)));
     });
-    auto* inputBox = new QWidget;
-    inputBox->setObjectName(QStringLiteral("composerBox"));
-    inputBox->setAttribute(Qt::WA_StyledBackground);
-    auto* inputLayout = new QHBoxLayout(inputBox);
-    inputLayout->setContentsMargins(4, 0, 8, 0);
+    m_attachButton->setObjectName(QStringLiteral("attachButton"));
+    m_attachButton->setIcon(QIcon(QStringLiteral(":/icons/plus.svg")));
+    m_attachButton->setIconSize(QSize(20, 20));
+    m_attachButton->setCursor(Qt::PointingHandCursor);
+    m_attachButton->setToolTip(tr("Upload a File"));
+    connect(m_attachButton, &QToolButton::clicked, this, &ChatView::chooseFiles);
+    connect(m_tray, &AttachmentTray::removeRequested, this, [this](int index) {
+        if (index >= 0 && index < m_files.size()) {
+            m_files.removeAt(index);
+            updateAttachments();
+        }
+        m_composer->setFocus();
+    });
+
+    m_inputBox = new QWidget;
+    m_inputBox->setObjectName(QStringLiteral("composerBox"));
+    m_inputBox->setAttribute(Qt::WA_StyledBackground);
+    auto* inputRow = new QHBoxLayout;
+    inputRow->setContentsMargins(8, 0, 8, 0);
+    inputRow->setSpacing(0);
+    inputRow->addWidget(m_attachButton, 0, Qt::AlignBottom);
+    inputRow->addWidget(m_composer, 1);
+    inputRow->addWidget(m_emojiButton, 0, Qt::AlignBottom);
+    auto* inputLayout = new QVBoxLayout(m_inputBox);
+    inputLayout->setContentsMargins(0, 0, 0, 0);
     inputLayout->setSpacing(0);
-    inputLayout->addWidget(m_composer, 1);
-    inputLayout->addWidget(m_emojiButton, 0, Qt::AlignBottom);
+    inputLayout->addWidget(m_tray);
+    inputLayout->addLayout(inputRow);
 
     m_statusLabel->setObjectName(QStringLiteral("typingLabel"));
     m_statusLabel->setFixedHeight(22);
@@ -200,7 +289,7 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     bottom->setContentsMargins(16, 0, 16, 0);
     bottom->setSpacing(0);
     bottom->addWidget(m_modeBar);
-    bottom->addWidget(inputBox);
+    bottom->addWidget(m_inputBox);
     bottom->addWidget(m_statusLabel);
 
     // The member list sits next to the messages, under the header.
@@ -225,6 +314,21 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     connect(m_composer, &Composer::submitted, this, &ChatView::submit);
     connect(m_composer, &Composer::cancelRequested, this, &ChatView::cancelMode);
     connect(m_composer, &Composer::editLastRequested, this, &ChatView::editLastMessage);
+    connect(m_composer, &Composer::filesPasted, this, &ChatView::addFiles);
+    connect(m_composer, &Composer::imagePasted, this, &ChatView::addPastedImage);
+
+    // Mentions: typing "@name" or "#channel" opens a list of matches above the composer.
+    m_composer->setMentionPopup(m_mentionPopup);
+    connect(m_mentionPopup, &MentionPopup::picked, this, &ChatView::insertMention);
+    connect(m_composer, &QPlainTextEdit::textChanged, this, &ChatView::updateMentionPopup);
+    connect(m_composer, &QPlainTextEdit::cursorPositionChanged, this, &ChatView::updateMentionPopup);
+    m_memberSearchTimer.setSingleShot(true);
+    m_memberSearchTimer.setInterval(300);
+    connect(&m_memberSearchTimer, &QTimer::timeout, this, [this] { m_session->searchGuildMembers(m_guildId, m_memberQuery); });
+    connect(m_session, &Session::usersChanged, this, [this] {
+        if (m_mentionPopup->isVisible())
+            updateMentionPopup();
+    });
     connect(m_composer, &QPlainTextEdit::textChanged, this, [this] {
         if (m_editing.isEmpty() && !m_composer->toPlainText().isEmpty())
             m_session->sendTyping(m_channelId);
@@ -270,6 +374,8 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
         // Pictures change row heights only for emoji placeholders, which keep their size; a repaint is enough.
         m_delegate->invalidateAll();
         m_list->viewport()->update();
+        if (m_mentionPopup->isVisible())
+            updateMentionPopup(); // avatars
     });
 
     connect(m_session, &Session::typingStarted, this, [this](const QString& channelId, const QString& userId) {
@@ -290,6 +396,12 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     });
 }
 
+ChatView::~ChatView()
+{
+    // The composer still signals while the children are being destroyed, when the mention popup may be gone.
+    m_composer->disconnect(this);
+}
+
 void ChatView::showChannel(const QString& guildId, const QString& channelId)
 {
     if (channelId == m_channelId && guildId == m_guildId) {
@@ -302,6 +414,10 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
     updateMemberList();
     cancelMode();
     m_composer->clear();
+    m_mentionTokens.clear();
+    m_mentionPopup->hide();
+    m_files.clear();
+    updateAttachments();
     m_typing.clear();
     m_statusLabel->clear();
     m_delegate->invalidateAll();
@@ -325,6 +441,7 @@ void ChatView::updateMemberList()
 void ChatView::refreshHeader()
 {
     bool canSend = true;
+    m_canAttach = true;
     if (m_guildId.isEmpty()) {
         const PrivateChannel* channel = m_session->privateChannel(m_channelId);
         const QString name = channel ? m_session->privateChannelName(*channel) : QString();
@@ -346,11 +463,15 @@ void ChatView::refreshHeader()
         m_composer->setPlaceholderText(tr("Message #%1").arg(name));
         m_callButton->hide();
         const Guild* guild = m_session->guild(m_guildId);
-        if (guild && channel)
-            canSend = Permissions::compute(*guild, *channel, m_session->self().id) & Permissions::SendMessages;
+        if (guild && channel) {
+            const quint64 permissions = Permissions::compute(*guild, *channel, m_session->self().id);
+            canSend = permissions & Permissions::SendMessages;
+            m_canAttach = permissions & Permissions::AttachFiles;
+        }
     }
     m_composer->setReadOnly(!canSend);
     m_emojiButton->setEnabled(canSend);
+    m_attachButton->setVisible(canSend && m_canAttach);
     if (!canSend)
         m_composer->setPlaceholderText(tr("You do not have permission to send messages in this channel."));
 }
@@ -362,16 +483,328 @@ void ChatView::markReadIfVisible()
     m_session->markRead(m_guildId, m_channelId);
 }
 
-void ChatView::submit(const QString& text)
+void ChatView::submit(const QString& typed)
 {
-    if (!m_editing.isEmpty()) {
+    m_mentionPopup->hide();
+    const bool editing = !m_editing.isEmpty();
+    const QString text = Mentions::encode(typed, m_mentionTokens);
+    if (text.isEmpty() && (editing || m_files.isEmpty()))
+        return;
+    const int limit = UploadLimits::maxMessageLength(m_session->self().premiumType);
+    if (text.size() > limit) {
+        showError(tr("Your message is too long (%1 of %2 characters).").arg(text.size()).arg(limit));
+        return;
+    }
+    if (editing) {
         m_session->messages()->edit(m_channelId, m_editing, text);
     } else {
-        m_session->messages()->send(m_channelId, m_guildId, text, m_replyTo);
+        m_session->messages()->send(m_channelId, m_guildId, text, m_replyTo, m_files);
+        m_files.clear();
+        updateAttachments();
         QTimer::singleShot(0, m_list, [this] { m_list->scrollToBottom(); });
     }
     m_composer->clear();
+    m_mentionTokens.clear();
     cancelMode();
+}
+
+void ChatView::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (!m_channelId.isEmpty() && !localFiles(event->mimeData()).isEmpty())
+        event->acceptProposedAction();
+}
+
+void ChatView::dropEvent(QDropEvent* event)
+{
+    const QStringList files = localFiles(event->mimeData());
+    if (files.isEmpty())
+        return;
+    event->acceptProposedAction();
+    addFiles(files);
+}
+
+void ChatView::chooseFiles()
+{
+    const QStringList files = QFileDialog::getOpenFileNames(this, tr("Upload a File"));
+    if (!files.isEmpty())
+        addFiles(files);
+    m_composer->setFocus();
+}
+
+void ChatView::addFiles(const QStringList& paths)
+{
+    static const QMimeDatabase mimeTypes;
+    for (const QString& path : paths) {
+        const QFileInfo info(path);
+        if (!info.isFile() || !info.isReadable()) {
+            showError(tr("%1 is not a file that can be sent.").arg(info.fileName()));
+            continue;
+        }
+        OutgoingFile file;
+        file.filename = info.fileName();
+        file.path = info.absoluteFilePath();
+        file.size = info.size();
+        file.contentType = mimeTypes.mimeTypeForFile(info).name();
+        if (!addFile(file))
+            break;
+    }
+    updateAttachments();
+    m_composer->setFocus();
+}
+
+void ChatView::addPastedImage(const QImage& image)
+{
+    OutgoingFile file;
+    QBuffer buffer(&file.data);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    file.filename = QStringLiteral("image.png");
+    file.size = file.data.size();
+    file.contentType = QStringLiteral("image/png");
+    addFile(file);
+    updateAttachments();
+}
+
+bool ChatView::addFile(const OutgoingFile& file)
+{
+    if (m_channelId.isEmpty() || m_composer->isReadOnly() || !m_canAttach) {
+        showError(tr("You do not have permission to attach files in this channel."));
+        return false;
+    }
+    if (m_files.size() >= UploadLimits::MaxFiles) {
+        showError(tr("You can only upload %1 files at a time.").arg(UploadLimits::MaxFiles));
+        return false;
+    }
+    const Guild* guild = m_guildId.isEmpty() ? nullptr : m_session->guild(m_guildId);
+    const qint64 maxSize = UploadLimits::maxFileSize(m_session->self().premiumType, guild ? guild->premiumTier : 0);
+    if (file.size > maxSize) {
+        showError(tr("%1 is too large. The maximum file size here is %2.").arg(file.filename, formatSize(maxSize)));
+        return false;
+    }
+    qint64 total = file.size;
+    for (const OutgoingFile& other : std::as_const(m_files))
+        total += other.size;
+    if (total > UploadLimits::MaxTotalSize) {
+        showError(tr("These files are too large together. The maximum per message is %1.").arg(formatSize(UploadLimits::MaxTotalSize)));
+        return false;
+    }
+    m_files.append(file);
+    return true;
+}
+
+void ChatView::updateAttachments()
+{
+    m_tray->setFiles(m_files);
+}
+
+bool ChatView::canMentionEveryone() const
+{
+    const Guild* guild = m_session->guild(m_guildId);
+    const Channel* channel = m_session->channel(m_guildId, m_channelId);
+    return guild && channel && (Permissions::compute(*guild, *channel, m_session->self().id) & Permissions::MentionEveryone);
+}
+
+void ChatView::updateMentionPopup()
+{
+    // Find an "@" or "#" that starts a word and leads, without spaces, to the cursor.
+    const QTextCursor cursor = m_composer->textCursor();
+    m_mentionStart = -1;
+    QChar trigger;
+    QString query;
+    if (!cursor.hasSelection() && !m_composer->isReadOnly()) {
+        const QString before = cursor.block().text().left(cursor.positionInBlock());
+        for (qsizetype i = before.size() - 1; i >= 0 && before.size() - i <= MaxMentionQuery + 1; --i) {
+            const QChar c = before.at(i);
+            if (c.isSpace())
+                break;
+            if (c == u'@' || (c == u'#' && !m_guildId.isEmpty())) {
+                if (i == 0 || before.at(i - 1).isSpace()) {
+                    m_mentionStart = cursor.block().position() + static_cast<int>(i);
+                    trigger = c;
+                    query = before.mid(i + 1);
+                }
+                break;
+            }
+        }
+    }
+    if (m_mentionStart < 0) {
+        m_mentionPopup->hide();
+        return;
+    }
+
+    const QList<MentionSuggestion> suggestions = trigger == u'@' ? userSuggestions(query) : channelSuggestions(query);
+    if (suggestions.isEmpty()) {
+        m_mentionPopup->hide();
+    } else {
+        const QString title = trigger == u'#' ? tr("Channels") : m_guildId.isEmpty() ? tr("Members") : tr("Members and Roles");
+        m_mentionPopup->setSuggestions(title, suggestions);
+        m_mentionPopup->placeAbove(QRect(m_inputBox->mapTo(this, QPoint(0, 0)), m_inputBox->size()));
+        m_mentionPopup->show();
+    }
+    // Members not seen yet are searched on the server; the list refreshes when they arrive.
+    if (trigger == u'@' && !m_guildId.isEmpty() && !query.isEmpty() && query != m_memberQuery) {
+        m_memberQuery = query;
+        m_memberSearchTimer.start();
+    }
+}
+
+QList<MentionSuggestion> ChatView::userSuggestions(const QString& query) const
+{
+    // Recent authors first (the people in the conversation), then other known members.
+    QStringList ids;
+    QHash<QString, User> authors;
+    const auto& messages = m_session->messages()->messages(m_channelId);
+    for (qsizetype i = messages.size() - 1; i >= 0; --i) {
+        const User& author = messages[i].author;
+        if (!author.id.isEmpty() && !authors.contains(author.id)) {
+            authors.insert(author.id, author);
+            ids.append(author.id);
+        }
+    }
+    QHash<QString, QString> nicks;
+    if (m_guildId.isEmpty()) {
+        if (const PrivateChannel* channel = m_session->privateChannel(m_channelId)) {
+            for (const QString& id : channel->recipientIds) {
+                if (!ids.contains(id))
+                    ids.append(id);
+            }
+        }
+        if (!ids.contains(m_session->self().id))
+            ids.append(m_session->self().id);
+    } else {
+        nicks = m_session->knownMembers(m_guildId);
+        for (auto it = nicks.cbegin(); it != nicks.cend(); ++it) {
+            if (!authors.contains(it.key()))
+                ids.append(it.key());
+        }
+    }
+
+    QList<std::pair<int, MentionSuggestion>> ranked;
+    for (const QString& id : std::as_const(ids)) {
+        User user = m_session->user(id);
+        if (user.id.isEmpty())
+            user = id == m_session->self().id ? m_session->self() : authors.value(id);
+        if (user.id.isEmpty())
+            continue;
+        const QString nick = nicks.value(id);
+        const int rank = std::min({matchRank(nick, query), matchRank(user.globalName, query), matchRank(user.username, query)});
+        if (rank > 1)
+            continue;
+        MentionSuggestion suggestion;
+        suggestion.kind = MentionSuggestion::User;
+        suggestion.label = nick.isEmpty() ? user.displayName() : nick;
+        suggestion.display = u'@' + suggestion.label;
+        suggestion.raw = QStringLiteral("<@%1>").arg(id);
+        suggestion.detail = user.username;
+        suggestion.avatar = m_images->image(ImageCache::avatarUrl(user));
+        ranked.append({rank, suggestion});
+    }
+    std::stable_sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    QList<MentionSuggestion> result;
+    for (const auto& entry : std::as_const(ranked)) {
+        if (result.size() >= MaxUserSuggestions)
+            break;
+        result.append(entry.second);
+    }
+
+    const Guild* guild = m_session->guild(m_guildId);
+    if (!guild)
+        return result;
+    const bool everyone = canMentionEveryone();
+    QList<Role> roles;
+    for (const Role& role : guild->roles) {
+        if (role.id != guild->id && (role.mentionable || everyone) && matchRank(role.name, query) <= 1)
+            roles.append(role);
+    }
+    std::sort(roles.begin(), roles.end(), [](const Role& a, const Role& b) { return a.position > b.position; });
+    for (const Role& role : std::as_const(roles).first(std::min<qsizetype>(roles.size(), MaxRoleSuggestions))) {
+        MentionSuggestion suggestion;
+        suggestion.kind = MentionSuggestion::Role;
+        suggestion.label = role.name;
+        suggestion.display = u'@' + role.name;
+        suggestion.raw = QStringLiteral("<@&%1>").arg(role.id);
+        suggestion.detail = tr("Role");
+        if (role.color != 0)
+            suggestion.color = QColor::fromRgb(QRgb(role.color));
+        result.append(suggestion);
+    }
+    if (everyone) {
+        const std::pair<QString, QString> special[] = {
+            {QStringLiteral("everyone"), tr("Notify everyone who can see this channel.")},
+            {QStringLiteral("here"), tr("Notify everyone online who can see this channel.")},
+        };
+        for (const auto& [name, detail] : special) {
+            if (!name.startsWith(query, Qt::CaseInsensitive))
+                continue;
+            MentionSuggestion suggestion;
+            suggestion.kind = MentionSuggestion::Everyone;
+            suggestion.label = u'@' + name;
+            suggestion.display = suggestion.label;
+            suggestion.raw = suggestion.label;
+            suggestion.detail = detail;
+            result.append(suggestion);
+        }
+    }
+    return result;
+}
+
+QList<MentionSuggestion> ChatView::channelSuggestions(const QString& query) const
+{
+    const Guild* guild = m_session->guild(m_guildId);
+    if (!guild)
+        return {};
+    QList<std::pair<int, MentionSuggestion>> ranked;
+    for (const Channel& channel : m_session->visibleChannels(m_guildId)) {
+        const int rank = matchRank(channel.name, query);
+        if (channel.type == ChannelType::GuildCategory || rank > 1)
+            continue;
+        MentionSuggestion suggestion;
+        suggestion.kind = MentionSuggestion::Channel;
+        suggestion.label = channel.name;
+        suggestion.display = u'#' + channel.name;
+        suggestion.raw = QStringLiteral("<#%1>").arg(channel.id);
+        suggestion.icon = channel.isVoice() ? QStringLiteral(":/icons/speaker.svg") : QStringLiteral(":/icons/hash.svg");
+        suggestion.detail = guild->channels.value(channel.parentId).name;
+        ranked.append({rank, suggestion});
+    }
+    std::stable_sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    QList<MentionSuggestion> result;
+    for (const auto& entry : std::as_const(ranked)) {
+        if (result.size() >= MaxChannelSuggestions)
+            break;
+        result.append(entry.second);
+    }
+    return result;
+}
+
+void ChatView::insertMention(const MentionSuggestion& suggestion)
+{
+    if (m_mentionStart < 0)
+        return;
+    // Two people (or channels) can have the same name: then show something unique for the second one.
+    const auto taken = [this, &suggestion](const QString& display) {
+        return std::any_of(m_mentionTokens.cbegin(), m_mentionTokens.cend(), [&](const MentionToken& token) {
+            return token.display == display && token.raw != suggestion.raw;
+        });
+    };
+    QString display = suggestion.display;
+    if (taken(display) && suggestion.kind == MentionSuggestion::User)
+        display = u'@' + suggestion.detail;
+    if (taken(display))
+        display = suggestion.raw;
+    const bool known = std::any_of(m_mentionTokens.cbegin(), m_mentionTokens.cend(),
+                                   [&](const MentionToken& token) { return token.display == display; });
+    if (display != suggestion.raw && !known)
+        m_mentionTokens.append({display, suggestion.raw});
+
+    QTextCursor cursor = m_composer->textCursor();
+    const int end = cursor.position();
+    cursor.setPosition(m_mentionStart);
+    cursor.setPosition(end, QTextCursor::KeepAnchor);
+    cursor.insertText(display + u' ');
+    m_composer->setTextCursor(cursor);
+    m_mentionStart = -1;
+    m_composer->setFocus();
 }
 
 void ChatView::startReply(const QString& messageId)
@@ -395,15 +828,33 @@ void ChatView::startEdit(const QString& messageId)
     m_editing = messageId;
     m_modeLabel->setText(tr("Editing message — <b>Escape</b> to cancel, <b>Enter</b> to save"));
     m_modeBar->show();
-    m_composer->setPlainText(message->content);
+    // Mentions are edited in their readable form, like when they were written.
+    m_mentionTokens.clear();
+    const QString text = Mentions::decode(message->content, [this](QChar kind, const QString& id) -> QString {
+        if (kind == u'@') {
+            const User user = m_session->user(id);
+            if (user.id.isEmpty())
+                return {};
+            const QString nick = m_guildId.isEmpty() ? QString() : m_session->knownMembers(m_guildId).value(id);
+            return u'@' + (nick.isEmpty() ? user.displayName() : nick);
+        }
+        const Guild* guild = m_session->guild(m_guildId);
+        if (kind == u'&')
+            return guild && guild->roles.contains(id) ? u'@' + guild->roles.value(id).name : QString();
+        const Channel* channel = m_session->channel(m_guildId, id);
+        return channel ? u'#' + channel->name : QString();
+    }, &m_mentionTokens);
+    m_composer->setPlainText(text);
     m_composer->moveCursor(QTextCursor::End);
     m_composer->setFocus();
 }
 
 void ChatView::cancelMode()
 {
-    if (!m_editing.isEmpty())
+    if (!m_editing.isEmpty()) {
         m_composer->clear();
+        m_mentionTokens.clear();
+    }
     m_replyTo.clear();
     m_editing.clear();
     m_modeBar->hide();

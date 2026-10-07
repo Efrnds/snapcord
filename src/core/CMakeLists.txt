@@ -4,6 +4,7 @@ add_library(snapcord_core STATIC
     Gateway.cpp Gateway.h
     Log.cpp Log.h
     Markdown.cpp Markdown.h
+    Mentions.cpp Mentions.h
     Message.cpp Message.h
     MessageStore.cpp MessageStore.h
     Models.cpp Models.h
@@ -13,6 +14,7 @@ add_library(snapcord_core STATIC
     RsaKey.cpp RsaKey.h
     Session.cpp Session.h
     SpotifyPresence.cpp SpotifyPresence.h
+    UploadLimits.h
     ZlibStream.cpp ZlibStream.h
 )
 

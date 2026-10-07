@@ -1,12 +1,18 @@
 #pragma once
 
+#include "core/Mentions.h"
+#include "core/MessageStore.h"
+
 #include <QHash>
 #include <QPlainTextEdit>
 #include <QTimer>
 #include <QWidget>
 
+class AttachmentTray;
 class ImageCache;
 class MemberListView;
+class MentionPopup;
+struct MentionSuggestion;
 class MessageDelegate;
 class MessageListView;
 class MessageModel;
@@ -17,6 +23,7 @@ class Session;
 class VoiceController;
 
 // Message input: Enter sends, Shift+Enter adds a line, Up edits the last message, Escape cancels.
+// Pasted or dropped files and pictures become attachments instead of text.
 class Composer : public QPlainTextEdit
 {
     Q_OBJECT
@@ -24,16 +31,25 @@ class Composer : public QPlainTextEdit
 public:
     explicit Composer(QWidget* parent = nullptr);
 
+    // While the mention list is open, the navigation keys go to it.
+    void setMentionPopup(MentionPopup* popup) { m_popup = popup; }
+
 signals:
     void submitted(const QString& text);
     void editLastRequested();
     void cancelRequested();
+    void filesPasted(const QStringList& paths);
+    void imagePasted(const QImage& image);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
+    bool canInsertFromMimeData(const QMimeData* source) const override;
+    void insertFromMimeData(const QMimeData* source) override;
 
 private:
     void adjustHeight();
+
+    MentionPopup* m_popup = nullptr;
 };
 
 // A text channel or direct message: header, message history and the message composer.
@@ -43,6 +59,7 @@ class ChatView : public QWidget
 
 public:
     ChatView(Session* session, ImageCache* images, VoiceController* voice, QWidget* parent = nullptr);
+    ~ChatView() override;
 
     void showChannel(const QString& guildId, const QString& channelId);
     QString channelId() const { return m_channelId; }
@@ -59,9 +76,22 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
 private:
     void submit(const QString& text);
+    void chooseFiles();
+    void addFiles(const QStringList& paths);
+    void addPastedImage(const QImage& image);
+    // Adds a file if Discord's limits allow it; otherwise shows why not.
+    bool addFile(const OutgoingFile& file);
+    void updateAttachments();
+    void updateMentionPopup();
+    QList<MentionSuggestion> userSuggestions(const QString& query) const;
+    QList<MentionSuggestion> channelSuggestions(const QString& query) const;
+    void insertMention(const MentionSuggestion& suggestion);
+    bool canMentionEveryone() const;
     void startReply(const QString& messageId);
     void startEdit(const QString& messageId);
     void cancelMode();
@@ -91,12 +121,22 @@ private:
     QLabel* m_modeLabel;
     Composer* m_composer;
     QToolButton* m_emojiButton;
+    QToolButton* m_attachButton;
+    AttachmentTray* m_tray;
+    MentionPopup* m_mentionPopup;
+    QWidget* m_inputBox = nullptr;
     QLabel* m_statusLabel;
 
     QString m_guildId;
     QString m_channelId;
     QString m_replyTo;
     QString m_editing;
+    bool m_canAttach = true;
+    QList<OutgoingFile> m_files;          // attachments of the next message
+    QList<MentionToken> m_mentionTokens;  // mentions picked in the composer
+    int m_mentionStart = -1;              // where the "@..." / "#..." being completed starts
+    QString m_memberQuery;                // last name searched on the server
+    QTimer m_memberSearchTimer;
     QHash<QString, qint64> m_typing; // user ID -> when their indicator expires
     QTimer m_typingTimer;
     QTimer m_readTimer;

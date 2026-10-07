@@ -254,6 +254,7 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
             it->name = data.value(u"name").toString(it->name);
             it->icon = data.value(u"icon").toString();
             it->ownerId = data.value(u"owner_id").toString(it->ownerId);
+            it->premiumTier = data.value(u"premium_tier").toInt(it->premiumTier);
             emit guildChanged(it->id);
             emit guildListChanged();
         }
@@ -426,6 +427,7 @@ void Session::loadReady(const QJsonObject& data)
     m_listGuildId.clear();
     m_listChannelId.clear();
     m_memberLists.clear();
+    m_guildMembers.clear();
     m_guilds.clear();
     m_guildOrder.clear();
     m_privateChannels.clear();
@@ -543,6 +545,12 @@ Presence Session::presence(const QString& userId) const
                                                      m_selfCustomStatus.emojiId));
     own.activities.append(m_selfActivities);
     return own;
+}
+
+void Session::searchGuildMembers(const QString& guildId, const QString& query)
+{
+    if (!guildId.isEmpty() && !query.isEmpty())
+        m_gateway->searchGuildMembers(guildId, query, 10);
 }
 
 void Session::requestPresence(const QString& guildId, const QString& userId)
@@ -1179,6 +1187,7 @@ void Session::loadGuild(const QJsonObject& data)
     guild.name = properties.value(u"name").toString();
     guild.icon = properties.value(u"icon").toString();
     guild.ownerId = properties.value(u"owner_id").toString();
+    guild.premiumTier = properties.value(u"premium_tier").toInt();
     guild.unavailable = data.value(u"unavailable").toBool();
 
     for (const QJsonValue& value : data.value(u"roles").toArray()) {
@@ -1235,6 +1244,8 @@ void Session::storeMember(const QString& guildId, const QJsonObject& member)
     if (!userJson.isEmpty())
         storeUser(userJson);
     const QString userId = userJson.isEmpty() ? member.value(u"user_id").toString() : userJson.value(u"id").toString();
+    if (!guildId.isEmpty() && !userId.isEmpty())
+        m_guildMembers[guildId].insert(userId, member.value(u"nick").toString());
     if (userId == m_self.id && !m_self.id.isEmpty()) {
         auto it = m_guilds.find(guildId);
         if (it != m_guilds.end() && member.contains(u"roles")) {

@@ -106,6 +106,9 @@ então o link tem que ser dinâmico.
   - Compressão `zlib-stream`.
   - Descartar cedo os eventos que nenhuma tela usa.
   - Identificação na conexão (IDENTIFY) e ritmo de requisições imitando fielmente o cliente oficial, para reduzir o risco de banimento.
+- **Regra anti-abuso (decisão do dono):** toda requisição deve ser feita **do mesmo jeito que o cliente oficial faz**.
+  Nada de caminhos alternativos ou "fallbacks" que o app oficial não usa (ex.: upload por multipart); se o caminho
+  oficial falhar, mostre o erro ao usuário em vez de tentar outro.
 
 ### Estrutura de pastas proposta
 
@@ -328,6 +331,22 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   de nível e pico de probabilidade de voz, para investigar quando "ninguém me ouve".
 - **Build com o app aberto:** `scripts\build.ps1 -Target <alvo>` compila só um alvo, útil quando o
   `Snapcord.exe` está aberto e não pode ser sobrescrito.
+
+### Anexos e menções no compositor
+
+- **Anexos:** botão "+", arrastar e soltar, ou colar (arquivos copiados ou imagem da área de transferência, que vira
+  `image.png`). Ficam numa bandeja (`app/AttachmentTray`) acima do texto até o envio.
+- **Envio:** como o cliente oficial, `POST /channels/{id}/attachments` devolve um `upload_url` por arquivo; o arquivo
+  vai por `PUT` direto para lá e a mensagem cita o `uploaded_filename`. **Sem alternativa:** se falhar, a mensagem
+  fica como "falhou" (nada de `multipart/form-data`). A mensagem pendente mostra o progresso em cada arquivo.
+- **Limites** (`core/UploadLimits.h`): 10 arquivos por mensagem, 500 MiB no total; por arquivo, 10 MiB grátis,
+  50 MiB Nitro Basic/Classic, 500 MiB Nitro, ou 50/100 MiB em servidores de nível 2/3 (vale o maior). Texto: 2000
+  caracteres (4000 com Nitro). Permissão `ATTACH_FILES` esconde o "+" quando falta.
+- **Menções:** digitar `@` ou `#` abre `app/MentionPopup` (membros, cargos mencionáveis, `@everyone`/`@here` com
+  permissão, canais). O texto mostra `@Nome`; no envio, `core/Mentions` troca por `<@id>`, `<@&id>` e `<#id>` (e faz o
+  inverso ao editar). Membros ainda desconhecidos são buscados pelo opcode 8 com `query`. Testes em
+  `tests/ComposerTest.cpp`.
+- **Falta o teste real** com uma conta (principalmente o upload pelo `upload_url`).
 
 ### Lista de membros
 

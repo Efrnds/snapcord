@@ -105,6 +105,16 @@ void Gateway::requestGuildMembers(const QString& guildId, const QStringList& use
     send(RequestGuildMembers, request);
 }
 
+void Gateway::searchGuildMembers(const QString& guildId, const QString& query, int limit)
+{
+    send(RequestGuildMembers, QJsonObject{
+                                  {QStringLiteral("guild_id"), QJsonArray{guildId}},
+                                  {QStringLiteral("query"), query},
+                                  {QStringLiteral("limit"), limit},
+                                  {QStringLiteral("presences"), true},
+                              });
+}
+
 void Gateway::updatePresence(const QString& status, const QJsonArray& activities)
 {
     send(PresenceUpdate, QJsonObject{
