@@ -169,6 +169,13 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         showProfile(userId, m_guildId, position);
     });
     connect(m_chatView, &ChatView::profileRequested, this, &MainWindow::showProfile);
+    connect(m_chatView, &ChatView::memberProfileRequested, this,
+            [this](const QString& userId, const QString& guildId, const QPoint& position) {
+                auto* popup = new ProfilePopup(m_session, m_images, userId, guildId, this);
+                connectProfilePopup(popup);
+                popup->popupLeftOf(position);
+            });
+    connect(m_chatView, &ChatView::memberContextMenuRequested, this, &MainWindow::showUserMenu);
     connect(m_voiceView, &VoiceChannelView::participantContextMenuRequested, this, &MainWindow::showUserMenu);
     connect(m_voiceView, &VoiceChannelView::joinRequested, this, [this] { m_voice->join(m_guildId, m_channelId); });
     connect(m_sidebar->voicePanel(), &VoicePanel::detailsRequested, this, [this] {

@@ -1,6 +1,7 @@
 #include "core/Session.h"
 
 #include "core/Gateway.h"
+#include "core/Log.h"
 #include "core/Permissions.h"
 #include "core/RestClient.h"
 
@@ -282,6 +283,8 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
         emit usersChanged();
     } else if (event == u"PRESENCE_UPDATE") {
         storePresence(data);
+    } else if (event == u"GUILD_MEMBER_LIST_UPDATE") {
+        onMemberListUpdate(data);
     } else if (event == u"SESSIONS_REPLACE") {
         loadSessions(data.value(u"sessions").toArray());
     } else if (event == u"USER_SETTINGS_UPDATE") {
@@ -408,6 +411,12 @@ void Session::loadReady(const QJsonObject& data)
 {
     m_self = User::fromJson(data.value(u"user").toObject());
     m_messages->setSelf(m_self);
+    // A new session starts without subscriptions.
+    m_listGuildId.clear();
+    m_listChannelId.clear();
+    m_memberList = {};
+    m_memberListSynced = false;
+    m_memberListIds.clear();
     m_guilds.clear();
     m_guildOrder.clear();
     m_privateChannels.clear();
@@ -533,6 +542,205 @@ void Session::requestPresence(const QString& guildId, const QString& userId)
         return;
     m_requestedPresences.insert(userId);
     m_gateway->requestGuildMembers(guildId, {userId}, true);
+}
+
+namespace {
+
+quint32 murmur3(const QByteArray& data)
+{
+    constexpr quint32 c1 = 0xcc9e2d51;
+    constexpr quint32 c2 = 0x1b873593;
+    auto rotl = [](quint32 x, int r) { return (x << r) | (x >> (32 - r)); };
+    const auto* bytes = reinterpret_cast<const uchar*>(data.constData());
+    const qsizetype length = data.size();
+    const qsizetype blocks = length / 4;
+    quint32 hash = 0;
+    for (qsizetype i = 0; i < blocks; ++i) {
+        quint32 k = bytes[i * 4] | (bytes[i * 4 + 1] << 8) | (bytes[i * 4 + 2] << 16) | (quint32(bytes[i * 4 + 3]) << 24);
+        k = rotl(k * c1, 15) * c2;
+        hash = rotl(hash ^ k, 13) * 5 + 0xe6546b64;
+    }
+    quint32 k = 0;
+    const uchar* tail = bytes + blocks * 4;
+    switch (length & 3) {
+    case 3:
+        k ^= tail[2] << 16;
+        [[fallthrough]];
+    case 2:
+        k ^= tail[1] << 8;
+        [[fallthrough]];
+    case 1:
+        k ^= tail[0];
+        hash ^= rotl(k * c1, 15) * c2;
+    }
+    hash ^= quint32(length);
+    hash ^= hash >> 16;
+    hash *= 0x85ebca6b;
+    hash ^= hash >> 13;
+    hash *= 0xc2b2ae35;
+    hash ^= hash >> 16;
+    return hash;
+}
+
+// Channels seen by the same people share a member list, named after the overwrites that decide who can see
+// the channel. Only a guess, used to recognize the list already on screen; the Gateway has the final word.
+QString guessMemberListId(const Channel& channel)
+{
+    QStringList parts;
+    for (const PermissionOverwrite& overwrite : channel.overwrites) {
+        if (overwrite.allow & Permissions::ViewChannel)
+            parts.append(QStringLiteral("allow:") + overwrite.id);
+        else if (overwrite.deny & Permissions::ViewChannel)
+            parts.append(QStringLiteral("deny:") + overwrite.id);
+    }
+    return parts.isEmpty() ? QStringLiteral("everyone") : QString::number(murmur3(parts.join(u',').toUtf8()));
+}
+
+} // namespace
+
+QJsonArray Session::memberListRanges(int lastRow)
+{
+    // Rows come in chunks of 100: always the first one, plus the chunk on screen and the one before it.
+    // Not `QJsonArray{QJsonArray{0, 99}}`: braces around a single array copy it instead of nesting it.
+    QJsonArray ranges;
+    ranges.append(QJsonArray{0, 99});
+    const int chunk = std::max(0, lastRow) / 100;
+    for (int i = std::max(1, chunk - 1); i <= chunk; ++i)
+        ranges.append(QJsonArray{i * 100, i * 100 + 99});
+    return ranges;
+}
+
+void Session::subscribeMemberList(const QString& guildId, const QString& channelId, int lastRow)
+{
+    if (guildId.isEmpty() || channelId.isEmpty())
+        return;
+    const QJsonArray ranges = memberListRanges(lastRow);
+    if (guildId == m_listGuildId && channelId == m_listChannelId && ranges == m_listRanges)
+        return;
+
+    if (guildId != m_listGuildId || channelId != m_listChannelId) {
+        if (guildId != m_listGuildId)
+            m_memberListIds.clear();
+        QString listId = m_memberListIds.value(channelId);
+        const Channel* channel = this->channel(guildId, channelId);
+        if (listId.isEmpty() && channel && guildId == m_listGuildId && guessMemberListId(*channel) == m_memberList.id)
+            listId = m_memberList.id;
+        if (listId.isEmpty() || listId != m_memberList.id || guildId != m_listGuildId) {
+            // Another list: the Gateway sends it from scratch.
+            m_memberList = {};
+            m_memberList.id = listId;
+            m_memberListSynced = false;
+        }
+        m_listGuildId = guildId;
+        m_listChannelId = channelId;
+        emit memberListChanged(guildId);
+    }
+    m_listRanges = ranges;
+    if (m_rest->isOffline())
+        return;
+    m_gateway->updateGuildSubscriptions(guildId, QJsonObject{
+                                                     {QStringLiteral("typing"), true},
+                                                     {QStringLiteral("activities"), true},
+                                                     {QStringLiteral("threads"), true},
+                                                     {QStringLiteral("channels"), QJsonObject{{channelId, ranges}}},
+                                                 });
+}
+
+const MemberList* Session::memberList(const QString& guildId, const QString& channelId) const
+{
+    if (!m_memberListSynced || guildId != m_listGuildId || channelId != m_listChannelId)
+        return nullptr;
+    return &m_memberList;
+}
+
+void Session::onMemberListUpdate(const QJsonObject& data)
+{
+    const QString guildId = data.value(u"guild_id").toString();
+    if (guildId != m_listGuildId)
+        return;
+    const QString listId = data.value(u"id").toString();
+    const QJsonArray ops = data.value(u"ops").toArray();
+    if (m_memberList.id.isEmpty()) {
+        // The first full list after subscribing tells which list the channel uses.
+        const bool sync = std::any_of(ops.begin(), ops.end(), [](const QJsonValue& op) {
+            return op.toObject().value(u"op").toString() == u"SYNC";
+        });
+        if (!sync)
+            return;
+        m_memberList.id = listId;
+        m_memberListIds.insert(m_listChannelId, listId);
+        qCInfo(lcGateway) << "member list" << listId << "received," << data.value(u"member_count").toInt() << "members";
+    }
+    if (listId != m_memberList.id)
+        return;
+
+    m_memberList.guildId = guildId;
+    m_memberList.memberCount = data.value(u"member_count").toInt();
+    m_memberList.onlineCount = data.value(u"online_count").toInt();
+    QList<MemberListItem>& items = m_memberList.items;
+    auto reserveRows = [&items](qsizetype count) {
+        if (items.size() < count)
+            items.resize(count);
+    };
+    for (const QJsonValue& value : ops) {
+        const QJsonObject op = value.toObject();
+        const QString type = op.value(u"op").toString();
+        const QJsonArray range = op.value(u"range").toArray();
+        const int index = op.value(u"index").toInt();
+        if (type == u"SYNC") {
+            const int first = range.at(0).toInt();
+            const QJsonArray rows = op.value(u"items").toArray();
+            reserveRows(first + rows.size());
+            for (qsizetype i = 0; i < rows.size(); ++i)
+                items[first + i] = memberListItem(guildId, rows.at(i).toObject());
+            m_memberListSynced = true;
+        } else if (type == u"INSERT") {
+            reserveRows(index);
+            items.insert(index, memberListItem(guildId, op.value(u"item").toObject()));
+        } else if (type == u"UPDATE") {
+            reserveRows(index + 1);
+            items[index] = memberListItem(guildId, op.value(u"item").toObject());
+        } else if (type == u"DELETE") {
+            if (index < items.size())
+                items.removeAt(index);
+        } else if (type == u"INVALIDATE") {
+            const int last = std::min(range.at(1).toInt(), int(items.size()) - 1);
+            for (int i = std::max(0, range.at(0).toInt()); i <= last; ++i)
+                items[i] = {};
+        }
+    }
+    // Each non-empty group is a header row followed by its members.
+    qsizetype rows = 0;
+    for (const QJsonValue& value : data.value(u"groups").toArray()) {
+        const int count = value.toObject().value(u"count").toInt();
+        if (count > 0)
+            rows += 1 + count;
+    }
+    items.resize(rows);
+    emit memberListChanged(guildId);
+}
+
+MemberListItem Session::memberListItem(const QString& guildId, const QJsonObject& json)
+{
+    MemberListItem item;
+    if (json.contains(u"group")) {
+        const QJsonObject group = json.value(u"group").toObject();
+        item.groupId = group.value(u"id").toString();
+        item.groupCount = group.value(u"count").toInt();
+        return item;
+    }
+    const QJsonObject member = json.value(u"member").toObject();
+    storeMember(guildId, member);
+    item.userId = member.value(u"user").toObject().value(u"id").toString();
+    item.nick = member.value(u"nick").toString();
+    for (const QJsonValue& role : member.value(u"roles").toArray())
+        item.roleIds.append(role.toString());
+    QJsonObject presence = member.value(u"presence").toObject();
+    if (!presence.isEmpty()) {
+        presence.insert(QStringLiteral("user_id"), item.userId);
+        storePresence(presence);
+    }
+    return item;
 }
 
 void Session::sendOwnPresence()

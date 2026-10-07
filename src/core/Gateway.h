@@ -30,6 +30,8 @@ public:
     void requestGuildMembers(const QString& guildId, const QStringList& userIds, bool presences = false);
     // Opcode 3: this session's status ("online", "idle", "dnd", "invisible") and activities.
     void updatePresence(const QString& status, const QJsonArray& activities);
+    // Opcode 37: what this session follows in a guild (typing, activities, member list rows of a channel).
+    void updateGuildSubscriptions(const QString& guildId, const QJsonObject& subscription);
 
     QString sessionId() const { return m_sessionId; }
 

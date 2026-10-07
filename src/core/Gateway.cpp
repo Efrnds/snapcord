@@ -30,6 +30,7 @@ enum Opcode {
     InvalidSession = 9,
     Hello = 10,
     HeartbeatAck = 11,
+    GuildSubscriptionsBulk = 37,
 };
 
 bool isFatalCloseCode(int code)
@@ -112,6 +113,11 @@ void Gateway::updatePresence(const QString& status, const QJsonArray& activities
                              {QStringLiteral("activities"), activities},
                              {QStringLiteral("afk"), false},
                          });
+}
+
+void Gateway::updateGuildSubscriptions(const QString& guildId, const QJsonObject& subscription)
+{
+    send(GuildSubscriptionsBulk, QJsonObject{{QStringLiteral("subscriptions"), QJsonObject{{guildId, subscription}}}});
 }
 
 void Gateway::onBinaryMessage(const QByteArray& message)

@@ -329,6 +329,19 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Build com o app aberto:** `scripts\build.ps1 -Target <alvo>` compila só um alvo, útil quando o
   `Snapcord.exe` está aberto e não pode ser sobrescrito.
 
+### Lista de membros
+
+- **Protocolo:** o cliente se inscreve com o opcode 37 (Guild Subscriptions Bulk), pedindo faixas de 100 linhas
+  do canal aberto (sempre `[0,99]`, mais a faixa visível ao rolar). O servidor responde com
+  `GUILD_MEMBER_LIST_UPDATE` (ops `SYNC`, `INSERT`, `UPDATE`, `DELETE`, `INVALIDATE`), agrupando por cargos
+  separados, "online" e "offline".
+- **Dados:** `Session` acompanha só a lista do canal na tela (`subscribeMemberList`, `memberList`). Canais vistos
+  pelas mesmas pessoas compartilham uma lista; o ID é aprendido no primeiro `SYNC` (com um palpite por murmur3
+  dos overwrites de `VIEW_CHANNEL` para reconhecer a lista já carregada). Testes em `tests/MemberListTest.cpp`.
+- **Interface:** `app/MemberListView` (240 px, à direita do chat), com botão no cabeçalho para mostrar/esconder
+  (QSettings `ui/memberList`). Clique abre o perfil à esquerda; botão direito abre o menu do usuário.
+- **Falta o teste real** com uma conta (principalmente servidores grandes e a rolagem).
+
 ### Perfis e presença
 
 - **Presença:** `Session` guarda status e atividades vindos de `READY_SUPPLEMENTAL` (`merged_presences`),

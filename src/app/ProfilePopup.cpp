@@ -175,7 +175,9 @@ void ProfilePopup::fitToContent()
     const int contentHeight = cardHeight + 2 * frameWidth();
     const int height = std::min({contentHeight, 640, available.height()});
 
-    QPoint position = m_above ? QPoint(m_anchor.x(), m_anchor.y() - height - 8) : m_anchor;
+    QPoint position = m_above ? QPoint(m_anchor.x(), m_anchor.y() - height - 8)
+        : m_leftOf            ? QPoint(m_anchor.x() - width() - 8, m_anchor.y())
+                              : m_anchor;
     position.setX(std::clamp(position.x(), available.left(), available.right() - width()));
     position.setY(std::clamp(position.y(), available.top(), available.bottom() - height));
     // One geometry change (not a resize and then a move), followed by a full repaint: moving a window
@@ -189,6 +191,14 @@ void ProfilePopup::popupAt(const QPoint& position)
 {
     m_anchor = position + QPoint(12, -40);
     m_above = false;
+    m_showRequested = true;
+    showWhenReady();
+}
+
+void ProfilePopup::popupLeftOf(const QPoint& position)
+{
+    m_anchor = position;
+    m_leftOf = true;
     m_showRequested = true;
     showWhenReady();
 }

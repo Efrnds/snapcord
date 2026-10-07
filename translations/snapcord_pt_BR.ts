@@ -12,108 +12,118 @@
 <context>
     <name>ChatView</name>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="138"/>
+        <location filename="../src/app/ChatView.cpp" line="159"/>
         <source>Select emoji</source>
         <translation>Selecionar emoji</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="215"/>
+        <location filename="../src/app/ChatView.cpp" line="247"/>
         <source>Your message could not be sent: %1</source>
         <translation>Não foi possível enviar sua mensagem: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="270"/>
+        <location filename="../src/app/ChatView.cpp" line="300"/>
+        <source>Hide Member List</source>
+        <translation>Ocultar lista de membros</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="300"/>
+        <source>Show Member List</source>
+        <translation>Mostrar lista de membros</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="315"/>
         <source>Message @%1</source>
         <translation>Conversar com @%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="273"/>
+        <location filename="../src/app/ChatView.cpp" line="318"/>
         <source>Join Call</source>
         <translation>Entrar na chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="273"/>
+        <location filename="../src/app/ChatView.cpp" line="318"/>
         <source>Start Call</source>
         <translation>Iniciar chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="282"/>
+        <location filename="../src/app/ChatView.cpp" line="327"/>
         <source>Message #%1</source>
         <translation>Conversar em #%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="291"/>
+        <location filename="../src/app/ChatView.cpp" line="336"/>
         <source>You do not have permission to send messages in this channel.</source>
         <translation>Você não tem permissão para enviar mensagens neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="320"/>
+        <location filename="../src/app/ChatView.cpp" line="365"/>
         <source>Replying to &lt;b&gt;%1&lt;/b&gt;</source>
         <translation>Respondendo a &lt;b&gt;%1&lt;/b&gt;</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="332"/>
+        <location filename="../src/app/ChatView.cpp" line="377"/>
         <source>Editing message — &lt;b&gt;Escape&lt;/b&gt; to cancel, &lt;b&gt;Enter&lt;/b&gt; to save</source>
         <translation>Editando mensagem — &lt;b&gt;Esc&lt;/b&gt; para cancelar, &lt;b&gt;Enter&lt;/b&gt; para salvar</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="367"/>
+        <location filename="../src/app/ChatView.cpp" line="412"/>
         <source>Add Reaction</source>
         <translation>Adicionar reação</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="377"/>
+        <location filename="../src/app/ChatView.cpp" line="422"/>
         <source>Other…</source>
         <translation>Outra…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="380"/>
+        <location filename="../src/app/ChatView.cpp" line="425"/>
         <source>Reply</source>
         <translation>Responder</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="382"/>
+        <location filename="../src/app/ChatView.cpp" line="427"/>
         <source>Edit Message</source>
         <translation>Editar mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="385"/>
+        <location filename="../src/app/ChatView.cpp" line="430"/>
         <source>Copy Text</source>
         <translation>Copiar texto</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="386"/>
+        <location filename="../src/app/ChatView.cpp" line="431"/>
         <source>Copy Message Link</source>
         <translation>Copiar link da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="390"/>
+        <location filename="../src/app/ChatView.cpp" line="435"/>
         <source>Copy Message ID</source>
         <translation>Copiar ID da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="393"/>
-        <location filename="../src/app/ChatView.cpp" line="394"/>
+        <location filename="../src/app/ChatView.cpp" line="438"/>
+        <location filename="../src/app/ChatView.cpp" line="439"/>
         <source>Delete Message</source>
         <translation>Excluir mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="395"/>
+        <location filename="../src/app/ChatView.cpp" line="440"/>
         <source>Are you sure you want to delete this message?</source>
         <translation>Tem certeza de que quer excluir esta mensagem?</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="458"/>
+        <location filename="../src/app/ChatView.cpp" line="503"/>
         <source>&lt;b&gt;%1&lt;/b&gt; is typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; está digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="460"/>
+        <location filename="../src/app/ChatView.cpp" line="505"/>
         <source>&lt;b&gt;%1&lt;/b&gt; and &lt;b&gt;%2&lt;/b&gt; are typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; e &lt;b&gt;%2&lt;/b&gt; estão digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="462"/>
+        <location filename="../src/app/ChatView.cpp" line="507"/>
         <source>Several people are typing…</source>
         <translation>Várias pessoas estão digitando…</translation>
     </message>
@@ -450,31 +460,31 @@
     <name>MainWindow</name>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="58"/>
-        <location filename="../src/app/MainWindow.cpp" line="270"/>
-        <location filename="../src/app/MainWindow.cpp" line="319"/>
-        <location filename="../src/app/MainWindow.cpp" line="404"/>
+        <location filename="../src/app/MainWindow.cpp" line="277"/>
+        <location filename="../src/app/MainWindow.cpp" line="326"/>
+        <location filename="../src/app/MainWindow.cpp" line="411"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="72"/>
-        <location filename="../src/app/MainWindow.cpp" line="465"/>
+        <location filename="../src/app/MainWindow.cpp" line="472"/>
         <source>Connecting…</source>
         <translation>Conectando…</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="193"/>
+        <location filename="../src/app/MainWindow.cpp" line="200"/>
         <source>Voice</source>
         <translation>Voz</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="308"/>
-        <location filename="../src/app/MainWindow.cpp" line="380"/>
+        <location filename="../src/app/MainWindow.cpp" line="315"/>
+        <location filename="../src/app/MainWindow.cpp" line="387"/>
         <source>Unknown user</source>
         <translation>Usuário desconhecido</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="487"/>
+        <location filename="../src/app/MainWindow.cpp" line="494"/>
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
@@ -484,7 +494,7 @@
         <translation>Escolha uma conversa à esquerda.</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="388"/>
+        <location filename="../src/app/MainWindow.cpp" line="395"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
@@ -493,12 +503,12 @@
         <translation type="vanished">Online</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="499"/>
+        <location filename="../src/app/MainWindow.cpp" line="506"/>
         <source>User Volume</source>
         <translation>Volume do usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="522"/>
+        <location filename="../src/app/MainWindow.cpp" line="529"/>
         <source>Mute</source>
         <translation>Silenciar</translation>
     </message>
@@ -562,6 +572,44 @@
         <location filename="../src/core/Markdown.cpp" line="106"/>
         <source>%1 ago</source>
         <translation>há %1</translation>
+    </message>
+</context>
+<context>
+    <name>MemberListView</name>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="38"/>
+        <source>Playing %1</source>
+        <translation>Jogando %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="40"/>
+        <source>Streaming %1</source>
+        <translation>Transmitindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="42"/>
+        <source>Listening to %1</source>
+        <translation>Ouvindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="44"/>
+        <source>Watching %1</source>
+        <translation>Assistindo %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="46"/>
+        <source>Competing in %1</source>
+        <translation>Competindo em %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="165"/>
+        <source>Online</source>
+        <translation>Online</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MemberListView.cpp" line="167"/>
+        <source>Offline</source>
+        <translation>Offline</translation>
     </message>
 </context>
 <context>
@@ -646,142 +694,142 @@
 <context>
     <name>ProfileCard</name>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="183"/>
+        <location filename="../src/app/ProfileCard.cpp" line="189"/>
         <source>Online</source>
         <translation>Disponível</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="185"/>
+        <location filename="../src/app/ProfileCard.cpp" line="191"/>
         <source>Idle</source>
         <translation>Ausente</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="187"/>
+        <location filename="../src/app/ProfileCard.cpp" line="193"/>
         <source>Do Not Disturb</source>
         <translation>Não perturbar</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="189"/>
+        <location filename="../src/app/ProfileCard.cpp" line="195"/>
         <source>Invisible</source>
         <translation>Invisível</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="191"/>
+        <location filename="../src/app/ProfileCard.cpp" line="197"/>
         <source>Offline</source>
         <translation>Offline</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="345"/>
+        <location filename="../src/app/ProfileCard.cpp" line="372"/>
         <source>About Me</source>
         <translation>Sobre mim</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="365"/>
+        <location filename="../src/app/ProfileCard.cpp" line="392"/>
         <source>Member Since</source>
         <translation>Membro desde</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="367"/>
+        <location filename="../src/app/ProfileCard.cpp" line="394"/>
         <source>Discord: %1</source>
         <translation>Discord: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="369"/>
+        <location filename="../src/app/ProfileCard.cpp" line="396"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="375"/>
+        <location filename="../src/app/ProfileCard.cpp" line="402"/>
         <source>Roles</source>
         <translation>Cargos</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="387"/>
+        <location filename="../src/app/ProfileCard.cpp" line="414"/>
         <source>Connections</source>
         <translation>Conexões</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="400"/>
+        <location filename="../src/app/ProfileCard.cpp" line="427"/>
         <source>Mutual servers: %1</source>
         <translation>Servidores em comum: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="406"/>
+        <location filename="../src/app/ProfileCard.cpp" line="433"/>
         <source>Loading profile…</source>
         <translation>Carregando perfil…</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="408"/>
+        <location filename="../src/app/ProfileCard.cpp" line="435"/>
         <source>Could not load the full profile: %1</source>
         <translation>Não foi possível carregar o perfil completo: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="432"/>
+        <location filename="../src/app/ProfileCard.cpp" line="459"/>
         <source>Live on %1</source>
         <translation>Ao vivo na %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="435"/>
+        <location filename="../src/app/ProfileCard.cpp" line="462"/>
         <source>Listening to %1</source>
         <translation>Ouvindo %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="438"/>
+        <location filename="../src/app/ProfileCard.cpp" line="465"/>
         <source>Watching %1</source>
         <translation>Assistindo %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="441"/>
+        <location filename="../src/app/ProfileCard.cpp" line="468"/>
         <source>Competing in %1</source>
         <translation>Competindo em %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="444"/>
+        <location filename="../src/app/ProfileCard.cpp" line="471"/>
         <source>Playing</source>
         <translation>Jogando</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="465"/>
+        <location filename="../src/app/ProfileCard.cpp" line="492"/>
         <source>by %1</source>
         <translation>de %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="467"/>
+        <location filename="../src/app/ProfileCard.cpp" line="494"/>
         <source>on %1</source>
         <translation>em %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="474"/>
+        <location filename="../src/app/ProfileCard.cpp" line="501"/>
         <source>(%1 of %2)</source>
         <translation>(%1 de %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="520"/>
+        <location filename="../src/app/ProfileCard.cpp" line="547"/>
         <source>Message</source>
         <translation>Mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="528"/>
+        <location filename="../src/app/ProfileCard.cpp" line="555"/>
         <source>Edit Profile</source>
         <translation>Editar perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="554"/>
+        <location filename="../src/app/ProfileCard.cpp" line="581"/>
         <source>Edit Custom Status</source>
         <translation>Editar status personalizado</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="554"/>
+        <location filename="../src/app/ProfileCard.cpp" line="581"/>
         <source>Set Custom Status</source>
         <translation>Definir status personalizado</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="573"/>
+        <location filename="../src/app/ProfileCard.cpp" line="600"/>
         <source>%1 left</source>
         <translation>faltam %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ProfileCard.cpp" line="575"/>
+        <location filename="../src/app/ProfileCard.cpp" line="602"/>
         <source>%1 elapsed</source>
         <translation>%1 decorrido</translation>
     </message>
@@ -894,7 +942,7 @@
 <context>
     <name>ProfilePopup</name>
     <message>
-        <location filename="../src/app/ProfilePopup.cpp" line="130"/>
+        <location filename="../src/app/ProfilePopup.cpp" line="161"/>
         <source>Unknown user</source>
         <translation>Usuário desconhecido</translation>
     </message>
@@ -948,12 +996,12 @@
 <context>
     <name>Session</name>
     <message>
-        <location filename="../src/core/Session.cpp" line="572"/>
+        <location filename="../src/core/Session.cpp" line="770"/>
         <source>Discord asked for a captcha. Make this change in the official app.</source>
         <translation>O Discord pediu um captcha. Faça essa alteração no app oficial.</translation>
     </message>
     <message>
-        <location filename="../src/core/Session.cpp" line="580"/>
+        <location filename="../src/core/Session.cpp" line="778"/>
         <source>Request failed (HTTP %1).</source>
         <translation>A solicitação falhou (HTTP %1).</translation>
     </message>

@@ -163,6 +163,42 @@ QJsonObject nightOwlsJson()
             {QStringLiteral("voice_states"), voiceStates}};
 }
 
+// The member sidebar of Night Owls, as the Gateway sends it after subscribing: the hoisted Moderator role,
+// then everyone online, then everyone offline.
+QJsonObject memberListJson()
+{
+    auto group = [](const QString& id, int count) {
+        return QJsonObject{{QStringLiteral("id"), id}, {QStringLiteral("count"), count}};
+    };
+    auto member = [](const QString& name, const QStringList& roles = {}) {
+        return QJsonObject{{QStringLiteral("member"), QJsonObject{{QStringLiteral("user"), userJson(name)},
+                                                                  {QStringLiteral("roles"), QJsonArray::fromStringList(roles)}}}};
+    };
+    const QJsonArray groups{group(ModeratorRole, 1), group(QStringLiteral("online"), 6), group(QStringLiteral("offline"), 1)};
+    const QJsonArray items{
+        QJsonObject{{QStringLiteral("group"), groups[0]}},
+        member(QStringLiteral("Alex"), {ModeratorRole, NightShiftRole}),
+        QJsonObject{{QStringLiteral("group"), groups[1]}},
+        member(QStringLiteral("Bia")),
+        member(QStringLiteral("Kenji")),
+        member(QStringLiteral("Marina")),
+        member(QStringLiteral("Rafa")),
+        member(QStringLiteral("Sam"), {NightShiftRole}),
+        member(QStringLiteral("Theo")),
+        QJsonObject{{QStringLiteral("group"), groups[2]}},
+        member(QStringLiteral("Lina")),
+    };
+    const QJsonObject sync{{QStringLiteral("op"), QStringLiteral("SYNC")},
+                           {QStringLiteral("range"), QJsonArray{0, 99}},
+                           {QStringLiteral("items"), items}};
+    return {{QStringLiteral("guild_id"), NightOwls},
+            {QStringLiteral("id"), QStringLiteral("everyone")},
+            {QStringLiteral("member_count"), 8},
+            {QStringLiteral("online_count"), 7},
+            {QStringLiteral("groups"), groups},
+            {QStringLiteral("ops"), QJsonArray{sync}}};
+}
+
 QJsonObject simpleGuildJson(const Server& server, int index)
 {
     // Not QString::arg: "%10…" would be read as placeholder 10.
@@ -513,8 +549,9 @@ void DemoController::start(const QString& screenshotFolder)
     m_main->showChannel(NightOwls, General);
     m_main->show();
 
-    // Someone typing, to show the indicator under the message box.
-    m_session->startOffline({{QStringLiteral("TYPING_START"),
+    // The member list, and someone typing to show the indicator under the message box.
+    m_session->startOffline({{QStringLiteral("GUILD_MEMBER_LIST_UPDATE"), memberListJson()},
+                             {QStringLiteral("TYPING_START"),
                               QJsonObject{{QStringLiteral("channel_id"), General},
                                           {QStringLiteral("guild_id"), NightOwls},
                                           {QStringLiteral("user_id"), person(QStringLiteral("Theo")).id}}}});

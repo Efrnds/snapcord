@@ -240,6 +240,31 @@ struct UserProfile
     static UserProfile fromJson(const QJsonObject& json);
 };
 
+// One row of a guild member list: a group header ("online", "offline" or a hoisted role ID with its
+// member count), a member, or a row the Gateway has not sent yet (both IDs empty).
+struct MemberListItem
+{
+    QString groupId;
+    int groupCount = 0;
+    QString userId;
+    QString nick;
+    QStringList roleIds;
+
+    bool isGroup() const { return !groupId.isEmpty(); }
+    bool isMember() const { return !userId.isEmpty(); }
+};
+
+// The member sidebar of a guild channel, kept in sync by GUILD_MEMBER_LIST_UPDATE. Every channel whose
+// members can see it the same way shares one list; only the subscribed ranges of rows are filled in.
+struct MemberList
+{
+    QString id;
+    QString guildId;
+    int memberCount = 0;
+    int onlineCount = 0;
+    QList<MemberListItem> items;
+};
+
 // When an account was created, from its snowflake ID.
 QDateTime snowflakeTime(const QString& id);
 

@@ -24,6 +24,8 @@ public:
 
     // Opens next to a point (global coordinates), kept inside the screen.
     void popupAt(const QPoint& position);
+    // Opens to the left of a point, top-aligned with it (the member list).
+    void popupLeftOf(const QPoint& position);
     // Opens above a widget, aligned to its left edge (the user panel).
     void popupAbove(QWidget* anchor);
 
@@ -49,6 +51,7 @@ private:
     QString m_error;
     QPoint m_anchor;
     bool m_above = false;
+    bool m_leftOf = false;
     bool m_showRequested = false;
     bool m_waitedEnough = false;
 };

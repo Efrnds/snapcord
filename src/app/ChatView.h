@@ -6,6 +6,7 @@
 #include <QWidget>
 
 class ImageCache;
+class MemberListView;
 class MessageDelegate;
 class MessageListView;
 class MessageModel;
@@ -52,6 +53,9 @@ public:
 signals:
     // A user's name, avatar or mention was clicked. `guildId` is empty in direct messages.
     void profileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
+    // From the member sidebar, whose profiles open to its left.
+    void memberProfileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
+    void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
 
 private:
     void submit(const QString& text);
@@ -66,6 +70,7 @@ private:
     void jumpTo(const QString& messageId);
     void updateTyping();
     void showError(const QString& text);
+    void updateMemberList();
 
     Session* m_session;
     ImageCache* m_images;
@@ -77,6 +82,8 @@ private:
     QLabel* m_title;
     QLabel* m_topic;
     QPushButton* m_callButton;
+    QToolButton* m_membersButton;
+    MemberListView* m_memberList;
     QWidget* m_modeBar;
     QLabel* m_modeLabel;
     Composer* m_composer;

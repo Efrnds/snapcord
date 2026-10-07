@@ -79,6 +79,27 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 #channelTree::item, #channelTree::item:hover, #channelTree::item:selected {
     background: transparent;
 }
+#memberList {
+    background: @bg1;
+    border: none;
+    outline: 0;
+    padding-bottom: 8px;
+}
+#memberList::item, #memberList::item:hover {
+    background: transparent;
+}
+#headerIconButton {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+}
+#headerIconButton:hover {
+    background: @hover;
+}
+#headerIconButton:checked {
+    background: @selected;
+}
 #channelTree::branch {
     background: transparent;
     image: none;
