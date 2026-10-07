@@ -1,6 +1,7 @@
 #include "core/Models.h"
 
 #include <QJsonArray>
+#include <QTimeZone>
 #include <QVariant>
 
 namespace {
