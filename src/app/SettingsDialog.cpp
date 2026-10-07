@@ -1355,6 +1355,22 @@ QString SettingsDialog::presetDisplayName(const QString& id, const QString& fall
         return tr("AMOLED");
     if (id == QLatin1String("ash"))
         return tr("Ash");
+    if (id == QLatin1String("catppuccin-mocha"))
+        return tr("Catppuccin Mocha");
+    if (id == QLatin1String("catppuccin-latte"))
+        return tr("Catppuccin Latte");
+    if (id == QLatin1String("nord"))
+        return tr("Nord");
+    if (id == QLatin1String("dracula"))
+        return tr("Dracula");
+    if (id == QLatin1String("gruvbox"))
+        return tr("Gruvbox");
+    if (id == QLatin1String("tokyo-night"))
+        return tr("Tokyo Night");
+    if (id == QLatin1String("rose-pine"))
+        return tr("Rosé Pine");
+    if (id == QLatin1String("one-dark"))
+        return tr("One Dark");
     if (id == QLatin1String("light"))
         return tr("Light");
     return fallback;

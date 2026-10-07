@@ -672,8 +672,8 @@
     </message>
     <message>
         <location filename="../src/app/SettingsDialog.cpp" line="428"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1410"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1509"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1426"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1525"/>
         <source>Language</source>
         <translation>Idioma</translation>
     </message>
@@ -1156,6 +1156,46 @@
     </message>
     <message>
         <location filename="../src/app/SettingsDialog.cpp" line="1359"/>
+        <source>Catppuccin Mocha</source>
+        <translation>Catppuccin Mocha</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1361"/>
+        <source>Catppuccin Latte</source>
+        <translation>Catppuccin Latte</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1363"/>
+        <source>Nord</source>
+        <translation>Nord</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1365"/>
+        <source>Dracula</source>
+        <translation>Dracula</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1367"/>
+        <source>Gruvbox</source>
+        <translation>Gruvbox</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1369"/>
+        <source>Tokyo Night</source>
+        <translation>Tokyo Night</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1371"/>
+        <source>Rosé Pine</source>
+        <translation>Rosé Pine</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1373"/>
+        <source>One Dark</source>
+        <translation>One Dark</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1375"/>
         <source>Light</source>
         <translation>Claro</translation>
     </message>
@@ -1229,22 +1269,22 @@
         <translation>%1 px</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1414"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1430"/>
         <source>Select a language</source>
         <translation>Selecione um idioma</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1510"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1526"/>
         <source>Restart Snapcord to apply the new language.</source>
         <translation>Reinicie o Snapcord para aplicar o novo idioma.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1511"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1527"/>
         <source>Restart Now</source>
         <translation>Reiniciar agora</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1512"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1528"/>
         <source>Later</source>
         <translation>Depois</translation>
     </message>
