@@ -53,18 +53,18 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
 
-/* Server rail */
+/* Server rail — @bg0Panel allows glass opacity over wallpaper */
 #serverRail, #serverRailContent, #serverRail QScrollArea {
-    background: @bg0;
+    background: @bg0Panel;
 }
 #railSeparator {
     background: @hover;
     border-radius: 1px;
 }
 
-/* Channel sidebar */
+/* Channel sidebar — translucent when panel opacity < 100 */
 #channelSidebar {
-    background: @bg1;
+    background: @bg1Panel;
 }
 #sidebarHeader {
     border-bottom: 1px solid @border;

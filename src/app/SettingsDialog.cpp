@@ -13,6 +13,7 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFrame>
 #include <QGridLayout>
@@ -305,6 +306,104 @@ void PresetCard::paintEvent(QPaintEvent*)
     painter.setFont(font);
     painter.drawText(QRectF(preview.right() + 12, outer.top(), outer.right() - preview.right() - 16, outer.height()),
                      Qt::AlignVCenter | Qt::AlignLeft, text());
+}
+
+// --- LayoutStudio -----------------------------------------------------------------------------------
+
+LayoutStudio::LayoutStudio(QWidget* parent)
+    : QWidget(parent)
+{
+    setMouseTracking(true);
+    setCursor(Qt::PointingHandCursor);
+    setToolTip(tr("Click a region to change its color"));
+    connect(&Theme::instance(), &Theme::changed, this, QOverload<>::of(&QWidget::update));
+}
+
+QString LayoutStudio::hitTest(const QPoint& pos) const
+{
+    const QRect area = rect().adjusted(8, 8, -8, -8);
+    if (!area.contains(pos))
+        return {};
+    const int railW = qMax(18, area.width() / 10);
+    const int sideW = qMax(48, area.width() / 4);
+    const QRect rail(area.left(), area.top(), railW, area.height());
+    const QRect side(rail.right() + 1, area.top(), sideW, area.height());
+    const QRect chat(side.right() + 1, area.top(), area.right() - side.right(), area.height());
+    const QRect accent(chat.left() + 12, chat.bottom() - 18, 40, 8);
+    if (accent.contains(pos))
+        return QStringLiteral("accent");
+    if (rail.contains(pos))
+        return QStringLiteral("bg0");
+    if (side.contains(pos))
+        return QStringLiteral("bg1");
+    if (chat.contains(pos))
+        return QStringLiteral("bg2");
+    return {};
+}
+
+void LayoutStudio::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    const Theme::Palette& c = Theme::instance().palette();
+    const QRect area = rect().adjusted(8, 8, -8, -8);
+    const int railW = qMax(18, area.width() / 10);
+    const int sideW = qMax(48, area.width() / 4);
+    const QRect rail(area.left(), area.top(), railW, area.height());
+    const QRect side(rail.right() + 1, area.top(), sideW, area.height());
+    const QRect chat(side.right() + 1, area.top(), area.right() - side.right(), area.height());
+
+    painter.setPen(QPen(c.border, 1.5));
+    painter.setBrush(c.bg2);
+    painter.drawRoundedRect(area, 10, 10);
+
+    auto drawRegion = [&](const QRect& r, const QColor& fill, const QString& id, const QString& label) {
+        const bool hot = m_hover == id;
+        painter.setPen(hot ? QPen(c.accent, 2) : Qt::NoPen);
+        painter.setBrush(fill);
+        painter.drawRect(r);
+        painter.setPen(c.textBright);
+        QFont font = painter.font();
+        font.setPixelSize(11);
+        font.setWeight(QFont::DemiBold);
+        painter.setFont(font);
+        painter.drawText(r.adjusted(6, 0, -6, 0), Qt::AlignCenter, label);
+    };
+
+    drawRegion(rail, c.bg0, QStringLiteral("bg0"), tr("Rail"));
+    drawRegion(side, c.bg1, QStringLiteral("bg1"), tr("Sidebar"));
+    drawRegion(chat, c.bg2, QStringLiteral("bg2"), tr("Chat"));
+
+    const QRect accent(chat.left() + 12, chat.bottom() - 18, 48, 10);
+    painter.setPen(m_hover == u"accent" ? QPen(c.textBright, 1) : Qt::NoPen);
+    painter.setBrush(c.accent);
+    painter.drawRoundedRect(accent, 3, 3);
+    painter.setPen(c.onAccent);
+    painter.drawText(accent, Qt::AlignCenter, tr("Accent"));
+}
+
+void LayoutStudio::mousePressEvent(QMouseEvent* event)
+{
+    const QString id = hitTest(event->position().toPoint());
+    if (!id.isEmpty())
+        emit regionClicked(id);
+}
+
+void LayoutStudio::mouseMoveEvent(QMouseEvent* event)
+{
+    const QString id = hitTest(event->position().toPoint());
+    if (id != m_hover) {
+        m_hover = id;
+        update();
+    }
+}
+
+void LayoutStudio::leaveEvent(QEvent*)
+{
+    if (!m_hover.isEmpty()) {
+        m_hover.clear();
+        update();
+    }
 }
 
 // --- SettingsDialog ---------------------------------------------------------------------------------
@@ -605,6 +704,64 @@ QWidget* SettingsDialog::buildAppearancePage()
     connect(m_presetGroup, &QButtonGroup::idClicked, this, &SettingsDialog::applyAppearance);
 
     layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Click to recolor")));
+    auto* studioHint = new QLabel(tr("Click rail, sidebar, chat, or accent on the map. Changes apply instantly."));
+    studioHint->setObjectName(QStringLiteral("settingsHint"));
+    studioHint->setWordWrap(true);
+    layout->addWidget(studioHint);
+    m_layoutStudio = new LayoutStudio;
+    layout->addWidget(m_layoutStudio);
+    connect(m_layoutStudio, &LayoutStudio::regionClicked, this, [this](const QString& id) {
+        pickColor(Theme::instance().tokenColor(id), Theme::tokenLabel(id), [this, id](const QColor& c) {
+            Theme::instance().setTokenOverride(id, c);
+            refreshColorSwatches();
+        });
+    });
+
+    m_customizedLabel = new QLabel;
+    m_customizedLabel->setObjectName(QStringLiteral("settingsHint"));
+    layout->addWidget(m_customizedLabel);
+    auto* resetAll = new QPushButton(tr("Reset all customization"));
+    resetAll->setObjectName(QStringLiteral("secondaryButton"));
+    resetAll->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(resetAll, 0, Qt::AlignLeft);
+    connect(resetAll, &QPushButton::clicked, this, [this] {
+        Theme::instance().clearCustomization();
+        refreshAppearanceControls();
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Tone & scale")));
+    auto addToneSlider = [&](const QString& title, QSlider*& slider, QLabel*& valueLabel, int min, int max,
+                             int value, const std::function<QString(int)>& format) {
+        layout->addWidget(new QLabel(title));
+        slider = new QSlider(Qt::Horizontal);
+        slider->setRange(min, max);
+        slider->setValue(value);
+        valueLabel = new QLabel(format(value));
+        valueLabel->setObjectName(QStringLiteral("settingsHint"));
+        auto* row = new QHBoxLayout;
+        row->addWidget(slider, 1);
+        row->addWidget(valueLabel);
+        layout->addLayout(row);
+        QLabel* label = valueLabel;
+        connect(slider, &QSlider::valueChanged, this, [this, label, format](int v) {
+            label->setText(format(v));
+            applyAppearance();
+        });
+    };
+    addToneSlider(tr("Brightness"), m_brightness, m_brightnessLabel, -40, 40, current.brightness,
+                  [this](int v) { return tr("%1").arg(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v)); });
+    addToneSlider(tr("Saturation"), m_saturation, m_saturationLabel, -50, 50, current.saturation,
+                  [this](int v) { return tr("%1").arg(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v)); });
+    addToneSlider(tr("UI scale"), m_uiScale, m_uiScaleLabel, 85, 130, current.uiScale,
+                  [this](int v) { return tr("%1%").arg(v); });
+    addToneSlider(tr("Corner radius"), m_radius, m_radiusLabel, 0, 16, current.radius,
+                  [this](int v) { return tr("%1 px").arg(v); });
+    addToneSlider(tr("Panel opacity (rail & sidebar)"), m_panelOpacity, m_panelOpacityLabel, 40, 100,
+                  current.panelOpacity, [this](int v) { return tr("%1%").arg(v); });
+
+    layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Accent color")));
     auto* accentHint = new QLabel(tr("Pick a color or open the custom picker."));
     accentHint->setObjectName(QStringLiteral("settingsHint"));
@@ -755,17 +912,6 @@ QWidget* SettingsDialog::buildAppearancePage()
             &SettingsDialog::applyAppearance);
 
     layout->addSpacing(12);
-    layout->addWidget(sectionLabel(tr("Corner radius")));
-    m_radius = new QComboBox;
-    m_radius->addItem(tr("Sharp (0)"), 0);
-    m_radius->addItem(tr("Default (4)"), 4);
-    m_radius->addItem(tr("Rounded (8)"), 8);
-    m_radius->setCurrentIndex(m_radius->findData(current.radius));
-    layout->addWidget(m_radius);
-    connect(m_radius, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            &SettingsDialog::applyAppearance);
-
-    layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Font")));
     m_fontFamily = new QComboBox;
     for (const QString& family : Theme::fontFamilyChoices()) {
@@ -869,6 +1015,10 @@ QWidget* SettingsDialog::buildAppearancePage()
         Theme::instance().setSettings(settings);
         refreshAppearanceControls();
     });
+    m_wallpaperAppWide = new QCheckBox(tr("Wallpaper behind the whole window (not only chat)"));
+    m_wallpaperAppWide->setChecked(current.wallpaperAppWide);
+    layout->addWidget(m_wallpaperAppWide);
+    connect(m_wallpaperAppWide, &QCheckBox::toggled, this, &SettingsDialog::applyAppearance);
 
     auto addPercentSlider = [&](const QString& title, QSlider*& slider, QLabel*& valueLabel, int min, int max,
                                 int value) {
@@ -1047,6 +1197,12 @@ void SettingsDialog::refreshColorSwatches()
         it.value()->setSwatchColor(Theme::instance().tokenColor(it.key()));
         it.value()->setSelectedSwatch(appearance.tokenOverrides.contains(it.key()));
     }
+
+    if (m_customizedLabel) {
+        m_customizedLabel->setText(Theme::instance().hasCustomization()
+                                       ? tr("This theme has local customizations.")
+                                       : tr("Using the preset as-is."));
+    }
 }
 
 void SettingsDialog::refreshAppearanceControls()
@@ -1055,9 +1211,14 @@ void SettingsDialog::refreshAppearanceControls()
     const QSignalBlocker blockFont(m_fontSize);
     const QSignalBlocker blockFamily(m_fontFamily);
     const QSignalBlocker blockRadius(m_radius);
+    const QSignalBlocker blockScale(m_uiScale);
+    const QSignalBlocker blockBright(m_brightness);
+    const QSignalBlocker blockSat(m_saturation);
+    const QSignalBlocker blockPanel(m_panelOpacity);
     const QSignalBlocker blockDensity(m_chatDensity);
     const QSignalBlocker blockSync(m_syncDiscordAccent);
     const QSignalBlocker blockGrad(m_gradientEnabled);
+    const QSignalBlocker blockAppWide(m_wallpaperAppWide);
     const QSignalBlocker blockOpacity(m_wallpaperOpacity);
     const QSignalBlocker blockBlur(m_wallpaperBlur);
     const QSignalBlocker blockFrost(m_wallpaperFrost);
@@ -1076,12 +1237,41 @@ void SettingsDialog::refreshAppearanceControls()
         const int idx = m_fontFamily->findData(appearance.fontFamily);
         m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    if (m_radius)
-        m_radius->setCurrentIndex(m_radius->findData(appearance.radius));
+    if (m_radius) {
+        m_radius->setValue(appearance.radius);
+        if (m_radiusLabel)
+            m_radiusLabel->setText(tr("%1 px").arg(appearance.radius));
+    }
+    if (m_uiScale) {
+        m_uiScale->setValue(appearance.uiScale);
+        if (m_uiScaleLabel)
+            m_uiScaleLabel->setText(tr("%1%").arg(appearance.uiScale));
+    }
+    if (m_brightness) {
+        m_brightness->setValue(appearance.brightness);
+        if (m_brightnessLabel) {
+            const int v = appearance.brightness;
+            m_brightnessLabel->setText(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v));
+        }
+    }
+    if (m_saturation) {
+        m_saturation->setValue(appearance.saturation);
+        if (m_saturationLabel) {
+            const int v = appearance.saturation;
+            m_saturationLabel->setText(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v));
+        }
+    }
+    if (m_panelOpacity) {
+        m_panelOpacity->setValue(appearance.panelOpacity);
+        if (m_panelOpacityLabel)
+            m_panelOpacityLabel->setText(tr("%1%").arg(appearance.panelOpacity));
+    }
     if (m_chatDensity)
         m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(appearance.chatDensity)));
     if (m_syncDiscordAccent)
         m_syncDiscordAccent->setChecked(appearance.syncDiscordAccent);
+    if (m_wallpaperAppWide)
+        m_wallpaperAppWide->setChecked(appearance.wallpaperAppWide);
     if (m_gradientEnabled)
         m_gradientEnabled->setChecked(appearance.gradientEnabled);
     if (m_wallpaperPathLabel) {
@@ -1182,11 +1372,21 @@ void SettingsDialog::applyAppearance()
     if (m_fontFamily)
         settings.fontFamily = m_fontFamily->currentData().toString();
     if (m_radius)
-        settings.radius = m_radius->currentData().toInt();
+        settings.radius = m_radius->value();
+    if (m_uiScale)
+        settings.uiScale = m_uiScale->value();
+    if (m_brightness)
+        settings.brightness = m_brightness->value();
+    if (m_saturation)
+        settings.saturation = m_saturation->value();
+    if (m_panelOpacity)
+        settings.panelOpacity = m_panelOpacity->value();
     if (m_chatDensity)
         settings.chatDensity = static_cast<Theme::ChatDensity>(m_chatDensity->currentData().toInt());
     if (m_syncDiscordAccent)
         settings.syncDiscordAccent = m_syncDiscordAccent->isChecked();
+    if (m_wallpaperAppWide)
+        settings.wallpaperAppWide = m_wallpaperAppWide->isChecked();
     if (m_gradientEnabled)
         settings.gradientEnabled = m_gradientEnabled->isChecked();
     if (m_wallpaperOpacity)

@@ -21,6 +21,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
+#include <QPainter>
 #include <QSettings>
 #include <QSlider>
 #include <QStackedWidget>
@@ -33,6 +34,39 @@ constexpr auto LastGuildKey = "ui/lastGuild";
 constexpr auto LastChannelKey = "ui/lastChannel/";
 
 } // namespace
+
+// Paints app-wide wallpaper behind the rail / sidebar / chat columns.
+class MainWindow::AppShell : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        const Theme::Settings& appearance = Theme::instance().settings();
+        const Theme::Palette& colors = Theme::instance().palette();
+        painter.fillRect(rect(), colors.bg2);
+
+        if (!appearance.wallpaperAppWide)
+            return;
+
+        const QPixmap& wallpaper = Theme::instance().wallpaperPixmap();
+        if (!wallpaper.isNull() && appearance.wallpaperOpacity > 0) {
+            painter.setOpacity(appearance.wallpaperOpacity / 100.0);
+            const QSize scaled = wallpaper.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
+            const QPoint topLeft((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
+            painter.drawPixmap(QRect(topLeft, scaled), wallpaper);
+            painter.setOpacity(1.0);
+        }
+        if (appearance.wallpaperFrost > 0 && !wallpaper.isNull()) {
+            QColor frost = colors.bg2;
+            frost.setAlpha(qRound(255 * appearance.wallpaperFrost / 100.0));
+            painter.fillRect(rect(), frost);
+        }
+    }
+};
 
 MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent)
     : QMainWindow(parent)
@@ -56,14 +90,16 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     m_pages->addWidget(m_chatView);
     m_pages->addWidget(m_voiceView);
 
-    auto* central = new QWidget;
-    auto* layout = new QHBoxLayout(central);
+    m_shell = new AppShell;
+    m_shell->setAttribute(Qt::WA_StyledBackground, false);
+    auto* layout = new QHBoxLayout(m_shell);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(m_rail);
     layout->addWidget(m_sidebar);
     layout->addWidget(m_pages, 1);
-    setCentralWidget(central);
+    setCentralWidget(m_shell);
+    connect(&Theme::instance(), &Theme::changed, m_shell, QOverload<>::of(&QWidget::update));
 
     m_sidebar->setTitle(tr("Connecting…"));
 

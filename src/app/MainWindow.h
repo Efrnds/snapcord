@@ -32,6 +32,7 @@ protected:
     void changeEvent(QEvent* event) override;
 
 private:
+    class AppShell;
     QWidget* buildPlaceholderPage(const QString& title, const QString& subtitle);
     void rebuildServerRail();
     void refreshUnreadBadges();
@@ -54,6 +55,7 @@ private:
     VoiceController* m_voice;
     ImageCache* m_images;
 
+    AppShell* m_shell = nullptr;
     ServerRail* m_rail;
     ChannelSidebar* m_sidebar;
     QStackedWidget* m_pages;

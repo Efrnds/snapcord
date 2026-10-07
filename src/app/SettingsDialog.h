@@ -118,6 +118,31 @@ private:
     Theme::Palette m_palette;
 };
 
+// Clickable layout map: rail / sidebar / chat / accent stripe.
+class LayoutStudio : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit LayoutStudio(QWidget* parent = nullptr);
+
+    QSize sizeHint() const override { return {420, 140}; }
+    QSize minimumSizeHint() const override { return {280, 120}; }
+
+signals:
+    void regionClicked(const QString& tokenId);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+
+private:
+    QString hitTest(const QPoint& pos) const;
+    QString m_hover;
+};
+
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
@@ -176,8 +201,20 @@ private:
     QSlider* m_fontSize = nullptr;
     QLabel* m_fontSizeLabel = nullptr;
     QComboBox* m_fontFamily = nullptr;
-    QComboBox* m_radius = nullptr;
     QComboBox* m_chatDensity = nullptr;
+    QSlider* m_radius = nullptr;
+    QLabel* m_radiusLabel = nullptr;
+    QSlider* m_uiScale = nullptr;
+    QLabel* m_uiScaleLabel = nullptr;
+    QSlider* m_brightness = nullptr;
+    QLabel* m_brightnessLabel = nullptr;
+    QSlider* m_saturation = nullptr;
+    QLabel* m_saturationLabel = nullptr;
+    QSlider* m_panelOpacity = nullptr;
+    QLabel* m_panelOpacityLabel = nullptr;
+    QCheckBox* m_wallpaperAppWide = nullptr;
+    LayoutStudio* m_layoutStudio = nullptr;
+    QLabel* m_customizedLabel = nullptr;
     ColorSwatch* m_accentSwatch = nullptr;
     ColorSwatch* m_bg0Swatch = nullptr;
     ColorSwatch* m_bg1Swatch = nullptr;

@@ -91,19 +91,21 @@ void ChatView::paintEvent(QPaintEvent*)
         painter.fillRect(rect(), gradient);
     }
 
-    const QPixmap& wallpaper = Theme::instance().wallpaperPixmap();
-    if (!wallpaper.isNull() && appearance.wallpaperOpacity > 0) {
-        painter.setOpacity(appearance.wallpaperOpacity / 100.0);
-        const QSize scaled = wallpaper.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
-        const QPoint topLeft((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
-        painter.drawPixmap(QRect(topLeft, scaled), wallpaper);
-        painter.setOpacity(1.0);
-    }
-
-    if (appearance.wallpaperFrost > 0) {
-        QColor frost = colors.bg2;
-        frost.setAlpha(qRound(255 * appearance.wallpaperFrost / 100.0));
-        painter.fillRect(rect(), frost);
+    // App-wide wallpaper is painted by the main shell; only draw here when chat-only.
+    if (!appearance.wallpaperAppWide) {
+        const QPixmap& wallpaper = Theme::instance().wallpaperPixmap();
+        if (!wallpaper.isNull() && appearance.wallpaperOpacity > 0) {
+            painter.setOpacity(appearance.wallpaperOpacity / 100.0);
+            const QSize scaled = wallpaper.size().scaled(size(), Qt::KeepAspectRatioByExpanding);
+            const QPoint topLeft((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
+            painter.drawPixmap(QRect(topLeft, scaled), wallpaper);
+            painter.setOpacity(1.0);
+        }
+        if (appearance.wallpaperFrost > 0) {
+            QColor frost = colors.bg2;
+            frost.setAlpha(qRound(255 * appearance.wallpaperFrost / 100.0));
+            painter.fillRect(rect(), frost);
+        }
     }
 }
 

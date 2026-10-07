@@ -68,13 +68,18 @@ public:
         QColor profileAccent;     // invalid => use effective accent
         QMap<QString, QColor> tokenOverrides; // advanced per-token colors (bg3, text, …)
         int fontSize = 14;        // 12–18
-        int radius = 4;           // 0 / 4 / 8
+        int radius = 4;           // 0–16
+        int uiScale = 100;        // 85–130 (%), scales QSS font tokens
+        int brightness = 0;       // -40..40, shifts background values
+        int saturation = 0;       // -50..50, shifts accent/status saturation
+        int panelOpacity = 100;   // 40–100, rail + sidebar glass over wallpaper
         ChatDensity chatDensity = ChatDensity::Normal;
         QString fontFamily;       // empty => default stack (Noto/Inter/Segoe)
         QString wallpaperPath;
         int wallpaperOpacity = 35; // 0–100
         int wallpaperBlur = 0;     // 0–12 (downscale/blur strength)
         int wallpaperFrost = 25;   // 0–80 dim overlay (cheap frost, not GPU blur)
+        bool wallpaperAppWide = true; // wallpaper behind the whole main window
         bool gradientEnabled = false;
         QColor gradientTop;
         QColor gradientBottom;
@@ -105,6 +110,8 @@ public:
 
     QColor tokenColor(const QString& id) const;
     void setTokenOverride(const QString& id, const QColor& color); // invalid clears
+    bool hasCustomization() const;
+    void clearCustomization(); // keeps preset + font prefs, drops color/wallpaper overrides
 
     QJsonObject toJson() const;
     // Returns an empty string on success, or a short error message.
