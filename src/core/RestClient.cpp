@@ -58,13 +58,11 @@ void RestClient::send(const QByteArray& verb, const QString& path, const QByteAr
     }
 
     QNetworkRequest request(QUrl(QLatin1String(ApiBase) + path));
-    request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
-    request.setRawHeader("X-Super-Properties", ClientProperties::superPropertiesHeader());
-    request.setRawHeader("X-Discord-Locale", ClientProperties::systemLocale().toLatin1());
-    if (hasBody)
-        request.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     if (!m_token.isEmpty())
         request.setRawHeader("Authorization", m_token.toUtf8());
+    if (hasBody)
+        request.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
+    ClientProperties::applyApiHeaders(request, verb, m_referer);
 
     QNetworkReply* reply = m_network->sendCustomRequest(request, verb, body);
     connect(reply, &QNetworkReply::finished, this, [reply, callback = std::move(callback)] {

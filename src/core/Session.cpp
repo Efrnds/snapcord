@@ -1,5 +1,6 @@
 #include "core/Session.h"
 
+#include "core/ClientProperties.h"
 #include "core/Gateway.h"
 #include "core/Log.h"
 #include "core/Permissions.h"
@@ -54,6 +55,11 @@ void Session::startOffline(const QList<std::pair<QString, QJsonObject>>& events)
 void Session::stop()
 {
     m_gateway->stop();
+}
+
+void Session::setActiveState(bool focused, bool rtcConnected)
+{
+    m_gateway->setActiveState(focused, rtcConnected);
 }
 
 QString Session::sessionId() const
@@ -452,6 +458,7 @@ void Session::loadReady(const QJsonObject& data)
     if (m_selfStatus == UserStatus::Unknown)
         m_selfStatus = UserStatus::Online;
     m_selfCustomStatus = CustomStatus::fromJson(userSettings.value(u"custom_status"));
+    ClientProperties::setDiscordLocale(userSettings.value(u"locale").toString());
     loadSessions(data.value(u"sessions").toArray());
 
     for (const QJsonValue& value : data.value(u"private_channels").toArray()) {

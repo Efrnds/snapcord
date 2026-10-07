@@ -7,6 +7,7 @@ add_library(snapcord_core STATIC
     Message.cpp Message.h
     MessageStore.cpp MessageStore.h
     Models.cpp Models.h
+    OrderedJson.cpp OrderedJson.h
     Permissions.cpp Permissions.h
     RemoteAuth.cpp RemoteAuth.h
     RestClient.cpp RestClient.h

@@ -297,11 +297,21 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 
 ### Manutenção conhecida
 
-- **Identificação do cliente:** `ClientProperties.cpp` imita o cliente desktop oficial
-  (`client_version`, versões do Electron e do Chrome, `client_build_number`).
-  - Esses valores foram definidos sem conferência e precisam ser atualizados de tempos em tempos.
-  - O build number pode ser trocado sem recompilar pela chave `discord/clientBuildNumber`
-    do QSettings.
+- **Identificação do cliente:** `ClientProperties.cpp` imita o **cliente web no Chrome** (decisão do dono,
+  seguindo o Acheron), não o app de desktop.
+  - Campos na mesma ordem do cliente web (`core/OrderedJson`, porque o `QJsonObject` ordena as chaves), incluindo
+    `launch_signature` (UUID com os bits de "client mod" zerados), `client_app_state` (focused/unfocused),
+    `client_heartbeat_session_id` (renovado em uso, expira após 30 min parado, guardado no QSettings) e, só no
+    IDENTIFY, `is_fast_connect` e `gateway_connect_reasons`.
+  - Gateway: heartbeat pelo opcode 40 (QoS, com `foregrounded`/`rtc_connected`) e opcode 41 (sessão de heartbeat)
+    após o READY e quando uma sessão nova começa. Foco da janela e chamada vêm do `AppController`.
+  - Headers da API: `X-Super-Properties`, `X-Discord-Locale` (idioma da conta), `X-Discord-Timezone`,
+    `X-Debug-Options`, `Referer` e `Origin` (só em métodos que alteram algo). WebSockets com `Origin: https://discord.com`.
+  - O **build number** é lido do site (`discord.com/app` → script `sentry`), guardado por 1 dia. A chave
+    `discord/clientBuildNumber` do QSettings força um valor, se a busca parar de funcionar.
+  - A versão do Chrome (`ChromeVersion`) deve acompanhar o alvo do curl-impersonate.
+  - **Próximo passo combinado:** trocar a rede do gateway, da API e do login pelo **curl-impersonate**
+    (lexiforest, alvo `chrome150`), para a assinatura TLS/HTTP2 ser igual à do Chrome.
 - **Captcha no login por QR:** não é suportado e acontece na prática.
   - A alternativa é o **login por token**, na própria tela de login ("Log in with a token instead").
   - O token é validado com `GET /users/@me` antes de ser salvo.
