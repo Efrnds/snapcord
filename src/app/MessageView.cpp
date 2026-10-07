@@ -282,7 +282,7 @@ struct MessageDelegate::Layout
         QString openUrl;  // browser / download link (files, embed pages)
         bool file = false;
         bool video = false;     // playable in the native player (mp4/webm/…)
-        bool webEmbed = false;  // YouTube etc. — in-app WebEngine lightbox
+        bool webEmbed = false;  // YouTube etc. — opened in the browser
         QString name;
         QString detail;
         int progress = -1; // upload progress (0-100) of a file being sent
@@ -564,7 +564,7 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
             box.picture.source = embedPreviewSource(embed, size);
             const bool playable = isDirectVideoFile(embed.videoUrl);
             box.picture.video = playable;
-            // YouTube / Twitch / etc.: play inside the app via WebEngine (Discord-style lightbox).
+            // YouTube / Twitch / etc.: no in-app player, so clicking opens the page in the browser.
             box.picture.webEmbed = !playable
                 && (!embed.videoUrl.isEmpty() || embed.type == u"video" || embed.type == u"gifv");
             if (playable)

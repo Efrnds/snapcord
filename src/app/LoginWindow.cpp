@@ -1,5 +1,7 @@
 #include "LoginWindow.h"
 
+#include "Motion.h"
+
 #include "core/RemoteAuth.h"
 #include "core/RestClient.h"
 
@@ -143,10 +145,14 @@ LoginWindow::LoginWindow(QWidget* parent)
     m_leftStack->addWidget(tokenPage);
 
     connect(useToken, &QPushButton::clicked, this, [this] {
+        Motion::crossFade(m_leftStack);
         m_leftStack->setCurrentIndex(1);
         m_tokenInput->setFocus();
     });
-    connect(backToQr, &QPushButton::clicked, this, [this] { m_leftStack->setCurrentIndex(0); });
+    connect(backToQr, &QPushButton::clicked, this, [this] {
+        Motion::crossFade(m_leftStack);
+        m_leftStack->setCurrentIndex(0);
+    });
     connect(m_tokenButton, &QPushButton::clicked, this, &LoginWindow::submitToken);
     connect(m_tokenInput, &QLineEdit::returnPressed, this, &LoginWindow::submitToken);
 
@@ -218,6 +224,7 @@ LoginWindow::LoginWindow(QWidget* parent)
 
 void LoginWindow::restart()
 {
+    Motion::crossFade(m_qrStack->parentWidget());
     m_qrStack->setCurrentIndex(0);
     m_qrImage->setPixmap({});
     m_qrImage->setText(tr("Loading…"));
@@ -228,6 +235,7 @@ void LoginWindow::restart()
 
 void LoginWindow::showQrCode(const QString& url)
 {
+    Motion::crossFade(m_qrStack->parentWidget());
     m_qrStack->setCurrentIndex(0);
     m_qrImage->setPixmap(renderQrCode(url, devicePixelRatioF()));
     m_qrTitle->setText(tr("Log in with QR Code"));
@@ -236,12 +244,14 @@ void LoginWindow::showQrCode(const QString& url)
 
 void LoginWindow::showScanned(const QString& username)
 {
+    Motion::crossFade(m_qrStack->parentWidget());
     m_qrTitle->setText(tr("Check your phone!"));
     m_qrHint->setText(tr("Logging in as %1. Confirm the login in the Discord app.").arg(username));
 }
 
 void LoginWindow::showError(const QString& message)
 {
+    Motion::crossFade(m_qrStack->parentWidget());
     m_errorLabel->setText(message);
     m_qrStack->setCurrentIndex(1);
 }

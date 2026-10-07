@@ -5,6 +5,7 @@
 #include "ChatView.h"
 #include "ConnectionInfoPopup.h"
 #include "ImageCache.h"
+#include "Motion.h"
 #include "IncomingCallWindow.h"
 #include "Notifier.h"
 #include "ProfileCard.h"
@@ -28,6 +29,7 @@
 #include <QPainter>
 #include <QSettings>
 #include <QSlider>
+#include <QScopeGuard>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QWidgetAction>
@@ -343,7 +345,7 @@ void MainWindow::refreshChannels()
             member.speaking = m_voice->isSpeaking(state.userId);
             member.muted = state.selfMute || state.mute;
             member.deafened = state.selfDeaf || state.deaf;
-            member.avatar = memberAvatar(state.userId, member.speaking);
+            member.avatar = memberAvatar(state.userId);
             m_sidebar->addVoiceMember(member);
         }
     };
@@ -384,6 +386,12 @@ void MainWindow::refreshChannels()
 
 void MainWindow::refreshCenter()
 {
+    // Switching between the home page, a chat and a voice channel fades; refreshes of the same page do not.
+    QWidget* previousPage = m_pages->currentWidget();
+    auto fadeGuard = qScopeGuard([this, previousPage] {
+        if (m_pages->currentWidget() != previousPage)
+            Motion::fadeInWidget(m_pages->currentWidget(), Motion::Fast);
+    });
     if (m_guildId.isEmpty()) {
         if (!m_session->privateChannel(m_channelId)) {
             m_pages->setCurrentWidget(m_homePage);
@@ -511,7 +519,7 @@ void MainWindow::refreshUserPanel()
 
 void MainWindow::onSpeakingChanged(const QString& userId, bool speaking)
 {
-    m_sidebar->setMemberSpeaking(userId, speaking, memberAvatar(userId, speaking));
+    m_sidebar->setMemberSpeaking(userId, speaking);
     m_voiceView->setSpeaking(userId, speaking);
 }
 
@@ -624,8 +632,9 @@ QImage MainWindow::userPicture(const QString& userId)
     return m_images->image(ImageCache::avatarUrl(m_session->user(userId)));
 }
 
-QPixmap MainWindow::memberAvatar(const QString& userId, bool speaking)
+QPixmap MainWindow::memberAvatar(const QString& userId)
 {
+    // The speaking ring is drawn (and animated) by the channel list itself.
     const User user = m_session->user(userId);
-    return makeAvatar(user.displayName(), userPicture(userId), 24, devicePixelRatioF(), speaking);
+    return makeAvatar(user.displayName(), userPicture(userId), 24, devicePixelRatioF());
 }

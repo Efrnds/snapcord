@@ -1,5 +1,7 @@
 #include "IncomingCallWindow.h"
 
+#include "Motion.h"
+
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -72,6 +74,8 @@ void IncomingCallWindow::showAtCorner()
         const QRect area = screen->availableGeometry();
         move(area.right() - width() - 24, area.bottom() - height() - 24);
     }
+    if (!isVisible())
+        Motion::fadeInWindow(this);
     show();
     raise();
 }

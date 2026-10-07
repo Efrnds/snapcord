@@ -2,6 +2,7 @@
 
 #include "LoginWindow.h"
 #include "MainWindow.h"
+#include "Motion.h"
 #include "RichPresence.h"
 #include "VoiceController.h"
 #include "core/ClientProperties.h"
@@ -47,6 +48,7 @@ void AppController::showLogin()
         m_login->deleteLater();
         showMain(token);
     });
+    Motion::fadeInWindow(m_login);
     m_login->show();
 }
 
@@ -85,6 +87,7 @@ void AppController::showMain(const QString& token)
     reportActivity();
 
     m_session->start(token);
+    Motion::fadeInWindow(m_main);
     m_main->show();
 }
 

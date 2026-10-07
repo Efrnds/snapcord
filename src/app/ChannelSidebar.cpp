@@ -1,5 +1,6 @@
 #include "ChannelSidebar.h"
 
+#include "Motion.h"
 #include "Theme.h"
 #include "UserPanel.h"
 #include "VoicePanel.h"
@@ -57,7 +58,11 @@ ItemKind kindOf(const QModelIndex& index)
 class ChannelDelegate : public QStyledItemDelegate
 {
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    explicit ChannelDelegate(QAbstractItemView* view)
+        : QStyledItemDelegate(view)
+        , m_animator(new Motion::ItemAnimator(view->viewport()))
+    {
+    }
 
     QSize sizeHint(const QStyleOptionViewItem&, const QModelIndex& index) const override
     {
@@ -82,11 +87,27 @@ public:
         const QRect rect = option.rect;
         QFont font = option.font;
         const Theme::Palette& colors = Theme::instance().palette();
+        // Hover and selection fade in and out instead of switching at once. Keys include the kind, since a
+        // voice member's user ID can also be a DM channel ID.
+        const QString key = QString::number(index.data(KindRole).toInt()) + index.data(IdRole).toString();
+        const qreal hover = m_animator->level(u'h' + key, hovered, rect);
+        const qreal select = m_animator->level(u's' + key, selected, rect);
+        // Row background: nothing, then the hover color, then the selection color.
+        auto drawRowBackground = [&](const QRect& row) {
+            QColor clear = colors.hover;
+            clear.setAlpha(0);
+            const QColor color = Motion::mix(Motion::mix(clear, colors.hover, hover), colors.selected, select);
+            if (color.alpha() == 0)
+                return;
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(color);
+            painter->drawRoundedRect(row, 4, 4);
+        };
 
         switch (kindOf(index)) {
         case ItemKind::Category: {
             const bool expanded = option.state & QStyle::State_Open;
-            const QColor color = hovered ? colors.text : colors.textMuted;
+            const QColor color = Motion::mix(colors.textMuted, colors.text, hover);
             // Chevron: down when expanded, right when collapsed.
             painter->setPen(QPen(color, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
             const QPointF center(rect.left() + 12, rect.bottom() - 13);
@@ -105,11 +126,7 @@ public:
         case ItemKind::TextChannel:
         case ItemKind::VoiceChannel: {
             const QRect row = rect.adjusted(8, 1, -8, -1);
-            if (selected || hovered) {
-                painter->setPen(Qt::NoPen);
-                painter->setBrush(selected ? colors.selected : colors.hover);
-                painter->drawRoundedRect(row, 4, 4);
-            }
+            drawRowBackground(row);
             const bool unread = index.data(UnreadRole).toBool();
             const bool channelMuted = index.data(ChannelMutedRole).toBool();
             const int mentions = index.data(MentionsRole).toInt();
@@ -127,11 +144,8 @@ public:
             font.setPixelSize(15);
             font.setWeight(selected || unread ? QFont::DemiBold : QFont::Medium);
             painter->setFont(font);
-            QColor color = selected ? colors.textBright
-                : unread || hovered ? colors.text : colors.textMuted;
-            if (channelMuted && !selected)
-                color = colors.button;
-            painter->setPen(color);
+            const QColor idle = channelMuted ? colors.button : unread ? colors.text : colors.textMuted;
+            painter->setPen(Motion::mix(Motion::mix(idle, channelMuted ? idle : colors.text, hover), colors.textBright, select));
             const QRect textRect(row.left() + 36, row.top(), textRight - row.left() - 36, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
@@ -140,11 +154,7 @@ public:
         }
         case ItemKind::DirectMessage: {
             const QRect row = rect.adjusted(8, 1, -8, -1);
-            if (selected || hovered) {
-                painter->setPen(Qt::NoPen);
-                painter->setBrush(selected ? colors.selected : colors.hover);
-                painter->drawRoundedRect(row, 4, 4);
-            }
+            drawRowBackground(row);
             const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
             painter->drawPixmap(QRect(row.left() + 8, row.center().y() - 16, 32, 32), avatar);
             int right = row.right() - 8;
@@ -157,8 +167,7 @@ public:
             font.setPixelSize(15);
             font.setWeight(selected ? QFont::DemiBold : QFont::Medium);
             painter->setFont(font);
-            painter->setPen(selected ? colors.textBright
-                                     : hovered ? colors.text : colors.textMuted);
+            painter->setPen(Motion::mix(Motion::mix(colors.textMuted, colors.text, hover), colors.textBright, select));
             const QRect textRect(row.left() + 52, row.top(), right - row.left() - 52, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
@@ -167,13 +176,21 @@ public:
         }
         case ItemKind::VoiceMember: {
             const QRect row = rect.adjusted(36, 1, -8, -1);
-            if (hovered) {
-                painter->setPen(Qt::NoPen);
-                painter->setBrush(colors.hover);
-                painter->drawRoundedRect(row, 4, 4);
-            }
+            drawRowBackground(row);
+            // Speaking: the avatar shrinks a little inside a green ring, both easing in and out.
+            const qreal speaking = m_animator->level(u'v' + key, index.data(SpeakingRole).toBool(), rect);
+            const QRectF avatarRect(row.left() + 8, row.center().y() - 12, 24, 24);
+            const qreal inset = avatarRect.width() * 0.09 * speaking;
             const QPixmap avatar = index.data(Qt::DecorationRole).value<QPixmap>();
-            painter->drawPixmap(QRect(row.left() + 8, row.center().y() - 12, 24, 24), avatar);
+            painter->drawPixmap(avatarRect.adjusted(inset, inset, -inset, -inset), avatar, QRectF(avatar.rect()));
+            if (speaking > 0.0) {
+                QColor ring = colors.success;
+                ring.setAlphaF(speaking);
+                const qreal width = avatarRect.width() * 0.06;
+                painter->setPen(QPen(ring, width));
+                painter->setBrush(Qt::NoBrush);
+                painter->drawEllipse(avatarRect.adjusted(width / 2, width / 2, -width / 2, -width / 2));
+            }
 
             int right = row.right() - 6;
             auto drawStatusIcon = [&](const QString& path) {
@@ -188,8 +205,7 @@ public:
             font.setPixelSize(14);
             font.setWeight(QFont::Medium);
             painter->setFont(font);
-            const bool speaking = index.data(SpeakingRole).toBool();
-            painter->setPen(speaking || hovered ? colors.textBright : colors.textMuted);
+            painter->setPen(Motion::mix(colors.textMuted, colors.textBright, qMax(speaking, hover)));
             const QRect textRect(row.left() + 40, row.top(), right - row.left() - 40, row.height());
             painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter,
                               painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString(),
@@ -199,6 +215,9 @@ public:
         }
         painter->restore();
     }
+
+private:
+    Motion::ItemAnimator* m_animator;
 };
 
 } // namespace
@@ -336,14 +355,13 @@ void ChannelSidebar::setSelectedChannel(const QString& channelId)
         (*it)->setSelected((*it)->data(0, IdRole).toString() == channelId);
 }
 
-void ChannelSidebar::setMemberSpeaking(const QString& userId, bool speaking, const QPixmap& avatar)
+void ChannelSidebar::setMemberSpeaking(const QString& userId, bool speaking)
 {
     for (QTreeWidgetItemIterator it(m_tree); *it; ++it) {
         QTreeWidgetItem* item = *it;
         if (static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::VoiceMember
             && item->data(0, IdRole).toString() == userId) {
             item->setData(0, SpeakingRole, speaking);
-            item->setData(0, Qt::DecorationRole, avatar);
         }
     }
 }

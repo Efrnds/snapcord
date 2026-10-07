@@ -424,6 +424,23 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Limitação:** no Flatpak o sandbox não enxerga os processos do sistema, então jogos não são detectados lá.
 - **Falta o teste real** com uma conta.
 
+### Animações
+
+- **`app/Motion`** concentra tudo: transições curtas (120–180 ms) que só gastam CPU enquanto rodam; parado,
+  continua ~0%.
+  - `Motion::Value`: número que desliza até o alvo (pílula e forma dos ícones na `ServerRail`, borda verde do
+    `ParticipantTile`).
+  - `Motion::ItemAnimator`: hover/seleção/fala em delegates (`ChannelSidebar`, `MemberListView`), repintando só
+    as linhas em movimento.
+  - Popups, menus, tooltips e diálogos aparecem com fade (opacidade da janela, via filtro no app). Desligado no
+    Wayland, que não suporta opacidade de janela. Os efeitos próprios do Qt (`UI_FadeMenu` etc.) ficam desligados.
+  - Troca de páginas (Configurações, login) usa `crossFade` (foto da tela que some); a lista de membros desliza
+    com `slidePanel`, sem relayout do chat a cada quadro.
+- **Evitar:** `QGraphicsOpacityEffect` permanente, sombras e desfoque. Hover de mensagens no chat continua
+  instantâneo, como no Discord.
+- **"Reduce motion"** em Configurações > Aparência (QSettings `ui/reduceMotion`) desliga tudo. O modo
+  `--screenshots` também desliga.
+
 ### Fase 4 (lançamento)
 
 - **Fora de escopo por decisão do dono:** atualização automática, testes de áudio por plataforma e

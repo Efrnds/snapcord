@@ -46,7 +46,7 @@ public:
 
     void setSelectedChannel(const QString& channelId);
     // Updates one member row in place (cheaper than a rebuild, since speaking changes are frequent).
-    void setMemberSpeaking(const QString& userId, bool speaking, const QPixmap& avatar);
+    void setMemberSpeaking(const QString& userId, bool speaking);
 
     UserPanel* userPanel() const { return m_userPanel; }
     VoicePanel* voicePanel() const { return m_voicePanel; }

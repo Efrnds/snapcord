@@ -76,7 +76,9 @@ void RestClient::dispatch(Request request)
         networkRequest.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     ClientProperties::applyApiHeaders(networkRequest, request.verb, m_referer);
 
-    finish(m_network->sendCustomRequest(networkRequest, request.verb, request.body), std::move(request), nullptr);
+    // Send first, in its own statement: `request` is moved into finish(), and argument order is unspecified.
+    QNetworkReply* reply = m_network->sendCustomRequest(networkRequest, request.verb, request.body);
+    finish(reply, std::move(request), nullptr);
 }
 
 void RestClient::putToStorage(const QUrl& url, QIODevice* device, qint64 size, ProgressCallback progress, Callback callback)
@@ -95,8 +97,10 @@ void RestClient::putToStorage(const QUrl& url, QIODevice* device, qint64 size, P
     networkRequest.setHeader(QNetworkRequest::ContentLengthHeader, size);
     // Not retried on 429: the body was read from `device` already. The storage service does not rate limit like
     // the API anyway.
-    Request request{"PUT", url.toString(), {}, false, std::move(callback), MaxRateLimitRetries};
-    finish(m_network->put(networkRequest, device), std::move(request), std::move(progress));
+    // The URL carries a signature: it must never reach the log, so the request is named instead.
+    Request request{"PUT", QStringLiteral("(attachment storage)"), {}, false, std::move(callback), MaxRateLimitRetries};
+    QNetworkReply* reply = m_network->put(networkRequest, device);
+    finish(reply, std::move(request), std::move(progress));
 }
 
 void RestClient::finish(QNetworkReply* reply, Request request, ProgressCallback progress)
@@ -124,6 +128,14 @@ void RestClient::finish(QNetworkReply* reply, Request request, ProgressCallback 
             return;
         }
 
+        if (!response.ok()) {
+            // Only the method, path and Discord's error: never headers, tokens or bodies we sent.
+            const QJsonObject error = response.body.object();
+            qCWarning(lcGateway).noquote() << "request failed:" << request.verb << request.path << "status" << response.status
+                                           << error.value(u"code").toVariant().toString() << error.value(u"message").toString()
+                                           << response.networkError
+                                           << (error.contains(u"message") ? QByteArray() : bodyBytes.left(300));
+        }
         if (request.callback)
             request.callback(response);
     });

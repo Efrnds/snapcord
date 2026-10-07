@@ -5,6 +5,7 @@
 #include "ImageCache.h"
 #include "ImageViewer.h"
 #include "MemberListView.h"
+#include "Motion.h"
 #include "MentionPopup.h"
 #include "MessageView.h"
 #include "Theme.h"
@@ -219,7 +220,7 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     m_membersButton->setChecked(QSettings().value(QLatin1String(MemberListKey), true).toBool());
     connect(m_membersButton, &QToolButton::toggled, this, [this](bool shown) {
         QSettings().setValue(QLatin1String(MemberListKey), shown);
-        updateMemberList();
+        Motion::slidePanel(this, m_memberList, [this] { updateMemberList(); });
     });
     connect(m_memberList, &MemberListView::memberClicked, this, [this](const QString& userId, const QPoint& position) {
         emit memberProfileRequested(userId, m_guildId, position);
@@ -641,7 +642,10 @@ void ChatView::updateMentionPopup()
         const QString title = trigger == u'#' ? tr("Channels") : m_guildId.isEmpty() ? tr("Members") : tr("Members and Roles");
         m_mentionPopup->setSuggestions(title, suggestions);
         m_mentionPopup->placeAbove(QRect(m_inputBox->mapTo(this, QPoint(0, 0)), m_inputBox->size()));
-        m_mentionPopup->show();
+        if (!m_mentionPopup->isVisible()) {
+            m_mentionPopup->show();
+            Motion::fadeInWidget(m_mentionPopup);
+        }
     }
     // Members not seen yet are searched on the server; the list refreshes when they arrive.
     if (trigger == u'@' && !m_guildId.isEmpty() && !query.isEmpty() && query != m_memberQuery) {
@@ -946,10 +950,12 @@ void ChatView::openImage(const QString& url, bool video, bool web)
 {
     if (!url.startsWith(u"http://") && !url.startsWith(u"https://"))
         return;
-    const ImageViewer::Mode mode = web       ? ImageViewer::Mode::Web
-                                   : video   ? ImageViewer::Mode::Video
-                                             : ImageViewer::Mode::Image;
-    ImageViewer::open(QUrl(url), m_images, window(), mode);
+    // No in-app player (keeps Qt Multimedia / WebEngine out): videos and embeds open in the browser.
+    if (video || web) {
+        QDesktopServices::openUrl(QUrl(url));
+        return;
+    }
+    ImageViewer::open(QUrl(url), m_images, window());
 }
 
 void ChatView::jumpTo(const QString& messageId)

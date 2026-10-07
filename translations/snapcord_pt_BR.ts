@@ -4,7 +4,7 @@
 <context>
     <name>AppController</name>
     <message>
-        <location filename="../src/app/AppController.cpp" line="65"/>
+        <location filename="../src/app/AppController.cpp" line="74"/>
         <source>Your session has expired. Please log in again.</source>
         <translation>Sua sessão expirou. Faça login novamente.</translation>
     </message>
@@ -20,213 +20,186 @@
 <context>
     <name>ChatView</name>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="247"/>
+        <location filename="../src/app/ChatView.cpp" line="249"/>
         <source>Select emoji</source>
         <translation>Selecionar emoji</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="260"/>
-        <location filename="../src/app/ChatView.cpp" line="528"/>
+        <location filename="../src/app/ChatView.cpp" line="262"/>
+        <location filename="../src/app/ChatView.cpp" line="531"/>
         <source>Upload a File</source>
         <translation>Enviar um arquivo</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="370"/>
+        <location filename="../src/app/ChatView.cpp" line="373"/>
         <source>Your message could not be sent: %1</source>
         <translation>Não foi possível enviar sua mensagem: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="435"/>
+        <location filename="../src/app/ChatView.cpp" line="438"/>
         <source>Hide Member List</source>
         <translation>Ocultar lista de membros</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="435"/>
+        <location filename="../src/app/ChatView.cpp" line="438"/>
         <source>Show Member List</source>
         <translation>Mostrar lista de membros</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="451"/>
+        <location filename="../src/app/ChatView.cpp" line="454"/>
         <source>Message @%1</source>
         <translation>Conversar com @%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="454"/>
+        <location filename="../src/app/ChatView.cpp" line="457"/>
         <source>Join Call</source>
         <translation>Entrar na chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="454"/>
+        <location filename="../src/app/ChatView.cpp" line="457"/>
         <source>Start Call</source>
         <translation>Iniciar chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="463"/>
+        <location filename="../src/app/ChatView.cpp" line="466"/>
         <source>Message #%1</source>
         <translation>Conversar em #%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="476"/>
+        <location filename="../src/app/ChatView.cpp" line="479"/>
         <source>You do not have permission to send messages in this channel.</source>
         <translation>Você não tem permissão para enviar mensagens neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="495"/>
+        <location filename="../src/app/ChatView.cpp" line="498"/>
         <source>Your message is too long (%1 of %2 characters).</source>
         <translation>Sua mensagem é longa demais (%1 de %2 caracteres).</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="540"/>
+        <location filename="../src/app/ChatView.cpp" line="543"/>
         <source>%1 is not a file that can be sent.</source>
         <translation>%1 não é um arquivo que possa ser enviado.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="571"/>
+        <location filename="../src/app/ChatView.cpp" line="574"/>
         <source>You do not have permission to attach files in this channel.</source>
         <translation>Você não tem permissão para anexar arquivos neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="575"/>
+        <location filename="../src/app/ChatView.cpp" line="578"/>
         <source>You can only upload %1 files at a time.</source>
         <translation>Você só pode enviar %1 arquivos por vez.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="581"/>
+        <location filename="../src/app/ChatView.cpp" line="584"/>
         <source>%1 is too large. The maximum file size here is %2.</source>
         <translation>%1 é grande demais. O tamanho máximo de arquivo aqui é %2.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="588"/>
+        <location filename="../src/app/ChatView.cpp" line="591"/>
         <source>These files are too large together. The maximum per message is %1.</source>
         <translation>Esses arquivos juntos são grandes demais. O máximo por mensagem é %1.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <location filename="../src/app/ChatView.cpp" line="642"/>
         <source>Channels</source>
         <translation>Canais</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <location filename="../src/app/ChatView.cpp" line="642"/>
         <source>Members</source>
         <translation>Membros</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <location filename="../src/app/ChatView.cpp" line="642"/>
         <source>Members and Roles</source>
         <translation>Membros e cargos</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="726"/>
+        <location filename="../src/app/ChatView.cpp" line="732"/>
         <source>Role</source>
         <translation>Cargo</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="733"/>
+        <location filename="../src/app/ChatView.cpp" line="739"/>
         <source>Notify everyone who can see this channel.</source>
         <translation>Notifica todos que podem ver este canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="734"/>
+        <location filename="../src/app/ChatView.cpp" line="740"/>
         <source>Notify everyone online who can see this channel.</source>
         <translation>Notifica todos online que podem ver este canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="817"/>
+        <location filename="../src/app/ChatView.cpp" line="823"/>
         <source>Replying to &lt;b&gt;%1&lt;/b&gt;</source>
         <translation>Respondendo a &lt;b&gt;%1&lt;/b&gt;</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="829"/>
+        <location filename="../src/app/ChatView.cpp" line="835"/>
         <source>Editing message — &lt;b&gt;Escape&lt;/b&gt; to cancel, &lt;b&gt;Enter&lt;/b&gt; to save</source>
         <translation>Editando mensagem — &lt;b&gt;Esc&lt;/b&gt; para cancelar, &lt;b&gt;Enter&lt;/b&gt; para salvar</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="882"/>
+        <location filename="../src/app/ChatView.cpp" line="888"/>
         <source>Add Reaction</source>
         <translation>Adicionar reação</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="892"/>
+        <location filename="../src/app/ChatView.cpp" line="898"/>
         <source>Other…</source>
         <translation>Outra…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="895"/>
+        <location filename="../src/app/ChatView.cpp" line="901"/>
         <source>Reply</source>
         <translation>Responder</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="897"/>
+        <location filename="../src/app/ChatView.cpp" line="903"/>
         <source>Edit Message</source>
         <translation>Editar mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="900"/>
+        <location filename="../src/app/ChatView.cpp" line="906"/>
         <source>Copy Text</source>
         <translation>Copiar texto</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="901"/>
+        <location filename="../src/app/ChatView.cpp" line="907"/>
         <source>Copy Message Link</source>
         <translation>Copiar link da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="905"/>
+        <location filename="../src/app/ChatView.cpp" line="911"/>
         <source>Copy Message ID</source>
         <translation>Copiar ID da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="908"/>
-        <location filename="../src/app/ChatView.cpp" line="909"/>
+        <location filename="../src/app/ChatView.cpp" line="914"/>
+        <location filename="../src/app/ChatView.cpp" line="915"/>
         <source>Delete Message</source>
         <translation>Excluir mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="910"/>
+        <location filename="../src/app/ChatView.cpp" line="916"/>
         <source>Are you sure you want to delete this message?</source>
         <translation>Tem certeza de que quer excluir esta mensagem?</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="973"/>
+        <location filename="../src/app/ChatView.cpp" line="991"/>
         <source>&lt;b&gt;%1&lt;/b&gt; is typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; está digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="975"/>
+        <location filename="../src/app/ChatView.cpp" line="993"/>
         <source>&lt;b&gt;%1&lt;/b&gt; and &lt;b&gt;%2&lt;/b&gt; are typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; e &lt;b&gt;%2&lt;/b&gt; estão digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="977"/>
+        <location filename="../src/app/ChatView.cpp" line="995"/>
         <source>Several people are typing…</source>
         <translation>Várias pessoas estão digitando…</translation>
-    </message>
-</context>
-<context>
-    <name>ImageViewer</name>
-    <message>
-        <source>Loading…</source>
-        <translation>Carregando…</translation>
-    </message>
-    <message>
-        <source>Open in browser</source>
-        <translation>Abrir no navegador</translation>
-    </message>
-    <message>
-        <source>Close</source>
-        <translation>Fechar</translation>
-    </message>
-    <message>
-        <source>Could not load image.</source>
-        <translation>Não foi possível carregar a imagem.</translation>
-    </message>
-    <message>
-        <source>Could not play video. Try Open in browser.</source>
-        <translation>Não foi possível reproduzir o vídeo. Tente Abrir no navegador.</translation>
-    </message>
-    <message>
-        <source>Could not load embed. Try Open in browser.</source>
-        <translation>Não foi possível carregar o embed. Tente Abrir no navegador.</translation>
     </message>
 </context>
 <context>
@@ -365,19 +338,50 @@
     </message>
 </context>
 <context>
+    <name>ImageViewer</name>
+    <message>
+        <location filename="../src/app/ImageViewer.cpp" line="46"/>
+        <source>Loading…</source>
+        <translation>Carregando…</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ImageViewer.cpp" line="56"/>
+        <source>Open in browser</source>
+        <translation>Abrir no navegador</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ImageViewer.cpp" line="63"/>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ImageViewer.cpp" line="111"/>
+        <source>Could not load image.</source>
+        <translation>Não foi possível carregar a imagem.</translation>
+    </message>
+    <message>
+        <source>Could not play video. Try Open in browser.</source>
+        <translation type="vanished">Não foi possível reproduzir o vídeo. Tente Abrir no navegador.</translation>
+    </message>
+    <message>
+        <source>Could not load embed. Try Open in browser.</source>
+        <translation type="vanished">Não foi possível carregar o embed. Tente Abrir no navegador.</translation>
+    </message>
+</context>
+<context>
     <name>IncomingCallWindow</name>
     <message>
-        <location filename="../src/app/IncomingCallWindow.cpp" line="24"/>
+        <location filename="../src/app/IncomingCallWindow.cpp" line="26"/>
         <source>Incoming call…</source>
         <translation>Chamada recebida…</translation>
     </message>
     <message>
-        <location filename="../src/app/IncomingCallWindow.cpp" line="34"/>
+        <location filename="../src/app/IncomingCallWindow.cpp" line="36"/>
         <source>Accept</source>
         <translation>Aceitar</translation>
     </message>
     <message>
-        <location filename="../src/app/IncomingCallWindow.cpp" line="41"/>
+        <location filename="../src/app/IncomingCallWindow.cpp" line="43"/>
         <source>Decline</source>
         <translation>Recusar</translation>
     </message>
@@ -419,12 +423,12 @@
 <context>
     <name>KeybindButton</name>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="224"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="225"/>
         <source>Press a key…</source>
         <translation>Pressione uma tecla…</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="226"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="227"/>
         <source>Record Keybind</source>
         <translation>Gravar atalho</translation>
     </message>
@@ -432,27 +436,27 @@
 <context>
     <name>LayoutStudio</name>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="276"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="277"/>
         <source>Click a region to change its color</source>
         <translation>Clique numa região para mudar a cor</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="333"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="334"/>
         <source>Rail</source>
         <translation>Barra</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="334"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="335"/>
         <source>Sidebar</source>
         <translation>Lista</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="335"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="336"/>
         <source>Chat</source>
         <translation>Chat</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="342"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="343"/>
         <source>Accent</source>
         <translation>Destaque</translation>
     </message>
@@ -460,7 +464,7 @@
 <context>
     <name>LevelMeter</name>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="91"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="92"/>
         <source>Drag to set how loud you need to be for your microphone to activate.</source>
         <translation>Arraste para definir o quão alto você precisa falar para o microfone ativar.</translation>
     </message>
@@ -468,28 +472,28 @@
 <context>
     <name>LoginWindow</name>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="58"/>
+        <location filename="../src/app/LoginWindow.cpp" line="60"/>
         <source>Try Again</source>
         <translation>Tentar novamente</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="62"/>
-        <location filename="../src/app/LoginWindow.cpp" line="267"/>
+        <location filename="../src/app/LoginWindow.cpp" line="64"/>
+        <location filename="../src/app/LoginWindow.cpp" line="278"/>
         <source>Log In</source>
         <translation>Entrar</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="72"/>
+        <location filename="../src/app/LoginWindow.cpp" line="75"/>
         <source>Welcome to Snapcord</source>
         <translation>Bem-vindo ao Snapcord</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="74"/>
+        <location filename="../src/app/LoginWindow.cpp" line="77"/>
         <source>A lightweight Discord client focused on voice.</source>
         <translation>Um cliente leve de Discord focado em voz.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="76"/>
+        <location filename="../src/app/LoginWindow.cpp" line="79"/>
         <source>1. Open the Discord app on your phone.
 2. Go to Settings and tap &quot;Scan QR Code&quot;.
 3. Point your camera at the code on the right.</source>
@@ -498,89 +502,89 @@
 3. Aponte a câmera para o código à direita.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="80"/>
+        <location filename="../src/app/LoginWindow.cpp" line="83"/>
         <source>Snapcord is not affiliated with Discord. Using third-party clients goes against Discord&apos;s Terms of Service and may get your account suspended. Use it at your own risk.</source>
         <translation>O Snapcord não é afiliado ao Discord. Usar clientes de terceiros vai contra os Termos de Serviço do Discord e pode levar à suspensão da sua conta. Use por sua conta e risco.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="87"/>
+        <location filename="../src/app/LoginWindow.cpp" line="90"/>
         <source>Log in with a token instead</source>
         <translation>Entrar com um token</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="104"/>
+        <location filename="../src/app/LoginWindow.cpp" line="107"/>
         <source>Log in with a token</source>
         <translation>Entrar com um token</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="106"/>
+        <location filename="../src/app/LoginWindow.cpp" line="109"/>
         <source>TOKEN</source>
         <translation>TOKEN</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="110"/>
+        <location filename="../src/app/LoginWindow.cpp" line="113"/>
         <source>Paste your Discord token</source>
         <translation>Cole seu token do Discord</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="116"/>
+        <location filename="../src/app/LoginWindow.cpp" line="119"/>
         <source>Never share your token with anyone: it gives full access to your account. Snapcord stores it only in the Windows Credential Manager.</source>
         <translation>Nunca compartilhe seu token com ninguém: ele dá acesso total à sua conta. O Snapcord o guarda apenas no Gerenciador de Credenciais do Windows.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="120"/>
+        <location filename="../src/app/LoginWindow.cpp" line="123"/>
         <source>Back to QR code login</source>
         <translation>Voltar para o login por QR code</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="222"/>
+        <location filename="../src/app/LoginWindow.cpp" line="230"/>
         <source>Loading…</source>
         <translation>Carregando…</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="223"/>
-        <location filename="../src/app/LoginWindow.cpp" line="232"/>
+        <location filename="../src/app/LoginWindow.cpp" line="231"/>
+        <location filename="../src/app/LoginWindow.cpp" line="241"/>
         <source>Log in with QR Code</source>
         <translation>Entrar com código QR</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="224"/>
-        <location filename="../src/app/LoginWindow.cpp" line="233"/>
+        <location filename="../src/app/LoginWindow.cpp" line="232"/>
+        <location filename="../src/app/LoginWindow.cpp" line="242"/>
         <source>Scan this with the Discord mobile app to log in instantly.</source>
         <translation>Escaneie com o app do Discord no celular para entrar na hora.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="238"/>
+        <location filename="../src/app/LoginWindow.cpp" line="248"/>
         <source>Check your phone!</source>
         <translation>Confira seu celular!</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="239"/>
+        <location filename="../src/app/LoginWindow.cpp" line="249"/>
         <source>Logging in as %1. Confirm the login in the Discord app.</source>
         <translation>Entrando como %1. Confirme o login no app do Discord.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="255"/>
+        <location filename="../src/app/LoginWindow.cpp" line="266"/>
         <source>Paste your token first.</source>
         <translation>Cole seu token primeiro.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="260"/>
+        <location filename="../src/app/LoginWindow.cpp" line="271"/>
         <source>Checking…</source>
         <translation>Verificando…</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="272"/>
+        <location filename="../src/app/LoginWindow.cpp" line="283"/>
         <source>This token is invalid or has expired.</source>
         <translation>Este token é inválido ou expirou.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="274"/>
+        <location filename="../src/app/LoginWindow.cpp" line="285"/>
         <source>Could not connect to Discord. Check your internet connection and try again.</source>
         <translation>Não foi possível conectar ao Discord. Verifique sua conexão com a internet e tente novamente.</translation>
     </message>
     <message>
-        <location filename="../src/app/LoginWindow.cpp" line="276"/>
+        <location filename="../src/app/LoginWindow.cpp" line="287"/>
         <source>Discord rejected the login (HTTP %1).</source>
         <translation>O Discord recusou o login (HTTP %1).</translation>
     </message>
@@ -588,42 +592,42 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="73"/>
-        <location filename="../src/app/MainWindow.cpp" line="304"/>
-        <location filename="../src/app/MainWindow.cpp" line="353"/>
-        <location filename="../src/app/MainWindow.cpp" line="438"/>
+        <location filename="../src/app/MainWindow.cpp" line="75"/>
+        <location filename="../src/app/MainWindow.cpp" line="306"/>
+        <location filename="../src/app/MainWindow.cpp" line="355"/>
+        <location filename="../src/app/MainWindow.cpp" line="446"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="89"/>
-        <location filename="../src/app/MainWindow.cpp" line="499"/>
+        <location filename="../src/app/MainWindow.cpp" line="91"/>
+        <location filename="../src/app/MainWindow.cpp" line="507"/>
         <source>Connecting…</source>
         <translation>Conectando…</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="227"/>
+        <location filename="../src/app/MainWindow.cpp" line="229"/>
         <source>Voice</source>
         <translation>Voz</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="342"/>
-        <location filename="../src/app/MainWindow.cpp" line="414"/>
+        <location filename="../src/app/MainWindow.cpp" line="344"/>
+        <location filename="../src/app/MainWindow.cpp" line="422"/>
         <source>Unknown user</source>
         <translation>Usuário desconhecido</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="521"/>
+        <location filename="../src/app/MainWindow.cpp" line="529"/>
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="73"/>
+        <location filename="../src/app/MainWindow.cpp" line="75"/>
         <source>Pick a conversation on the left.</source>
         <translation>Escolha uma conversa à esquerda.</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="422"/>
+        <location filename="../src/app/MainWindow.cpp" line="430"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
@@ -632,12 +636,12 @@
         <translation type="vanished">Online</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="533"/>
+        <location filename="../src/app/MainWindow.cpp" line="541"/>
         <source>User Volume</source>
         <translation>Volume do usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="556"/>
+        <location filename="../src/app/MainWindow.cpp" line="564"/>
         <source>Mute</source>
         <translation>Silenciar</translation>
     </message>
@@ -706,37 +710,37 @@
 <context>
     <name>MemberListView</name>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="38"/>
+        <location filename="../src/app/MemberListView.cpp" line="39"/>
         <source>Playing %1</source>
         <translation>Jogando %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="40"/>
+        <location filename="../src/app/MemberListView.cpp" line="41"/>
         <source>Streaming %1</source>
         <translation>Transmitindo %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="42"/>
+        <location filename="../src/app/MemberListView.cpp" line="43"/>
         <source>Listening to %1</source>
         <translation>Ouvindo %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="44"/>
+        <location filename="../src/app/MemberListView.cpp" line="45"/>
         <source>Watching %1</source>
         <translation>Assistindo %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="46"/>
+        <location filename="../src/app/MemberListView.cpp" line="47"/>
         <source>Competing in %1</source>
         <translation>Competindo em %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="165"/>
+        <location filename="../src/app/MemberListView.cpp" line="167"/>
         <source>Online</source>
         <translation>Online</translation>
     </message>
     <message>
-        <location filename="../src/app/MemberListView.cpp" line="167"/>
+        <location filename="../src/app/MemberListView.cpp" line="169"/>
         <source>Offline</source>
         <translation>Offline</translation>
     </message>
@@ -744,62 +748,62 @@
 <context>
     <name>MessageDelegate</name>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="296"/>
+        <location filename="../src/app/MessageView.cpp" line="377"/>
         <source>%1 joined the server.</source>
         <translation>%1 entrou no servidor.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="298"/>
+        <location filename="../src/app/MessageView.cpp" line="379"/>
         <source>%1 pinned a message to this channel.</source>
         <translation>%1 fixou uma mensagem neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="300"/>
+        <location filename="../src/app/MessageView.cpp" line="381"/>
         <source>%1 started a call.</source>
         <translation>%1 iniciou uma chamada.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="302"/>
+        <location filename="../src/app/MessageView.cpp" line="383"/>
         <source>%1 added someone to the group.</source>
         <translation>%1 adicionou alguém ao grupo.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="304"/>
+        <location filename="../src/app/MessageView.cpp" line="385"/>
         <source>%1 left the group.</source>
         <translation>%1 saiu do grupo.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="306"/>
+        <location filename="../src/app/MessageView.cpp" line="387"/>
         <source>%1 changed the channel name: %2</source>
         <translation>%1 mudou o nome do canal: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="308"/>
+        <location filename="../src/app/MessageView.cpp" line="389"/>
         <source>%1 did something Snapcord can&apos;t show yet.</source>
         <translation>%1 fez algo que o Snapcord ainda não consegue mostrar.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="369"/>
+        <location filename="../src/app/MessageView.cpp" line="450"/>
         <source>Original message was deleted</source>
         <translation>A mensagem original foi excluída</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="374"/>
+        <location filename="../src/app/MessageView.cpp" line="455"/>
         <source>Click to see attachment</source>
         <translation>Clique para ver o anexo</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="394"/>
+        <location filename="../src/app/MessageView.cpp" line="475"/>
         <source>(edited)</source>
         <translation>(editada)</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="427"/>
+        <location filename="../src/app/MessageView.cpp" line="512"/>
         <source>Uploading… %1%</source>
         <translation>Enviando… %1%</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="486"/>
+        <location filename="../src/app/MessageView.cpp" line="586"/>
         <source>Sticker: %1</source>
         <translation>Figurinha: %1</translation>
     </message>
@@ -807,12 +811,12 @@
 <context>
     <name>MessageView</name>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="63"/>
+        <location filename="../src/app/MessageView.cpp" line="64"/>
         <source>Today at %1</source>
         <translation>Hoje às %1</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="65"/>
+        <location filename="../src/app/MessageView.cpp" line="66"/>
         <source>Yesterday at %1</source>
         <translation>Ontem às %1</translation>
     </message>
@@ -1084,37 +1088,37 @@
 <context>
     <name>RemoteAuth</name>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="56"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="57"/>
         <source>Could not generate the encryption key for the QR code login.</source>
         <translation>Não foi possível gerar a chave de criptografia do login por QR code.</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="95"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="96"/>
         <source>The QR code login handshake failed.</source>
         <translation>A negociação do login por QR code falhou.</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="155"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="156"/>
         <source>Could not connect to Discord (code %1).</source>
         <translation>Não foi possível conectar ao Discord (código %1).</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="167"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="168"/>
         <source>Discord asked for a captcha, which Snapcord does not support yet. Log in with a token instead, or try again in a few minutes.</source>
         <translation>O Discord pediu um captcha, que o Snapcord ainda não suporta. Entre com um token ou tente novamente em alguns minutos.</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="146"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="147"/>
         <source>Could not connect to Discord. Check your internet connection and try again.</source>
         <translation>Não foi possível conectar ao Discord. Verifique sua conexão com a internet e tente novamente.</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="170"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="171"/>
         <source>Discord rejected the login (HTTP %1).</source>
         <translation>O Discord recusou o login (HTTP %1).</translation>
     </message>
     <message>
-        <location filename="../src/core/RemoteAuth.cpp" line="176"/>
+        <location filename="../src/core/RemoteAuth.cpp" line="177"/>
         <source>Could not decrypt the login token.</source>
         <translation>Não foi possível descriptografar o token de login.</translation>
     </message>
@@ -1122,7 +1126,7 @@
 <context>
     <name>ServerRail</name>
     <message>
-        <location filename="../src/app/ServerRail.cpp" line="140"/>
+        <location filename="../src/app/ServerRail.cpp" line="152"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
@@ -1130,12 +1134,12 @@
 <context>
     <name>Session</name>
     <message>
-        <location filename="../src/core/Session.cpp" line="811"/>
+        <location filename="../src/core/Session.cpp" line="818"/>
         <source>Discord asked for a captcha. Make this change in the official app.</source>
         <translation>O Discord pediu um captcha. Faça essa alteração no app oficial.</translation>
     </message>
     <message>
-        <location filename="../src/core/Session.cpp" line="819"/>
+        <location filename="../src/core/Session.cpp" line="826"/>
         <source>Request failed (HTTP %1).</source>
         <translation>A solicitação falhou (HTTP %1).</translation>
     </message>
@@ -1143,318 +1147,318 @@
 <context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="379"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="380"/>
         <source>User Settings</source>
         <translation>Configurações de usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="386"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="550"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="387"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="556"/>
         <source>Voice &amp; Audio</source>
         <translation>Voz e áudio</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="387"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="672"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="388"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="678"/>
         <source>Appearance</source>
         <translation>Aparência</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="388"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="616"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="389"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="622"/>
         <source>Notifications</source>
         <translation>Notificações</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="389"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="642"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="391"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="648"/>
         <source>Activity Privacy</source>
         <translation>Privacidade de atividades</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="390"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1362"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1503"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="392"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1375"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1516"/>
         <source>Language</source>
         <translation>Idioma</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="392"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="394"/>
         <source>Log Out</source>
         <translation>Sair</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="443"/>
         <location filename="../src/app/SettingsDialog.cpp" line="449"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="455"/>
         <source>Default</source>
         <translation>Padrão</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="463"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="469"/>
         <source>Voice Activity</source>
         <translation>Detecção de voz</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="464"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="470"/>
         <source>Push to Talk</source>
         <translation>Pressionar para falar</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="472"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="478"/>
         <source>Automatically determine input sensitivity</source>
         <translation>Determinar automaticamente a sensibilidade de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="475"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="481"/>
         <source>Noise Suppression</source>
         <translation>Supressão de ruído</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="477"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="483"/>
         <source>Echo Cancellation</source>
         <translation>Cancelamento de eco</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="479"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="485"/>
         <source>Automatic Gain Control</source>
         <translation>Controle automático de ganho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="481"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="487"/>
         <source>Play sound effects</source>
         <translation>Tocar efeitos sonoros</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="497"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="503"/>
         <source>Input Device</source>
         <translation>Dispositivo de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="500"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="506"/>
         <source>Input Volume</source>
         <translation>Volume de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="503"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="509"/>
         <source>Output Device</source>
         <translation>Dispositivo de saída</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="506"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="512"/>
         <source>Output Volume</source>
         <translation>Volume de saída</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="514"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="520"/>
         <source>Input Sensitivity</source>
         <translation>Sensibilidade de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="516"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="522"/>
         <source>Talk to test your microphone. The bar turns green when you are loud enough to be heard; drag the white marker to adjust.</source>
         <translation>Fale para testar seu microfone. A barra fica verde quando você fala alto o bastante para ser ouvido; arraste o marcador branco para ajustar.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="528"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="534"/>
         <source>Shortcut</source>
         <translation>Atalho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="531"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="537"/>
         <source>Push to Talk Release Delay</source>
         <translation>Atraso ao soltar a tecla</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="539"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="545"/>
         <source>Push to Talk is not available on this system yet.</source>
         <translation>Pressionar para falar ainda não está disponível neste sistema.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="556"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="562"/>
         <source>Input Mode</source>
         <translation>Modo de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="563"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="569"/>
         <source>Voice Processing</source>
         <translation>Processamento de voz</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="564"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="570"/>
         <source>Removes background noise like keyboards, fans and traffic.</source>
         <translation>Remove ruídos de fundo como teclado, ventilador e trânsito.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="566"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="572"/>
         <source>Stops others from hearing themselves when you use speakers instead of headphones.</source>
         <translation>Evita que os outros ouçam a própria voz quando você usa caixas de som em vez de fone.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="567"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="573"/>
         <source>Keeps your voice at a steady volume.</source>
         <translation>Mantém sua voz em um volume constante.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="569"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="575"/>
         <source>Sounds</source>
         <translation>Sons</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="570"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="576"/>
         <source>Joining, leaving, muting and incoming calls.</source>
         <translation>Entrar, sair, silenciar e chamadas recebidas.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="594"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="597"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="600"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="603"/>
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="621"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="627"/>
         <source>Enable desktop notifications</source>
         <translation>Ativar notificações na área de trabalho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="624"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="630"/>
         <source>Direct messages and mentions show a notification while Snapcord is in the background.</source>
         <translation>Mensagens diretas e menções mostram uma notificação enquanto o Snapcord está em segundo plano.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="626"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="632"/>
         <source>Play a sound for new messages</source>
         <translation>Tocar um som para novas mensagens</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="629"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="635"/>
         <source>Only for direct messages and mentions, like the notifications.</source>
         <translation>Só para mensagens diretas e menções, como as notificações.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="647"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="653"/>
         <source>Share the game you are playing</source>
         <translation>Compartilhar o jogo que você está jogando</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="650"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="656"/>
         <source>Games are recognized from the programs running on this computer, using Discord&apos;s list of detectable games.</source>
         <translation>Os jogos são reconhecidos pelos programas abertos neste computador, usando a lista de jogos detectáveis do Discord.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="653"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="659"/>
         <source>Display Spotify as your status</source>
         <translation>Exibir o Spotify como seu status</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="656"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="662"/>
         <source>Shows the song you are listening to. Requires your Spotify account to be connected to Discord (Settings &gt; Connections in the official app), with &quot;Display Spotify as your status&quot; turned on there.</source>
         <translation>Mostra a música que você está ouvindo. Requer a conta do Spotify conectada ao Discord (Configurações &gt; Conexões no app oficial), com &quot;Exibir Spotify como seu status&quot; ativado lá.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="677"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="683"/>
         <source>Themes and colors stay on this device. They do not change your Discord profile.</source>
         <translation>Temas e cores ficam só neste aparelho. Não alteram seu perfil do Discord.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="683"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="689"/>
         <source>Theme</source>
         <translation>Tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="698"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="704"/>
         <source>Click to recolor</source>
         <translation>Clique para recolorir</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="699"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="705"/>
         <source>Click rail, sidebar, chat, or accent on the map. Changes apply instantly.</source>
         <translation>Clique na barra, lista, chat ou destaque no mapa. As mudanças aplicam na hora.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="715"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="721"/>
         <source>Reset all customization</source>
         <translation>Redefinir toda a customização</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="745"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="751"/>
         <source>Tone &amp; scale</source>
         <translation>Tom e escala</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="765"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="771"/>
         <source>Brightness</source>
         <translation>Brilho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="767"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="773"/>
         <source>Saturation</source>
         <translation>Saturação</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="769"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="775"/>
         <source>UI scale</source>
         <translation>Escala da interface</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="794"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="800"/>
         <source>Custom…</source>
         <translation>Personalizado…</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="813"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="819"/>
         <source>Backgrounds</source>
         <translation>Fundos</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="814"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="820"/>
         <source>Server rail, channel list, and chat area. Leave unset to follow the theme.</source>
         <translation>Barra de servidores, lista de canais e área do chat. Deixe em branco para seguir o tema.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="821"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="836"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="827"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="842"/>
         <source>Server rail</source>
         <translation>Barra de servidores</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="823"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="844"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="829"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="850"/>
         <source>Channel list</source>
         <translation>Lista de canais</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="825"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="852"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="831"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="858"/>
         <source>Chat area</source>
         <translation>Área do chat</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="826"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="832"/>
         <source>Reset backgrounds</source>
         <translation>Redefinir fundos</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="914"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="920"/>
         <source>Chat density</source>
         <translation>Densidade do chat</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="916"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="922"/>
         <source>Compact</source>
         <translation>Compacto</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="917"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="923"/>
         <source>Normal</source>
         <translation>Normal</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="918"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="924"/>
         <source>Comfortable</source>
         <translation>Confortável</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="771"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="777"/>
         <source>Corner radius</source>
         <translation>Raio dos cantos</translation>
     </message>
@@ -1471,188 +1475,203 @@
         <translation type="vanished">Arredondado (8)</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="926"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="932"/>
         <source>Font</source>
         <translation>Fonte</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="930"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="936"/>
         <source>Default (Noto / Inter)</source>
         <translation>Padrão (Noto / Inter)</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="959"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="965"/>
         <source>Discord Nitro colors</source>
         <translation>Cores Nitro do Discord</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="961"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="967"/>
         <source>Uses your Discord accent_color / banner when the account has Nitro profile colors.</source>
         <translation>Usa o accent_color / banner do Discord quando a conta tem cores de perfil Nitro.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="965"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="971"/>
         <source>Keep accent in sync with Discord</source>
         <translation>Manter o destaque sincronizado com o Discord</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="969"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="975"/>
         <source>Apply Discord colors now</source>
         <translation>Aplicar cores do Discord agora</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="990"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="996"/>
         <source>Gradient</source>
         <translation>Gradiente</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="991"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="997"/>
         <source>Enable chat gradient</source>
         <translation>Ativar gradiente no chat</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="997"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1005"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1003"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1011"/>
         <source>Gradient top</source>
         <translation>Topo do gradiente</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="999"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1013"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1005"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1019"/>
         <source>Gradient bottom</source>
         <translation>Base do gradiente</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1022"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1028"/>
         <source>Advanced tokens</source>
         <translation>Tokens avançados</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1023"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1029"/>
         <source>Override any palette token. Cleared entries follow the theme again.</source>
         <translation>Sobrescreva qualquer token da paleta. Entradas limpas voltam a seguir o tema.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1050"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1056"/>
         <source>Reset all token overrides</source>
         <translation>Redefinir todos os tokens</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1062"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1068"/>
+        <source>Motion</source>
+        <translation>Animações</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1069"/>
+        <source>Reduce motion</source>
+        <translation>Reduzir animações</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1072"/>
+        <source>Turns off hover fades, popup fades and other transitions.</source>
+        <translation>Desativa os esmaecimentos ao passar o mouse, ao abrir popups e as demais transições.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="1075"/>
         <source>Import / export</source>
         <translation>Importar / exportar</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1064"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1077"/>
         <source>Export theme…</source>
         <translation>Exportar tema…</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1067"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1080"/>
         <source>Import theme…</source>
         <translation>Importar tema…</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1133"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1146"/>
         <source>This theme has local customizations.</source>
         <translation>Este tema tem customizações locais.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1134"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1147"/>
         <source>Using the preset as-is.</source>
         <translation>Usando o preset sem alterações.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1202"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1208"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1215"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1221"/>
         <source>Export theme</source>
         <translation>Exportar tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1203"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1214"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1216"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1227"/>
         <source>Theme JSON (*.json)</source>
         <translation>Tema JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1213"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="1219"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1226"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1232"/>
         <source>Import theme</source>
         <translation>Importar tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1257"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1270"/>
         <source>Discord</source>
         <translation>Discord</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1259"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1272"/>
         <source>Midnight</source>
         <translation>Meia-noite</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1261"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1274"/>
         <source>AMOLED</source>
         <translation>AMOLED</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1263"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1276"/>
         <source>Ash</source>
         <translation>Cinza</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1265"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1278"/>
         <source>Catppuccin Mocha</source>
         <translation>Catppuccin Mocha</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1267"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1280"/>
         <source>Catppuccin Latte</source>
         <translation>Catppuccin Latte</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1269"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1282"/>
         <source>Nord</source>
         <translation>Nord</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1271"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1284"/>
         <source>Dracula</source>
         <translation>Dracula</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1273"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1286"/>
         <source>Gruvbox</source>
         <translation>Gruvbox</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1275"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1288"/>
         <source>Tokyo Night</source>
         <translation>Tokyo Night</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1277"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1290"/>
         <source>Rosé Pine</source>
         <translation>Rosé Pine</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1279"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1292"/>
         <source>One Dark</source>
         <translation>One Dark</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1281"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1294"/>
         <source>Light</source>
         <translation>Claro</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="775"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="806"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="781"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="812"/>
         <source>Accent color</source>
         <translation>Cor de destaque</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="776"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="782"/>
         <source>Pick a color or open the custom picker.</source>
         <translation>Escolha uma cor ou abra o seletor personalizado.</translation>
     </message>
@@ -1661,47 +1680,47 @@
         <translation type="vanished">Cor de destaque personalizada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="796"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="802"/>
         <source>Use theme default</source>
         <translation>Usar padrão do tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="869"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="875"/>
         <source>My profile (this app only)</source>
         <translation>Meu perfil (só neste app)</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="870"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="876"/>
         <source>Colors for your user panel at the bottom left.</source>
         <translation>Cores do seu painel de usuário no canto inferior esquerdo.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="877"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="883"/>
         <source>Panel background</source>
         <translation>Fundo do painel</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="879"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="885"/>
         <source>Panel accent stripe</source>
         <translation>Faixa de destaque do painel</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="880"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="886"/>
         <source>Reset profile colors</source>
         <translation>Redefinir cores do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="890"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="896"/>
         <source>Profile background</source>
         <translation>Fundo do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="898"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="904"/>
         <source>Profile accent</source>
         <translation>Destaque do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="943"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="949"/>
         <source>Chat font size</source>
         <translation>Tamanho da fonte</translation>
     </message>
@@ -1710,22 +1729,22 @@
         <translation type="vanished">%1 px</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1366"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1379"/>
         <source>Select a language</source>
         <translation>Selecione um idioma</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1504"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1517"/>
         <source>Restart Snapcord to apply the new language.</source>
         <translation>Reinicie o Snapcord para aplicar o novo idioma.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1505"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1518"/>
         <source>Restart Now</source>
         <translation>Reiniciar agora</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="1506"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="1519"/>
         <source>Later</source>
         <translation>Depois</translation>
     </message>
@@ -1766,17 +1785,17 @@
 <context>
     <name>VoiceChannelView</name>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="105"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="115"/>
         <source>No one is here yet.</source>
         <translation>Ainda não tem ninguém aqui.</translation>
     </message>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="106"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="116"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
     <message>
-        <location filename="../src/app/VoiceChannelView.cpp" line="190"/>
+        <location filename="../src/app/VoiceChannelView.cpp" line="200"/>
         <source>You don&apos;t have permission to join this channel.</source>
         <translation>Você não tem permissão para entrar neste canal.</translation>
     </message>
