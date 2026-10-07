@@ -17,7 +17,24 @@ finish-args:
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.freedesktop.Notifications
   - --talk-name=org.kde.StatusNotifierWatcher
+# Drop build-only files after every module finishes (keeps the runtime slim).
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/man
 modules:
+  # The KDE SDK ships a libsecret.pc whose include dir is missing; build a real copy under /app.
+  - name: libsecret
+    buildsystem: meson
+    config-opts:
+      - -Dmanpage=false
+      - -Dvapi=false
+      - -Dgtk_doc=false
+      - -Dintrospection=false
+    sources:
+      - type: archive
+        url: https://download.gnome.org/sources/libsecret/0.21/libsecret-0.21.7.tar.xz
+        sha256: 6b452e4750590a2b5617adc40026f28d2f4903de15f1250e1d1c40bfd68ed55e
   - name: snapcord
     buildsystem: simple
     build-options:
