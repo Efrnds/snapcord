@@ -834,10 +834,11 @@ QString Theme::buildStyleSheet() const
     replace("@profilePrimary", hex(profilePrimary()));
     replace("@profileAccent", hex(profileAccent()));
 
+    // Tokens must not share a prefix (@radius would eat @radiusLg and produce invalid QSS → square corners).
     const int radius = m_settings.radius;
-    const int radiusLg = radius == 0 ? 0 : qMin(24, radius * 2);
-    replace("@radiusLg", QString::number(radiusLg) + QStringLiteral("px"));
-    replace("@radius", QString::number(radius) + QStringLiteral("px"));
+    const int radiusLg = radius == 0 ? 0 : radius + 4;
+    replace("@rLg", QString::number(radiusLg) + QStringLiteral("px"));
+    replace("@rSm", QString::number(radius) + QStringLiteral("px"));
 
     const int scaled = qMax(10, qRound(font * m_settings.uiScale / 100.0));
     // Longer font tokens first so "@fontSize" does not eat "@fontSizeSm".

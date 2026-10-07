@@ -262,52 +262,6 @@ void ColorSwatch::paintEvent(QPaintEvent*)
     painter.drawRoundedRect(box, 6, 6);
 }
 
-// --- PresetCard -------------------------------------------------------------------------------------
-
-PresetCard::PresetCard(const Theme::Preset& preset, const QString& title, QWidget* parent)
-    : QPushButton(parent)
-    , m_palette(preset.palette)
-{
-    setObjectName(QStringLiteral("presetCard"));
-    setCursor(Qt::PointingHandCursor);
-    setCheckable(true);
-    setProperty("presetId", preset.id);
-    setText(title);
-    setMinimumHeight(64);
-    setFocusPolicy(Qt::NoFocus);
-}
-
-void PresetCard::paintEvent(QPaintEvent*)
-{
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    const QRectF outer = QRectF(rect()).adjusted(1.5, 1.5, -1.5, -1.5);
-    const QColor border = isChecked() || underMouse() ? m_palette.accent : m_palette.border;
-    painter.setPen(QPen(border, isChecked() ? 2.5 : 1.5));
-    painter.setBrush(m_palette.bg2);
-    painter.drawRoundedRect(outer, 8, 8);
-
-    // Mini layout: rail | sidebar | chat
-    const QRectF preview(outer.left() + 10, outer.top() + 10, 52, outer.height() - 20);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(m_palette.bg0);
-    painter.drawRoundedRect(QRectF(preview.left(), preview.top(), 10, preview.height()), 2, 2);
-    painter.setBrush(m_palette.bg1);
-    painter.drawRect(QRectF(preview.left() + 12, preview.top(), 16, preview.height()));
-    painter.setBrush(m_palette.bg2);
-    painter.drawRect(QRectF(preview.left() + 28, preview.top(), preview.width() - 28, preview.height()));
-    painter.setBrush(m_palette.accent);
-    painter.drawRoundedRect(QRectF(preview.left() + 32, preview.bottom() - 8, 12, 4), 1, 1);
-
-    painter.setPen(m_palette.textBright);
-    QFont font = painter.font();
-    font.setPixelSize(13);
-    font.setWeight(QFont::DemiBold);
-    painter.setFont(font);
-    painter.drawText(QRectF(preview.right() + 12, outer.top(), outer.right() - preview.right() - 16, outer.height()),
-                     Qt::AlignVCenter | Qt::AlignLeft, text());
-}
-
 // --- LayoutStudio -----------------------------------------------------------------------------------
 
 LayoutStudio::LayoutStudio(QWidget* parent)
@@ -686,22 +640,17 @@ QWidget* SettingsDialog::buildAppearancePage()
     layout->addSpacing(8);
 
     layout->addWidget(sectionLabel(tr("Theme")));
-    m_presetGroup = new QButtonGroup(content);
-    m_presetGroup->setExclusive(true);
-    auto* presetGrid = new QGridLayout;
-    presetGrid->setHorizontalSpacing(10);
-    presetGrid->setVerticalSpacing(10);
     const Theme::Settings current = Theme::instance().settings();
-    int index = 0;
-    for (const Theme::Preset& preset : Theme::presets()) {
-        auto* button = new PresetCard(preset, presetDisplayName(preset.id, preset.name));
-        button->setChecked(preset.id == current.presetId);
-        m_presetGroup->addButton(button, index);
-        presetGrid->addWidget(button, index / 2, index % 2);
-        ++index;
+    m_presetCombo = new QComboBox;
+    for (const Theme::Preset& preset : Theme::presets())
+        m_presetCombo->addItem(presetDisplayName(preset.id, preset.name), preset.id);
+    {
+        const int idx = m_presetCombo->findData(current.presetId);
+        m_presetCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    layout->addLayout(presetGrid);
-    connect(m_presetGroup, &QButtonGroup::idClicked, this, &SettingsDialog::applyAppearance);
+    layout->addWidget(m_presetCombo);
+    connect(m_presetCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Click to recolor")));
@@ -744,22 +693,18 @@ QWidget* SettingsDialog::buildAppearancePage()
         row->addWidget(slider, 1);
         row->addWidget(valueLabel);
         layout->addLayout(row);
-        QLabel* label = valueLabel;
-        connect(slider, &QSlider::valueChanged, this, [this, label, format](int v) {
-            label->setText(format(v));
-            applyAppearance();
-        });
+        bindLiveSlider(slider, valueLabel, format);
     };
     addToneSlider(tr("Brightness"), m_brightness, m_brightnessLabel, -40, 40, current.brightness,
-                  [this](int v) { return tr("%1").arg(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v)); });
+                  [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
     addToneSlider(tr("Saturation"), m_saturation, m_saturationLabel, -50, 50, current.saturation,
-                  [this](int v) { return tr("%1").arg(v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v)); });
+                  [](int v) { return v > 0 ? QStringLiteral("+%1").arg(v) : QString::number(v); });
     addToneSlider(tr("UI scale"), m_uiScale, m_uiScaleLabel, 85, 130, current.uiScale,
-                  [this](int v) { return tr("%1%").arg(v); });
+                  [](int v) { return QStringLiteral("%1%").arg(v); });
     addToneSlider(tr("Corner radius"), m_radius, m_radiusLabel, 0, 16, current.radius,
-                  [this](int v) { return tr("%1 px").arg(v); });
+                  [](int v) { return QStringLiteral("%1 px").arg(v); });
     addToneSlider(tr("Panel opacity (rail & sidebar)"), m_panelOpacity, m_panelOpacityLabel, 40, 100,
-                  current.panelOpacity, [this](int v) { return tr("%1%").arg(v); });
+                  current.panelOpacity, [](int v) { return QStringLiteral("%1%").arg(v); });
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Accent color")));
@@ -932,17 +877,13 @@ QWidget* SettingsDialog::buildAppearancePage()
     m_fontSize = new QSlider(Qt::Horizontal);
     m_fontSize->setRange(12, 18);
     m_fontSize->setValue(current.fontSize);
-    m_fontSizeLabel = new QLabel;
+    m_fontSizeLabel = new QLabel(QStringLiteral("%1 px").arg(m_fontSize->value()));
     m_fontSizeLabel->setObjectName(QStringLiteral("settingsHint"));
     auto* fontRow = new QHBoxLayout;
     fontRow->addWidget(m_fontSize, 1);
     fontRow->addWidget(m_fontSizeLabel);
     layout->addLayout(fontRow);
-    connect(m_fontSize, &QSlider::valueChanged, this, [this](int value) {
-        m_fontSizeLabel->setText(tr("%1 px").arg(value));
-        applyAppearance();
-    });
-    m_fontSizeLabel->setText(tr("%1 px").arg(m_fontSize->value()));
+    bindLiveSlider(m_fontSize, m_fontSizeLabel, [](int v) { return QStringLiteral("%1 px").arg(v); });
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Discord Nitro colors")));
@@ -1026,17 +967,13 @@ QWidget* SettingsDialog::buildAppearancePage()
         slider = new QSlider(Qt::Horizontal);
         slider->setRange(min, max);
         slider->setValue(value);
-        valueLabel = new QLabel(tr("%1%").arg(value));
+        valueLabel = new QLabel(QStringLiteral("%1%").arg(value));
         valueLabel->setObjectName(QStringLiteral("settingsHint"));
         auto* row = new QHBoxLayout;
         row->addWidget(slider, 1);
         row->addWidget(valueLabel);
         layout->addLayout(row);
-        QLabel* label = valueLabel;
-        connect(slider, &QSlider::valueChanged, this, [this, label](int v) {
-            label->setText(tr("%1%").arg(v));
-            applyAppearance();
-        });
+        bindLiveSlider(slider, valueLabel, [](int v) { return QStringLiteral("%1%").arg(v); });
     };
     addPercentSlider(tr("Wallpaper opacity"), m_wallpaperOpacity, m_wallpaperOpacityLabel, 0, 100,
                      current.wallpaperOpacity);
@@ -1206,10 +1143,10 @@ void SettingsDialog::refreshAppearanceControls()
     const QSignalBlocker blockOpacity(m_wallpaperOpacity);
     const QSignalBlocker blockFrost(m_wallpaperFrost);
 
-    if (m_presetGroup) {
-        const auto buttons = m_presetGroup->buttons();
-        for (QAbstractButton* button : buttons)
-            button->setChecked(button->property("presetId").toString() == appearance.presetId);
+    if (m_presetCombo) {
+        const QSignalBlocker blockPreset(m_presetCombo);
+        const int idx = m_presetCombo->findData(appearance.presetId);
+        m_presetCombo->setCurrentIndex(idx >= 0 ? idx : 0);
     }
     if (m_fontSize) {
         m_fontSize->setValue(appearance.fontSize);
@@ -1354,13 +1291,24 @@ QString SettingsDialog::presetDisplayName(const QString& id, const QString& fall
     return fallback;
 }
 
+void SettingsDialog::bindLiveSlider(QSlider* slider, QLabel* label, const std::function<QString(int)>& format)
+{
+    // Rebuilding the global stylesheet mid-drag steals the mouse from QSlider — only apply when
+    // the user releases, or when the value jumps without a press (keyboard / groove click).
+    connect(slider, &QSlider::valueChanged, this, [this, slider, label, format](int value) {
+        if (label)
+            label->setText(format(value));
+        if (!slider->isSliderDown())
+            applyAppearance();
+    });
+    connect(slider, &QSlider::sliderReleased, this, &SettingsDialog::applyAppearance);
+}
+
 void SettingsDialog::applyAppearance()
 {
     Theme::Settings settings = Theme::instance().settings();
-    if (m_presetGroup) {
-        if (QAbstractButton* button = m_presetGroup->checkedButton())
-            settings.presetId = button->property("presetId").toString();
-    }
+    if (m_presetCombo)
+        settings.presetId = m_presetCombo->currentData().toString();
     if (m_fontSize)
         settings.fontSize = m_fontSize->value();
     if (m_fontFamily)

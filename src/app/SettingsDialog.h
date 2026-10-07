@@ -103,21 +103,6 @@ private:
     bool m_selected = false;
 };
 
-// Theme preset card with a tiny rail / sidebar / chat preview.
-class PresetCard : public QPushButton
-{
-    Q_OBJECT
-
-public:
-    PresetCard(const Theme::Preset& preset, const QString& title, QWidget* parent = nullptr);
-
-protected:
-    void paintEvent(QPaintEvent* event) override;
-
-private:
-    Theme::Palette m_palette;
-};
-
 // Clickable layout map: rail / sidebar / chat / accent stripe.
 class LayoutStudio : public QWidget
 {
@@ -175,6 +160,7 @@ private:
     void pickColor(const QColor& initial, const QString& title, const std::function<void(QColor)>& onPicked);
     void exportTheme();
     void importTheme();
+    void bindLiveSlider(QSlider* slider, QLabel* label, const std::function<QString(int)>& format);
     static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
@@ -230,7 +216,7 @@ private:
     QLabel* m_wallpaperOpacityLabel = nullptr;
     QSlider* m_wallpaperFrost = nullptr;
     QLabel* m_wallpaperFrostLabel = nullptr;
-    QButtonGroup* m_presetGroup = nullptr;
+    QComboBox* m_presetCombo = nullptr;
     QVector<ColorSwatch*> m_accentChips;
     QMap<QString, ColorSwatch*> m_tokenSwatches;
 
