@@ -59,6 +59,16 @@ int OpusDecoderWrapper::decode(const uint8_t* packet, int size, float* stereoOut
     return samples > 0 ? samples : 0;
 }
 
+int OpusDecoderWrapper::recover(const uint8_t* nextPacket, int size, float* stereoOut, int maxSamples)
+{
+    if (!m_decoder)
+        return 0;
+    // With decode_fec set, the frame size must be exactly the missing frame's duration.
+    const int frame = maxSamples < OpusFormat::FrameSamples ? maxSamples : OpusFormat::FrameSamples;
+    const int samples = opus_decode_float(m_decoder, nextPacket, size, stereoOut, frame, 1);
+    return samples > 0 ? samples : conceal(stereoOut, maxSamples);
+}
+
 int OpusDecoderWrapper::conceal(float* stereoOut, int maxSamples)
 {
     if (!m_decoder)

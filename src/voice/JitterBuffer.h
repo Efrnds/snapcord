@@ -11,9 +11,10 @@ class JitterBuffer
 {
 public:
     enum class Result {
-        Packet, // `packet` holds the next frame
-        Lost,   // a frame is missing: the decoder should conceal it
-        Idle,   // nothing to play (the speaker is silent or still buffering)
+        Packet,  // `packet` holds the next frame
+        Recover, // a frame is missing, but `packet` holds the next one, whose FEC data can rebuild it
+        Lost,    // a frame is missing: the decoder should conceal it
+        Idle,    // nothing to play (the speaker is silent or still buffering)
     };
 
     void push(uint16_t sequence, std::vector<uint8_t> packet);

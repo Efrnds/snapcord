@@ -46,6 +46,8 @@ public:
 
     // Decodes one packet into interleaved stereo samples. Returns the number of samples per channel.
     int decode(const uint8_t* packet, int size, float* stereoOut, int maxSamples);
+    // Rebuilds a lost 20 ms frame from the forward error correction data carried by the packet after it.
+    int recover(const uint8_t* nextPacket, int size, float* stereoOut, int maxSamples);
     // Packet loss concealment for one missing 20 ms frame.
     int conceal(float* stereoOut, int maxSamples);
 

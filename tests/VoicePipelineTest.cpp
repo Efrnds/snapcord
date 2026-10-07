@@ -207,9 +207,17 @@ void VoicePipelineTest::jitterBufferReordersAndConceals()
     QCOMPARE(packet, std::vector<uint8_t>{10});
     QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Packet);
     QCOMPARE(packet, std::vector<uint8_t>{11});
-    QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Lost);
+    // Packet 12 is rebuilt from the FEC data in packet 13, which then still plays on its own.
+    QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Recover);
+    QCOMPARE(packet, std::vector<uint8_t>{13});
     QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Packet);
     QCOMPARE(packet, std::vector<uint8_t>{13});
+
+    // A late packet is concealed once and then still played, instead of being dropped.
+    QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Lost);
+    buffer.push(14, {14});
+    QCOMPARE(buffer.pop(packet), JitterBuffer::Result::Packet);
+    QCOMPARE(packet, std::vector<uint8_t>{14});
 
     // Once the speaker stops, playback conceals a few frames and then goes idle.
     JitterBuffer::Result result = JitterBuffer::Result::Lost;

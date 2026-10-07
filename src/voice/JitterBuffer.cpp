@@ -61,10 +61,24 @@ JitterBuffer::Result JitterBuffer::pop(std::vector<uint8_t>& packet)
         return Result::Packet;
     }
 
+    if (m_packets.empty()) {
+        // Nothing newer has arrived, so the frame is most likely just late: conceal this turn but keep
+        // its slot, so it still plays when it shows up (the buffer grows by a frame instead of
+        // dropping it and concealing again). After a few frames, assume the speaker stopped.
+        if (++m_consecutiveLosses > MaxConcealedFrames) {
+            m_playing = false;
+            return Result::Idle;
+        }
+        return Result::Lost;
+    }
+
+    // A newer frame is here, so this one was lost: skip it, rebuilding it from the next packet's
+    // forward error correction data when that packet is already buffered.
     ++m_next;
-    if (m_packets.empty() && ++m_consecutiveLosses > MaxConcealedFrames) {
-        m_playing = false;
-        return Result::Idle;
+    const auto following = m_packets.find(m_next);
+    if (following != m_packets.end()) {
+        packet = following->second;
+        return Result::Recover;
     }
     return Result::Lost;
 }

@@ -88,6 +88,7 @@ private:
     void sendFrame(const uint8_t* opus, size_t size, bool endToEndEncrypt);
     void renderPlayback(float* output, int frameCount);
     void mixNextFrame();
+    void limitMix();
     void receiveLoop();
     void handlePacket(const uint8_t* data, size_t size);
 
@@ -155,6 +156,7 @@ private:
     std::vector<float> m_mixFrame;
     std::vector<float> m_decodeFrame;
     size_t m_mixReadOffset = 0;
+    float m_limiterGain = 1.0f; // playback thread
     EchoReference m_echoReference;
     std::atomic<uint32_t> m_playedFrames{0};
     std::atomic<uint32_t> m_concealedFrames{0};

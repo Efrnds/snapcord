@@ -41,6 +41,13 @@ qt_add_executable(snapcord_render_icons tools/render_icons.cpp)
 target_link_libraries(snapcord_render_icons PRIVATE Qt6::Gui Qt6::Svg)
 set_target_properties(snapcord_render_icons PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF EXCLUDE_FROM_ALL ON)
 
+# Promo video (motion graphics + synthesized soundtrack), encoded with Media Foundation. Not part of the build.
+if(WIN32)
+    qt_add_executable(snapcord_promo tools/promo_video.cpp)
+    target_link_libraries(snapcord_promo PRIVATE Qt6::Gui mfplat mfreadwrite mfuuid ole32)
+    set_target_properties(snapcord_promo PROPERTIES WIN32_EXECUTABLE OFF EXCLUDE_FROM_ALL ON)
+endif()
+
 option(SNAPCORD_BUILD_TESTS "Build the unit tests" ON)
 if(SNAPCORD_BUILD_TESTS)
     enable_testing()

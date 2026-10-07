@@ -32,6 +32,16 @@ constexpr int64_t KeepAliveIntervalMs = 5000;
 constexpr uint32_t UdpPingMagic = 0x1337CAFE;
 constexpr int SpeakingFlagVoice = 1 << 0;
 
+// Mix-bus limiter: the peak it allows, how fast the gain comes down (samples) and goes back up (per frame).
+constexpr float LimiterCeiling = 0.9f;
+constexpr float LimiterAttackSamples = 96.0f; // 2 ms
+constexpr float LimiterRelease = 0.02f;       // back to full volume within about a second
+
+bool isSilenceFrame(const uint8_t* data, size_t size)
+{
+    return size == sizeof(SilenceFrame) && std::memcmp(data, SilenceFrame, sizeof(SilenceFrame)) == 0;
+}
+
 int64_t nowMs()
 {
     using namespace std::chrono;
@@ -616,8 +626,14 @@ void VoiceConnection::mixNextFrame()
         case JitterBuffer::Result::Packet:
             samples = stream->decoder.decode(stream->packet.data(), static_cast<int>(stream->packet.size()),
                                              m_decodeFrame.data(), static_cast<int>(FrameSamples));
-            stream->lastVoiceMs.store(now, std::memory_order_relaxed);
+            if (!isSilenceFrame(stream->packet.data(), stream->packet.size()))
+                stream->lastVoiceMs.store(now, std::memory_order_relaxed);
             m_playedFrames.fetch_add(1, std::memory_order_relaxed);
+            break;
+        case JitterBuffer::Result::Recover:
+            samples = stream->decoder.recover(stream->packet.data(), static_cast<int>(stream->packet.size()),
+                                              m_decodeFrame.data(), static_cast<int>(FrameSamples));
+            m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
             break;
         case JitterBuffer::Result::Lost:
             samples = stream->decoder.conceal(m_decodeFrame.data(), static_cast<int>(FrameSamples));
@@ -634,9 +650,36 @@ void VoiceConnection::mixNextFrame()
             m_mixFrame[i] += m_decodeFrame[i] * gain;
     }
     m_mixStreams.clear();
+    limitMix();
+}
 
-    for (float& sample : m_mixFrame)
-        sample = std::clamp(sample, -1.0f, 1.0f);
+void VoiceConnection::limitMix()
+{
+    // Several loud speakers summed together easily pass full scale, and clipping that sum is what
+    // crackles. The limiter lowers the gain just enough for the frame's peak, ramping it so the gain
+    // itself never jumps, and recovers slowly afterwards.
+    float peak = 0.0f;
+    for (const float sample : m_mixFrame)
+        peak = std::max(peak, std::abs(sample));
+    const float target = peak > LimiterCeiling ? LimiterCeiling / peak : 1.0f;
+    const float next = target < m_limiterGain ? target : std::min(target, m_limiterGain + LimiterRelease);
+
+    const size_t frames = m_mixFrame.size() / OpusFormat::Channels;
+    for (size_t i = 0; i < frames; ++i) {
+        const float ramp = std::min(1.0f, static_cast<float>(i + 1) / LimiterAttackSamples);
+        const float gain = m_limiterGain + (next - m_limiterGain) * ramp;
+        for (int channel = 0; channel < OpusFormat::Channels; ++channel) {
+            float& sample = m_mixFrame[i * OpusFormat::Channels + channel];
+            sample *= gain;
+            // Whatever still overshoots during the attack ramp is rounded off instead of cut flat.
+            const float magnitude = std::abs(sample);
+            if (magnitude > LimiterCeiling) {
+                const float knee = 1.0f - LimiterCeiling;
+                sample = std::copysign(LimiterCeiling + knee * std::tanh((magnitude - LimiterCeiling) / knee), sample);
+            }
+        }
+    }
+    m_limiterGain = next;
 }
 
 // --- Receive thread ---------------------------------------------------------------------------------
@@ -681,8 +724,6 @@ void VoiceConnection::handlePacket(const uint8_t* data, size_t size)
         return;
     const uint8_t* payload = plaintext.data() + header->extensionBodySize;
     const size_t payloadSize = plaintext.size() - header->extensionBodySize;
-    if (payloadSize == sizeof(SilenceFrame) && std::memcmp(payload, SilenceFrame, sizeof(SilenceFrame)) == 0)
-        return;
 
     std::shared_ptr<Stream> stream;
     {
@@ -696,6 +737,12 @@ void VoiceConnection::handlePacket(const uint8_t* data, size_t size)
         stream = it->second;
     }
 
+    // The silence frames that end a sentence are not end-to-end encrypted. They still go through the
+    // jitter buffer, so speech fades out cleanly instead of being stretched by packet loss concealment.
+    if (isSilenceFrame(payload, payloadSize)) {
+        stream->buffer.push(header->sequence, std::vector<uint8_t>(payload, payload + payloadSize));
+        return;
+    }
     if (!m_dave || !m_dave->decrypt(stream->userId, payload, payloadSize, frame)) {
         m_stats.decryptFailures.fetch_add(1, std::memory_order_relaxed);
         return;
