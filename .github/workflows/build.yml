@@ -44,6 +44,7 @@ jobs:
           # Build tools for vcpkg ports (libsodium uses autotools), libsecret for the keyring, and the
           # X11/OpenGL libraries Qt's plugins link to (linuxdeploy checks them while packaging).
           sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config \
+            dpkg-dev \
             libsecret-1-dev libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
             libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
@@ -100,7 +101,9 @@ jobs:
 
       - name: Package (Linux)
         if: runner.os == 'Linux'
-        run: bash packaging/linux/package.sh build/release dist
+        run: |
+          bash packaging/linux/package.sh build/release dist
+          bash packaging/linux/package-deb.sh build/release dist
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
@@ -115,6 +118,7 @@ jobs:
             dist/*.exe
             dist/*.dmg
             dist/*.AppImage
+            dist/*.deb
           if-no-files-found: error
 
       # Job logs need a GitHub login to read; annotations are public. Publish the relevant error lines so
@@ -160,7 +164,7 @@ jobs:
 
   release:
     name: release
-    # Runs even if other platforms failed: for now only the Windows packages are released.
+    # Draft release with Windows + Linux (AppImage/.deb) packages when available.
     if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') }}
     needs: [build, flatpak]
     runs-on: ubuntu-latest
@@ -169,10 +173,21 @@ jobs:
         with:
           name: snapcord-windows
           path: artifacts
+        continue-on-error: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: snapcord-linux
+          path: artifacts
+        continue-on-error: true
       - run: ls -la artifacts
       # A draft: the release is published by hand after a final check.
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           generate_release_notes: true
-          files: artifacts/*
+          fail_on_unmatched_files: false
+          files: |
+            artifacts/*.zip
+            artifacts/*.exe
+            artifacts/*.AppImage
+            artifacts/*.deb

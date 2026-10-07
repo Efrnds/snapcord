@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Snapcord
+GenericName=Voice chat
+Comment=Lightweight, voice-focused Discord client
+Comment[pt_BR]=Cliente leve de Discord focado em voz
+Exec=Snapcord %U
+Icon=io.github.pedrordgsr.Snapcord
+Terminal=false
+Categories=Network;InstantMessaging;Chat;AudioVideo;
+Keywords=discord;voice;chat;call;
+StartupWMClass=Snapcord
