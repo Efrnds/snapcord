@@ -31,7 +31,12 @@ enum Opcode {
     Hello = 10,
     HeartbeatAck = 11,
     GuildSubscriptionsBulk = 37,
+    QosHeartbeat = 40,
+    UpdateTimeSpentSessionId = 41,
 };
+
+// The heartbeat session is renewed every 15 minutes while in use, so it never reaches the 30 minute idle limit.
+constexpr int HeartbeatSessionRenewMs = 15 * 60 * 1000;
 
 bool isFatalCloseCode(int code)
 {
@@ -43,9 +48,13 @@ bool isFatalCloseCode(int code)
 
 Gateway::Gateway(QObject* parent)
     : QObject(parent)
+    , m_socket(ClientProperties::origin())
 {
     m_heartbeatTimer.setTimerType(Qt::CoarseTimer);
     connect(&m_heartbeatTimer, &QTimer::timeout, this, &Gateway::sendHeartbeat);
+    m_heartbeatSessionTimer.setTimerType(Qt::VeryCoarseTimer);
+    m_heartbeatSessionTimer.setInterval(HeartbeatSessionRenewMs);
+    connect(&m_heartbeatSessionTimer, &QTimer::timeout, this, &Gateway::syncHeartbeatSession);
     connect(&m_socket, &QWebSocket::binaryMessageReceived, this, &Gateway::onBinaryMessage);
     connect(&m_socket, &QWebSocket::textMessageReceived, this, &Gateway::onTextMessage);
     connect(&m_socket, &QWebSocket::disconnected, this, &Gateway::onDisconnected);
@@ -64,7 +73,9 @@ void Gateway::start(const QString& token)
 void Gateway::stop()
 {
     m_running = false;
+    m_ready = false;
     m_heartbeatTimer.stop();
+    m_heartbeatSessionTimer.stop();
     m_socket.close();
 }
 
@@ -81,6 +92,66 @@ void Gateway::send(int op, const QJsonValue& data)
 {
     const QJsonObject payload{{QStringLiteral("op"), op}, {QStringLiteral("d"), data}};
     m_socket.sendTextMessage(QString::fromUtf8(QJsonDocument(payload).toJson(QJsonDocument::Compact)));
+}
+
+void Gateway::sendOrdered(int op, const OrderedJson& data)
+{
+    m_socket.sendTextMessage(QString::fromUtf8(OrderedJson().insert(u"op", op).insert(u"d", data).toJson()));
+}
+
+void Gateway::setActiveState(bool focused, bool rtcConnected)
+{
+    ClientProperties::setActivity(focused, rtcConnected);
+
+    Qos state;
+    if (focused)
+        state.reasons.append(QStringLiteral("foregrounded"));
+    if (rtcConnected)
+        state.reasons.append(QStringLiteral("rtc_connected"));
+    state.active = !state.reasons.isEmpty();
+
+    bool sendNow = false;
+    const bool wasInactive = !m_qos || !m_qos->active;
+    if (!m_qos)
+        m_qos = state;
+    if (state.active) {
+        for (const QString& reason : std::as_const(state.reasons)) {
+            if (!m_qos->reasons.contains(reason))
+                m_qos->reasons.append(reason);
+        }
+        m_qos->reasons.sort();
+        m_qos->active = true;
+        sendNow = wasInactive && m_ready;
+    }
+    m_upcomingQos = state;
+    if (sendNow)
+        sendQosHeartbeat();
+
+    syncHeartbeatSession();
+    if (state.active) {
+        if (!m_heartbeatSessionTimer.isActive())
+            m_heartbeatSessionTimer.start();
+    } else {
+        m_heartbeatSessionTimer.stop();
+    }
+}
+
+void Gateway::syncHeartbeatSession()
+{
+    if (ClientProperties::touchHeartbeatSession() == ClientProperties::HeartbeatSessionUpdate::Created)
+        sendTimeSpentSessionId();
+}
+
+void Gateway::sendTimeSpentSessionId()
+{
+    const auto session = ClientProperties::heartbeatSession();
+    if (!m_ready || !session)
+        return;
+    sendOrdered(UpdateTimeSpentSessionId, OrderedJson()
+                                              .insert(u"initialization_timestamp", session->createdAtMs)
+                                              .insert(u"session_id", session->id)
+                                              .insert(u"client_launch_id", ClientProperties::clientLaunchId()));
+    sendQosHeartbeat();
 }
 
 void Gateway::updateVoiceState(const QString& guildId, const QString& channelId, bool selfMute, bool selfDeaf)
@@ -185,11 +256,14 @@ void Gateway::handlePayload(const QJsonObject& payload)
             m_sessionId = object.value(u"session_id").toString();
             m_resumeUrl = object.value(u"resume_gateway_url").toString();
             m_failedAttempts = 0;
+            m_ready = true;
             qCInfo(lcGateway) << "ready," << object.value(u"guilds").toArray().size() << "guilds";
             emit connectionStateChanged(true);
+            sendTimeSpentSessionId();
         } else if (event == u"RESUMED") {
             qCInfo(lcGateway) << "resumed";
             m_failedAttempts = 0;
+            m_ready = true;
             emit connectionStateChanged(true);
         }
         emit dispatch(event, object);
@@ -208,26 +282,36 @@ void Gateway::sendHeartbeat()
         return;
     }
     m_heartbeatAcked = false;
-    send(Heartbeat, m_sequence ? QJsonValue(*m_sequence) : QJsonValue());
+    sendQosHeartbeat();
+}
+
+void Gateway::sendQosHeartbeat()
+{
+    const Qos qos = m_qos.value_or(Qos{});
+    if (m_upcomingQos)
+        m_qos = *m_upcomingQos;
+    m_upcomingQos.reset();
+    sendOrdered(QosHeartbeat, OrderedJson()
+                                  .insert(u"seq", m_sequence ? QJsonValue(*m_sequence) : QJsonValue())
+                                  .insert(u"qos", OrderedJson()
+                                                      .insert(u"active", qos.active)
+                                                      .insert(u"ver", 30)
+                                                      .insert(u"reasons", QJsonArray::fromStringList(qos.reasons))));
 }
 
 void Gateway::identify()
 {
-    send(Identify, QJsonObject{
-                       {QStringLiteral("token"), m_token},
-                       {QStringLiteral("capabilities"), Capabilities},
-                       {QStringLiteral("properties"), ClientProperties::identifyProperties()},
-                       {QStringLiteral("presence"), QJsonObject{
-                                                        {QStringLiteral("status"), QStringLiteral("unknown")},
-                                                        {QStringLiteral("since"), 0},
-                                                        {QStringLiteral("activities"), QJsonArray()},
-                                                        {QStringLiteral("afk"), false},
-                                                    }},
-                       {QStringLiteral("compress"), false},
-                       {QStringLiteral("client_state"), QJsonObject{
-                                                            {QStringLiteral("guild_versions"), QJsonObject()},
-                                                        }},
-                   });
+    sendOrdered(Identify, OrderedJson()
+                              .insert(u"token", m_token)
+                              .insert(u"capabilities", Capabilities)
+                              .insert(u"properties", ClientProperties::identifyProperties())
+                              .insert(u"presence", OrderedJson()
+                                                       .insert(u"status", QStringLiteral("unknown"))
+                                                       .insert(u"since", 0)
+                                                       .insert(u"activities", QJsonArray())
+                                                       .insert(u"afk", false))
+                              .insert(u"compress", false)
+                              .insert(u"client_state", OrderedJson().insert(u"guild_versions", QJsonObject())));
 }
 
 void Gateway::resume()
@@ -242,6 +326,7 @@ void Gateway::resume()
 void Gateway::onDisconnected()
 {
     m_heartbeatTimer.stop();
+    m_ready = false;
     if (!m_running)
         return;
 

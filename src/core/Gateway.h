@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/OrderedJson.h"
 #include "core/ZlibStream.h"
 
 #include <QJsonArray>
@@ -35,6 +36,10 @@ public:
 
     QString sessionId() const { return m_sessionId; }
 
+    // Whether the window is focused and a call is running. Like the official client, this is reported in the
+    // heartbeats and keeps the analytics heartbeat session alive.
+    void setActiveState(bool focused, bool rtcConnected);
+
 signals:
     void dispatch(const QString& event, const QJsonObject& data);
     void authenticationFailed();
@@ -46,13 +51,18 @@ private:
     void onTextMessage(const QString& message);
     void handlePayload(const QJsonObject& payload);
     void onDisconnected();
+    void sendOrdered(int op, const OrderedJson& data);
     void sendHeartbeat();
+    void sendQosHeartbeat();
+    void syncHeartbeatSession();
+    void sendTimeSpentSessionId();
     void identify();
     void resume();
     void reconnect(bool canResume, int delayMs);
 
     QWebSocket m_socket;
     QTimer m_heartbeatTimer;
+    QTimer m_heartbeatSessionTimer;
     ZlibStream m_zlib;
     QString m_token;
     QString m_sessionId;
@@ -61,5 +71,16 @@ private:
     bool m_heartbeatAcked = true;
     bool m_resuming = false; // the next connection resumes the session instead of identifying again
     bool m_running = false;
+    bool m_ready = false; // READY or RESUMED received on the current connection
+
+    // Quality-of-service state sent with each heartbeat. A change reaches Discord one heartbeat later, except
+    // becoming active, which is merged in and sent right away.
+    struct Qos
+    {
+        bool active = false;
+        QStringList reasons;
+    };
+    std::optional<Qos> m_qos;
+    std::optional<Qos> m_upcomingQos;
     int m_failedAttempts = 0;
 };

@@ -117,8 +117,7 @@ void GameDetector::download()
     if (!m_network)
         m_network = new QNetworkAccessManager(this);
     QNetworkRequest request{QUrl(QLatin1String(ListUrl))};
-    request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
-    request.setRawHeader("X-Super-Properties", ClientProperties::superPropertiesHeader());
+    ClientProperties::applyApiHeaders(request, "GET");
     QNetworkReply* reply = m_network->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply] {
         reply->deleteLater();

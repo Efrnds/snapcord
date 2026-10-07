@@ -386,7 +386,8 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     navigation->addItem(tr("Voice & Audio"));
     navigation->addItem(tr("Appearance"));
     navigation->addItem(tr("Notifications"));
-    navigation->addItem(tr("Activity Privacy"));
+    if constexpr (RichPresence::Enabled)
+        navigation->addItem(tr("Activity Privacy"));
     navigation->addItem(tr("Language"));
 
     auto* logout = new QPushButton(tr("Log Out"));
@@ -409,7 +410,8 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     m_settingsPages->addWidget(buildVoicePage());
     m_settingsPages->addWidget(buildAppearancePage());
     m_settingsPages->addWidget(buildNotificationsPage());
-    m_settingsPages->addWidget(buildActivityPage());
+    if constexpr (RichPresence::Enabled)
+        m_settingsPages->addWidget(buildActivityPage());
     m_settingsPages->addWidget(buildLanguagePage());
     connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, &QStackedWidget::setCurrentIndex);
     navigation->setCurrentRow(0);

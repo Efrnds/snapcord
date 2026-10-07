@@ -29,6 +29,8 @@ public:
     explicit RestClient(QObject* parent = nullptr);
 
     void setToken(const QString& token) { m_token = token; }
+    // Page of the web client the requests appear to come from (the Referer header).
+    void setReferer(const QString& referer) { m_referer = referer; }
     // An offline client fails every request right away, without touching the network (demo mode).
     void setOffline(bool offline) { m_offline = offline; }
     bool isOffline() const { return m_offline; }
@@ -40,9 +42,21 @@ public:
     void deleteResource(const QString& path, Callback callback);
 
 private:
-    void send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback);
+    struct Request
+    {
+        QByteArray verb;
+        QString path;
+        QByteArray body;
+        bool hasBody = false;
+        Callback callback;
+        int attempt = 0;
+    };
+
+    void send(Request request);
+    void dispatch(Request request);
 
     QNetworkAccessManager* m_network;
     QString m_token;
+    QString m_referer = QStringLiteral("https://discord.com/channels/@me");
     bool m_offline = false;
 };

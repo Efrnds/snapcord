@@ -13,6 +13,9 @@ class RichPresence : public QObject
     Q_OBJECT
 
 public:
+    // Switched off for now by the project owner: nothing is detected or shared, and the settings page is hidden.
+    static constexpr bool Enabled = false;
+
     explicit RichPresence(Session* session, QObject* parent = nullptr);
     ~RichPresence() override;
 

@@ -1,10 +1,12 @@
 #include "voice/VoiceGateway.h"
 
+#include "core/ClientProperties.h"
 #include "core/Log.h"
 
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QNetworkRequest>
 #include <QUrl>
 #include <QtEndian>
 
@@ -39,6 +41,7 @@ bool canResume(int code)
 
 VoiceGateway::VoiceGateway(QObject* parent)
     : QObject(parent)
+    , m_socket(ClientProperties::origin())
 {
     m_heartbeatTimer.setTimerType(Qt::CoarseTimer);
     connect(&m_heartbeatTimer, &QTimer::timeout, this, &VoiceGateway::sendHeartbeat);
@@ -64,7 +67,9 @@ void VoiceGateway::connectSocket()
     if (!endpoint.startsWith(u"wss://"))
         endpoint.prepend(u"wss://");
     qCInfo(lcVoice) << "connecting to voice server" << endpoint << (m_resuming ? "(resume)" : "");
-    m_socket.open(QUrl(endpoint + QStringLiteral("/?v=8")));
+    QNetworkRequest request(QUrl(endpoint + QStringLiteral("/?v=8")));
+    request.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
+    m_socket.open(request);
 }
 
 void VoiceGateway::close()
