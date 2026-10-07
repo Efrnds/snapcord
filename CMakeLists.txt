@@ -6,7 +6,7 @@ if(CMAKE_HOST_WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
 endif()
 
 project(Snapcord
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Native, lightweight, voice-focused Discord client"
     LANGUAGES C CXX)
 

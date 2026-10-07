@@ -28,6 +28,11 @@
     <content_attribute id="social-audio">intense</content_attribute>
   </content_rating>
   <releases>
+    <release version="0.2.0" date="2026-10-07">
+      <description>
+        <p>Chat improvements: mentions, file uploads, an in-app image and video viewer, member list, profile cards and editing, Appearance themes, smooth animations and lighter background traffic.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-06">
       <description>
         <p>First release: voice channels and calls, text chat, direct messages and notifications.</p>

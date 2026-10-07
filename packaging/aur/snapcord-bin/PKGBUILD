@@ -10,7 +10,7 @@
 #   6. Commit and push to the AUR package repo (aur.archlinux.org/snapcord-bin.git).
 
 pkgname=snapcord-bin
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Lightweight, voice-focused Discord client (prebuilt AppImage)'
 arch=('x86_64')
