@@ -59,8 +59,6 @@ public:
         QString url;
         QString messageId;
         int reactionIndex = -1;
-        bool video = false; // Discord mp4/webm — native player
-        bool web = false;   // YouTube etc. — in-app WebEngine embed
     };
 
     MessageDelegate(Session* session, ImageCache* images, MessageModel* model, QObject* parent = nullptr);
@@ -105,7 +103,7 @@ public:
 
 signals:
     void linkActivated(const QString& url);
-    void imageActivated(const QString& url, bool video, bool web);
+    void imageActivated(const QString& url);
     void reactionClicked(const QString& messageId, int reactionIndex);
     void replyClicked(const QString& messageId);
     void userClicked(const QString& userId, const QPoint& globalPosition);

@@ -220,14 +220,6 @@
         <source>Could not load image.</source>
         <translation>Não foi possível carregar a imagem.</translation>
     </message>
-    <message>
-        <source>Could not play video. Try Open in browser.</source>
-        <translation>Não foi possível reproduzir o vídeo. Tente Abrir no navegador.</translation>
-    </message>
-    <message>
-        <source>Could not load embed. Try Open in browser.</source>
-        <translation>Não foi possível carregar o embed. Tente Abrir no navegador.</translation>
-    </message>
 </context>
 <context>
     <name>ConnectionInfoPopup</name>

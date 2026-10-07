@@ -75,7 +75,7 @@ QSize fitInto(int width, int height, int maxWidth, int maxHeight)
     return {std::max(1, int(width * scale)), std::max(1, int(height * scale))};
 }
 
-// QMediaPlayer can play real files (Discord uploads, gifv mp4). YouTube/page URLs use WebEngine.
+// Direct video files (Discord uploads, gifv). Clicks open the browser; the app only shows a poster.
 bool isDirectVideoFile(const QString& url)
 {
     const QString path = QUrl(url).path().toLower();
@@ -281,8 +281,8 @@ struct MessageDelegate::Layout
         QString imageUrl; // full-resolution URL for the in-app viewer
         QString openUrl;  // browser / download link (files, embed pages)
         bool file = false;
-        bool video = false;     // playable in the native player (mp4/webm/…)
-        bool webEmbed = false;  // YouTube etc. — in-app WebEngine lightbox
+        bool video = false;     // poster only — click opens the browser
+        bool webEmbed = false;  // YouTube etc. — click opens the browser
         QString name;
         QString detail;
         int progress = -1; // upload progress (0-100) of a file being sent
@@ -564,7 +564,7 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
             box.picture.source = embedPreviewSource(embed, size);
             const bool playable = isDirectVideoFile(embed.videoUrl);
             box.picture.video = playable;
-            // YouTube / Twitch / etc.: play inside the app via WebEngine (Discord-style lightbox).
+            // YouTube / Twitch / etc.: poster in chat, the page itself opens in the browser.
             box.picture.webEmbed = !playable
                 && (!embed.videoUrl.isEmpty() || embed.type == u"video" || embed.type == u"gifv");
             if (playable)
@@ -842,29 +842,25 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
     }
     for (const Layout::Picture& picture : l.pictures) {
         if (picture.rect.contains(p)) {
-            if (picture.webEmbed) {
-                hit.kind = Hit::Image;
-                hit.url = picture.openUrl;
-                hit.web = true;
+            if (picture.webEmbed || picture.video) {
+                hit.kind = Hit::Link;
+                hit.url = picture.openUrl.isEmpty() ? picture.imageUrl : picture.openUrl;
                 return hit;
             }
             hit.kind = picture.file ? Hit::File : Hit::Image;
             hit.url = picture.file || picture.imageUrl.isEmpty() ? picture.openUrl : picture.imageUrl;
-            hit.video = picture.video;
             return hit;
         }
     }
     for (const Layout::EmbedBox& box : l.embeds) {
         if (box.hasPicture && box.picture.rect.contains(p)) {
-            if (box.picture.webEmbed) {
-                hit.kind = Hit::Image;
-                hit.url = box.picture.openUrl;
-                hit.web = true;
+            if (box.picture.webEmbed || box.picture.video) {
+                hit.kind = Hit::Link;
+                hit.url = box.picture.openUrl.isEmpty() ? box.picture.imageUrl : box.picture.openUrl;
                 return hit;
             }
             hit.kind = Hit::Image;
             hit.url = box.picture.imageUrl.isEmpty() ? box.picture.openUrl : box.picture.imageUrl;
-            hit.video = box.picture.video;
             return hit;
         }
         if (!box.titleUrl.isEmpty() && box.titleRect.contains(p)) {
@@ -962,7 +958,7 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
             emit linkActivated(hit.url);
         break;
     case MessageDelegate::Hit::Image:
-        emit imageActivated(hit.url, hit.video, hit.web);
+        emit imageActivated(hit.url);
         break;
     case MessageDelegate::Hit::File:
         emit linkActivated(hit.url);

@@ -100,7 +100,7 @@ private:
     void toggleReaction(const QString& messageId, int reactionIndex);
     void pickReaction(const QString& messageId, const QPoint& globalPosition);
     void openLink(const QString& url);
-    void openImage(const QString& url, bool video, bool web);
+    void openImage(const QString& url);
     void jumpTo(const QString& messageId);
     void updateTyping();
     void showError(const QString& text);

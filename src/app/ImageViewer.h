@@ -4,22 +4,17 @@
 #include <QUrl>
 
 class ImageCache;
-class QAudioOutput;
 class QLabel;
-class QMediaPlayer;
 class QNetworkAccessManager;
-class QVideoWidget;
-class QWebEngineView;
 
-// Full-window lightbox for chat images, Discord videos and embeds (YouTube etc. via WebEngine).
+// Lightweight lightbox for still images. Videos open in the browser instead — WebEngine and the
+// multimedia stack are too heavy for this app.
 class ImageViewer : public QDialog
 {
     Q_OBJECT
 
 public:
-    enum class Mode { Image, Video, Web };
-
-    static void open(const QUrl& url, ImageCache* cache, QWidget* parent, Mode mode = Mode::Image);
+    static void open(const QUrl& url, ImageCache* cache, QWidget* parent);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -29,25 +24,17 @@ protected:
     void paintEvent(QPaintEvent* event) override;
 
 private:
-    ImageViewer(const QUrl& url, ImageCache* cache, QWidget* parent, Mode mode);
+    ImageViewer(const QUrl& url, ImageCache* cache, QWidget* parent);
     void setImage(const QImage& image);
     void updateScaledPixmap();
     void loadFullImage();
-    void setupVideo();
-    void setupWeb();
-    QRect mediaRect() const;
 
     ImageCache* m_cache;
-    QNetworkAccessManager* m_network = nullptr;
-    QMediaPlayer* m_player = nullptr;
-    QAudioOutput* m_audio = nullptr;
-    QVideoWidget* m_video = nullptr;
-    QWebEngineView* m_web = nullptr;
+    QNetworkAccessManager* m_network;
     QUrl m_url;
     QImage m_image;
     QPixmap m_scaled;
     QRect m_imageRect;
     QLabel* m_status;
     double m_zoom = 1.0;
-    Mode m_mode = Mode::Image;
 };

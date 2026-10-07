@@ -64,7 +64,7 @@ qt_add_translations(snapcord
 )
 
 target_link_libraries(snapcord PRIVATE
-    Qt6::Widgets Qt6::Svg Qt6::Multimedia Qt6::MultimediaWidgets Qt6::WebEngineWidgets
+    Qt6::Widgets Qt6::Svg
     snapcord_core snapcord_voice snapcord_platform
     unofficial::nayuki-qr-code-generator::nayuki-qr-code-generator
 )

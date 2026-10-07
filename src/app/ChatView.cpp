@@ -942,14 +942,10 @@ void ChatView::openLink(const QString& url)
         QDesktopServices::openUrl(QUrl(url));
 }
 
-void ChatView::openImage(const QString& url, bool video, bool web)
+void ChatView::openImage(const QString& url)
 {
-    if (!url.startsWith(u"http://") && !url.startsWith(u"https://"))
-        return;
-    const ImageViewer::Mode mode = web       ? ImageViewer::Mode::Web
-                                   : video   ? ImageViewer::Mode::Video
-                                             : ImageViewer::Mode::Image;
-    ImageViewer::open(QUrl(url), m_images, window(), mode);
+    if (url.startsWith(u"http://") || url.startsWith(u"https://"))
+        ImageViewer::open(QUrl(url), m_images, window());
 }
 
 void ChatView::jumpTo(const QString& messageId)
