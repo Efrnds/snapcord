@@ -14,7 +14,17 @@ mkdir -p "$out_dir"
 stage="$out_dir/dmg"
 rm -rf "$stage"
 mkdir -p "$stage"
-cp -R "$build_dir/Snapcord.app" "$stage/"
+
+# CMake puts the bundle under src/app/ when building in-tree; allow either layout.
+app="$build_dir/Snapcord.app"
+if [ ! -d "$app" ]; then
+    app="$build_dir/src/app/Snapcord.app"
+fi
+if [ ! -d "$app" ]; then
+    echo "error: Snapcord.app not found under $build_dir" >&2
+    exit 1
+fi
+cp -R "$app" "$stage/"
 
 # Qt frameworks and plugins inside the bundle.
 "$QT_ROOT_DIR/bin/macdeployqt" "$stage/Snapcord.app" -always-overwrite

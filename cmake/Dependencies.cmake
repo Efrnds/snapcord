@@ -30,6 +30,14 @@ FetchContent_Declare(rnnoise
 FetchContent_MakeAvailable(rnnoise)
 
 set(rnnoise_src "${rnnoise_SOURCE_DIR}/src")
+# The v0.2 release tarball omits os_support.h; ARM/NEON (and the scalar fallback) include it.
+if(NOT EXISTS "${rnnoise_src}/os_support.h")
+    configure_file(
+        "${CMAKE_CURRENT_LIST_DIR}/rnnoise/os_support.h"
+        "${rnnoise_src}/os_support.h"
+        COPYONLY
+    )
+endif()
 add_library(rnnoise STATIC
     "${rnnoise_src}/denoise.c"
     "${rnnoise_src}/rnn.c"
