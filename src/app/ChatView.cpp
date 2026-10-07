@@ -950,10 +950,12 @@ void ChatView::openImage(const QString& url, bool video, bool web)
 {
     if (!url.startsWith(u"http://") && !url.startsWith(u"https://"))
         return;
-    const ImageViewer::Mode mode = web       ? ImageViewer::Mode::Web
-                                   : video   ? ImageViewer::Mode::Video
-                                             : ImageViewer::Mode::Image;
-    ImageViewer::open(QUrl(url), m_images, window(), mode);
+    // No in-app player (keeps Qt Multimedia / WebEngine out): videos and embeds open in the browser.
+    if (video || web) {
+        QDesktopServices::openUrl(QUrl(url));
+        return;
+    }
+    ImageViewer::open(QUrl(url), m_images, window());
 }
 
 void ChatView::jumpTo(const QString& messageId)

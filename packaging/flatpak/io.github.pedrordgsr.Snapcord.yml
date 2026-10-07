@@ -5,24 +5,18 @@ id: io.github.pedrordgsr.Snapcord
 runtime: org.kde.Platform
 runtime-version: '6.8'
 sdk: org.kde.Sdk
-# Qt WebEngine is not in the KDE runtime; the BaseApp supplies it (YouTube embeds).
-base: io.qt.qtwebengine.BaseApp
-base-version: '6.8'
 command: Snapcord
 finish-args:
-    - --share=ipc
-    - --share=network
-    - --socket=wayland
-    - --socket=fallback-x11
-    - --socket=pulseaudio
-    - --device=dri
-    - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
-    # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
-    - --talk-name=org.freedesktop.secrets
-    - --talk-name=org.freedesktop.Notifications
-    - --talk-name=org.kde.StatusNotifierWatcher
-cleanup-commands:
-    - /app/cleanup-BaseApp.sh
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
 # Drop build-only files after every module finishes (keeps the runtime slim).
 cleanup:
   - /include
