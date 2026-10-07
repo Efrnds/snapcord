@@ -35,7 +35,7 @@ jobs:
           version: '6.8.3'
           # Quick ships with the desktop install. WebEngine still needs WebChannel and Positioning,
           # which aqt does not pull in on its own. `qtdeclarative` is not a selectable module name.
-          modules: 'qtwebsockets qtimageformats qtmultimedia qtwebchannel qtpositioning qtwebengine'
+          modules: 'qtwebsockets qtimageformats qtmultimedia qtwebchannel qtpositioning qtserialport qtwebengine'
           cache: true
 
       - name: Install CMake and Ninja

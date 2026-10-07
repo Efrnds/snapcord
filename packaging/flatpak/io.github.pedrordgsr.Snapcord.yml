@@ -17,12 +17,12 @@ finish-args:
     - --socket=pulseaudio
     - --device=dri
     - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
+    # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
+    - --talk-name=org.freedesktop.secrets
+    - --talk-name=org.freedesktop.Notifications
+    - --talk-name=org.kde.StatusNotifierWatcher
 cleanup-commands:
     - /app/cleanup-BaseApp.sh
-  # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
-  - --talk-name=org.freedesktop.secrets
-  - --talk-name=org.freedesktop.Notifications
-  - --talk-name=org.kde.StatusNotifierWatcher
 # Drop build-only files after every module finishes (keeps the runtime slim).
 cleanup:
   - /include
