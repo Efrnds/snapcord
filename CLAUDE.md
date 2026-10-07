@@ -13,6 +13,11 @@
   (criar repositório, push, releases) ou qualquer coisa difícil de desfazer.
 - Trabalhe em passos pequenos e verificáveis: cada etapa deve terminar com algo que o
   usuário consiga rodar e ver funcionando.
+- **Antes de abrir ou atualizar um pull request**, rode/confira o CI do repositório
+  (GitHub Actions: `build` em Windows, Linux, macOS e Flatpak). Não envie o PR (nem diga
+  que está pronto) enquanto os jobs relevantes não estiverem verdes — ou, se ainda
+  estiverem rodando, acompanhe até o fim e corrija falhas antes de considerar a tarefa
+  concluída. Empurrar um commit de correção e esperar o CI revalidar faz parte do fluxo.
 - **Nunca** registre tokens, tickets de login ou dados de conta em logs, commits ou
   mensagens.
 
@@ -343,8 +348,11 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   - Windows: `packaging/windows/package.ps1` gera o `.zip` portátil e o instalador Inno Setup
     (`snapcord.iss`).
   - macOS: `packaging/macos/package.sh` usa macdeployqt, assinatura ad-hoc e gera o `.dmg`.
-  - Linux: `packaging/linux/package.sh` gera o AppImage com linuxdeploy e o plugin Qt.
-  - Flatpak: manifesto em `packaging/flatpak/`, runtime KDE 6.8, dependências via vcpkg com rede
+  - Linux: `packaging/linux/package.sh` gera o AppImage; `package-deb.sh` gera o `.deb`
+    (Qt embutido em `/opt/snapcord`). AppDir compartilhado via `prepare-appdir.sh`.
+  - AUR: `packaging/aur/snapcord-bin/` (AppImage das Releases; publicação no AUR é manual).
+  - Flatpak: manifesto em `packaging/flatpak/`, runtime KDE 6.8, `libsecret` compilado no
+    manifesto (o SDK traz um `.pc` quebrado), demais dependências via vcpkg com rede
     liberada no build.
 - **CI (`.github/workflows/build.yml`):**
   - Compila, testa e empacota nas três plataformas, mais o Flatpak.
