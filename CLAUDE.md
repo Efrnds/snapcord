@@ -312,6 +312,21 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
   - A versão do Chrome (`ChromeVersion`) é fixa e precisa ser atualizada de tempos em tempos.
   - **Fora de escopo (decisão fechada):** imitar a assinatura TLS/HTTP2 do Chrome (curl-impersonate). A rede
     continua sendo a do Qt.
+- **Disciplina de requisições (para não parecer abuso):** o app deve se comportar como o cliente oficial e
+  nunca martelar a API. Regra geral ao mexer no código: antes de adicionar uma requisição nova, confira se já
+  existe cache, debounce ou batch para aquilo, e **respeite sempre o rate limit**.
+  - **Rate limit (429):** `RestClient` relê a resposta 429, espera o `retry_after` (campo do corpo, ou header
+    `Retry-After`) e repete — no máximo 3 vezes, com teto de 60 s. Nunca repetir um 429 na hora.
+  - **Debounce/batch já existentes (não remover):** presença (op 3) agrupada em 1 s; `typing` no máximo a cada
+    8 s; usuários desconhecidos pedidos em lote de até 100 a cada 250 ms (op 8); inscrição da lista de membros
+    (op 37) adiada 150 ms e ignorada se as faixas não mudaram; read ack só quando o último lido muda ou há
+    menção a limpar.
+  - **Cache (não encurtar à toa):** perfis por 3 min; build number por 1 dia; imagens em memória + disco
+    (`PreferCache`); `MessageStore` com LRU de 8 canais.
+  - **Backoff:** gateway e voz reconectam com espera exponencial; o login por QR espera antes de refazer.
+  - **Rich presence (jogos e Spotify): DESLIGADO** por decisão do dono (`RichPresence::Enabled == false`).
+    Com isso não há varredura de processos (15 s), download da lista `detectable` (~13 MB) nem polling do
+    Spotify (15 s). Para religar, mudar a constante e recompilar; a página "Activity Privacy" reaparece sozinha.
 - **Captcha no login por QR:** não é suportado e acontece na prática.
   - A alternativa é o **login por token**, na própria tela de login ("Log in with a token instead").
   - O token é validado com `GET /users/@me` antes de ser salvo.
@@ -371,6 +386,9 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Falta o teste real** com uma conta.
 
 ### Rich presence (jogo e Spotify)
+
+> **DESLIGADO** no momento (`RichPresence::Enabled == false`). O código abaixo continua existindo, mas não roda:
+> nada é detectado nem compartilhado e a página "Activity Privacy" fica escondida. Ver "Disciplina de requisições".
 
 - **Jogos:** `core/GameDetector` baixa a lista pública `GET /applications/detectable` (~13 MB), guarda uma versão
   compacta em `detectable.tsv` (pasta de dados do app, renovada a cada 3 dias) e compara com os processos abertos a

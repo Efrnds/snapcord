@@ -42,7 +42,18 @@ public:
     void deleteResource(const QString& path, Callback callback);
 
 private:
-    void send(const QByteArray& verb, const QString& path, const QByteArray& body, bool hasBody, Callback callback);
+    struct Request
+    {
+        QByteArray verb;
+        QString path;
+        QByteArray body;
+        bool hasBody = false;
+        Callback callback;
+        int attempt = 0;
+    };
+
+    void send(Request request);
+    void dispatch(Request request);
 
     QNetworkAccessManager* m_network;
     QString m_token;
