@@ -34,9 +34,12 @@ public:
         QColor button;
         QColor buttonHover;
         QColor success;
+        QColor successHover;
         QColor danger;
+        QColor dangerHover;
         QColor warning;
         QColor link;
+        QColor onAccent; // text/icons on accent, success, and danger fills
     };
 
     struct Preset {
@@ -63,6 +66,8 @@ public:
 
     static QVector<Preset> presets();
     static const Preset* findPreset(const QString& id);
+    // Quick accent chips shown in Appearance (includes former accent-only presets).
+    static QVector<QColor> accentSwatches();
 
     void load();
     void save() const;

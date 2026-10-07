@@ -4,6 +4,7 @@
 
 #include <QDialog>
 #include <QPushButton>
+#include <QVector>
 #include <QWidget>
 
 #include <atomic>
@@ -87,12 +88,15 @@ public:
 
     void setSwatchColor(const QColor& color);
     QColor swatchColor() const { return m_color; }
+    void setSelectedSwatch(bool selected);
+    bool isSelectedSwatch() const { return m_selected; }
 
 protected:
     void paintEvent(QPaintEvent* event) override;
 
 private:
     QColor m_color{Qt::black};
+    bool m_selected = false;
 };
 
 class SettingsDialog : public QDialog
@@ -122,6 +126,8 @@ private:
     void stopMicTest();
     void changeLanguage(const QString& code);
     void refreshColorSwatches();
+    void setCustomAccent(const QColor& color);
+    static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
     VoiceSettings m_settings;
@@ -150,6 +156,7 @@ private:
     ColorSwatch* m_profilePrimarySwatch = nullptr;
     ColorSwatch* m_profileAccentSwatch = nullptr;
     QButtonGroup* m_presetGroup = nullptr;
+    QVector<ColorSwatch*> m_accentChips;
 
     QTimer* m_meterTimer;
     std::unique_ptr<AudioEngine> m_testAudio;

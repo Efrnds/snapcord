@@ -226,6 +226,7 @@ ColorSwatch::ColorSwatch(QWidget* parent)
     setCursor(Qt::PointingHandCursor);
     setFixedSize(40, 40);
     setFocusPolicy(Qt::NoFocus);
+    setCheckable(false);
 }
 
 void ColorSwatch::setSwatchColor(const QColor& color)
@@ -236,12 +237,22 @@ void ColorSwatch::setSwatchColor(const QColor& color)
     update();
 }
 
+void ColorSwatch::setSelectedSwatch(bool selected)
+{
+    if (m_selected == selected)
+        return;
+    m_selected = selected;
+    update();
+}
+
 void ColorSwatch::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     const QRectF box = QRectF(rect()).adjusted(1, 1, -1, -1);
-    painter.setPen(QPen(underMouse() ? Theme::instance().accent() : Theme::instance().palette().border, 2));
+    const QColor ring = m_selected || underMouse() ? Theme::instance().accent()
+                                                   : Theme::instance().palette().border;
+    painter.setPen(QPen(ring, m_selected ? 3 : 2));
     painter.setBrush(m_color);
     painter.drawRoundedRect(box, 6, 6);
 }
@@ -534,25 +545,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     const Theme::Settings current = Theme::instance().settings();
     int index = 0;
     for (const Theme::Preset& preset : Theme::presets()) {
-        auto* button = new QPushButton;
-        if (preset.id == QLatin1String("discord"))
-            button->setText(tr("Discord"));
-        else if (preset.id == QLatin1String("midnight"))
-            button->setText(tr("Midnight"));
-        else if (preset.id == QLatin1String("amoled"))
-            button->setText(tr("AMOLED"));
-        else if (preset.id == QLatin1String("ash"))
-            button->setText(tr("Ash"));
-        else if (preset.id == QLatin1String("rose"))
-            button->setText(tr("Rose"));
-        else if (preset.id == QLatin1String("emerald"))
-            button->setText(tr("Emerald"));
-        else if (preset.id == QLatin1String("sunset"))
-            button->setText(tr("Sunset"));
-        else if (preset.id == QLatin1String("ocean"))
-            button->setText(tr("Ocean"));
-        else
-            button->setText(preset.name);
+        auto* button = new QPushButton(presetDisplayName(preset.id, preset.name));
         button->setObjectName(QStringLiteral("presetCard"));
         button->setCursor(Qt::PointingHandCursor);
         button->setCheckable(true);
@@ -571,14 +564,12 @@ QWidget* SettingsDialog::buildAppearancePage()
             "}"
             "QPushButton#presetCard:checked {"
             "  border-color: %4;"
-            "}")
-                                  .arg(preset.palette.bg1.name(),
-                                       preset.palette.border.name(),
-                                       preset.palette.textBright.name(),
-                                       preset.palette.accent.name()));
-        button->setStyleSheet(button->styleSheet()
-                              + QStringLiteral("QPushButton#presetCard { border-left: 6px solid %1; }")
-                                    .arg(preset.palette.accent.name()));
+            "}"
+            "QPushButton#presetCard { border-left: 6px solid %4; }")
+                                  .arg(preset.palette.bg1.name(QColor::HexRgb),
+                                       preset.palette.border.name(QColor::HexRgb),
+                                       preset.palette.textBright.name(QColor::HexRgb),
+                                       preset.palette.accent.name(QColor::HexRgb)));
         m_presetGroup->addButton(button, index);
         presetGrid->addWidget(button, index / 2, index % 2);
         ++index;
@@ -588,32 +579,43 @@ QWidget* SettingsDialog::buildAppearancePage()
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Accent color")));
+    auto* accentHint = new QLabel(tr("Pick a color or open the custom picker."));
+    accentHint->setObjectName(QStringLiteral("settingsHint"));
+    accentHint->setWordWrap(true);
+    layout->addWidget(accentHint);
+
     auto* accentRow = new QHBoxLayout;
+    accentRow->setSpacing(8);
+    m_accentChips.clear();
+    for (const QColor& color : Theme::accentSwatches()) {
+        auto* chip = new ColorSwatch;
+        chip->setFixedSize(32, 32);
+        chip->setSwatchColor(color);
+        chip->setToolTip(color.name(QColor::HexRgb).toUpper());
+        accentRow->addWidget(chip);
+        m_accentChips.push_back(chip);
+        connect(chip, &QPushButton::clicked, this, [this, color] { setCustomAccent(color); });
+    }
     m_accentSwatch = new ColorSwatch;
     m_accentSwatch->setToolTip(tr("Custom accent color"));
+    accentRow->addWidget(m_accentSwatch);
     auto* resetAccent = new QPushButton(tr("Use theme default"));
     resetAccent->setObjectName(QStringLiteral("secondaryButton"));
     resetAccent->setCursor(Qt::PointingHandCursor);
-    accentRow->addWidget(m_accentSwatch);
     accentRow->addWidget(resetAccent);
     accentRow->addStretch();
     layout->addLayout(accentRow);
     connect(m_accentSwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
+        const Theme::Settings settings = Theme::instance().settings();
         const QColor initial = settings.customAccent.isValid() ? settings.customAccent
                                                                : Theme::instance().accent();
         const QColor chosen = QColorDialog::getColor(initial, this, tr("Accent color"));
         if (!chosen.isValid())
             return;
-        settings.customAccent = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        setCustomAccent(chosen);
     });
     connect(resetAccent, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        settings.customAccent = QColor(); // invalid = follow the selected theme
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        setCustomAccent(QColor()); // invalid = follow the selected theme
     });
 
     layout->addSpacing(12);
@@ -695,12 +697,48 @@ QWidget* SettingsDialog::buildAppearancePage()
 
 void SettingsDialog::refreshColorSwatches()
 {
+    const QColor accent = Theme::instance().accent();
     if (m_accentSwatch)
-        m_accentSwatch->setSwatchColor(Theme::instance().accent());
+        m_accentSwatch->setSwatchColor(accent);
     if (m_profilePrimarySwatch)
         m_profilePrimarySwatch->setSwatchColor(Theme::instance().profilePrimary());
     if (m_profileAccentSwatch)
         m_profileAccentSwatch->setSwatchColor(Theme::instance().profileAccent());
+
+    const QColor custom = Theme::instance().settings().customAccent;
+    bool matchedChip = false;
+    for (ColorSwatch* chip : m_accentChips) {
+        if (!chip)
+            continue;
+        const bool match = custom.isValid() && chip->swatchColor().rgb() == custom.rgb();
+        chip->setSelectedSwatch(match);
+        matchedChip = matchedChip || match;
+    }
+    if (m_accentSwatch)
+        m_accentSwatch->setSelectedSwatch(custom.isValid() && !matchedChip);
+}
+
+void SettingsDialog::setCustomAccent(const QColor& color)
+{
+    Theme::Settings settings = Theme::instance().settings();
+    settings.customAccent = color;
+    Theme::instance().setSettings(settings);
+    refreshColorSwatches();
+}
+
+QString SettingsDialog::presetDisplayName(const QString& id, const QString& fallback)
+{
+    if (id == QLatin1String("discord"))
+        return tr("Discord");
+    if (id == QLatin1String("midnight"))
+        return tr("Midnight");
+    if (id == QLatin1String("amoled"))
+        return tr("AMOLED");
+    if (id == QLatin1String("ash"))
+        return tr("Ash");
+    if (id == QLatin1String("light"))
+        return tr("Light");
+    return fallback;
 }
 
 void SettingsDialog::applyAppearance()

@@ -28,7 +28,7 @@ QMenu::item {
 }
 QMenu::item:selected {
     background: @accent;
-    color: #ffffff;
+    color: @onAccent;
 }
 
 /* Thin scroll bars */
@@ -142,15 +142,15 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     border-radius: 28px;
 }
 #acceptCallButton:hover {
-    background: #1a6334;
+    background: @successHover;
 }
 #declineCallButton {
-    background: #da373c;
+    background: @danger;
     border: none;
     border-radius: 28px;
 }
 #declineCallButton:hover {
-    background: #a12829;
+    background: @dangerHover;
 }
 
 QCheckBox {
@@ -264,7 +264,7 @@ QCheckBox {
     padding: 6px;
 }
 #composerModeCancel:hover, #emojiButton:hover {
-    color: #ffffff;
+    color: @textBright;
 }
 #typingLabel {
     color: @text;
@@ -295,7 +295,7 @@ QCheckBox {
 
 /* Voice channel view */
 #voiceChannelView {
-    background: #000000;
+    background: @bg0;
 }
 #voiceChannelView #chatHeader {
     background: @bg2;
@@ -307,7 +307,7 @@ QCheckBox {
 /* Buttons */
 #joinVoiceButton, #primaryButton {
     background: @success;
-    color: #ffffff;
+    color: @onAccent;
     border: none;
     border-radius: 4px;
     padding: 8px 20px;
@@ -315,7 +315,7 @@ QCheckBox {
     font-weight: 600;
 }
 #joinVoiceButton:hover, #primaryButton:hover {
-    background: #1a6334;
+    background: @successHover;
 }
 #joinVoiceButton:disabled {
     background: @button;
@@ -323,7 +323,7 @@ QCheckBox {
 }
 #secondaryButton {
     background: @button;
-    color: #ffffff;
+    color: @textBright;
     border: none;
     border-radius: 4px;
     padding: 8px 16px;
@@ -347,7 +347,7 @@ QCheckBox {
 
 #brandButton {
     background: @accent;
-    color: #ffffff;
+    color: @onAccent;
     border: none;
     border-radius: 4px;
     padding: 10px 16px;
@@ -383,7 +383,7 @@ QCheckBox {
     font-size: @fontSizeMd;
 }
 #tokenError {
-    color: #fa777c;
+    color: @danger;
     font-size: @fontSizeHint;
 }
 #loginWindow {
@@ -444,7 +444,7 @@ QCheckBox {
 }
 #settingsNavigation::item:selected {
     background: @selected;
-    color: #ffffff;
+    color: @textBright;
 }
 #settingsTitle {
     color: @textBright;
@@ -515,7 +515,7 @@ QSlider::sub-page:horizontal {
     border-radius: 4px;
 }
 QSlider::handle:horizontal {
-    background: #ffffff;
+    background: @textBright;
     width: 10px;
     height: 24px;
     margin: -8px 0;
@@ -526,7 +526,7 @@ QMessageBox {
 }
 QMessageBox QPushButton {
     background: @accent;
-    color: #ffffff;
+    color: @onAccent;
     border: none;
     border-radius: 3px;
     padding: 6px 16px;

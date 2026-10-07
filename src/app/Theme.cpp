@@ -32,6 +32,13 @@ Theme::Palette withAccent(Theme::Palette palette, const QColor& accent)
     return palette;
 }
 
+Theme::Palette withStatusColors(Theme::Palette palette)
+{
+    palette.successHover = colorFromHsvDelta(palette.success, 0, -36);
+    palette.dangerHover = colorFromHsvDelta(palette.danger, 0, -36);
+    return palette;
+}
+
 Theme::Palette discordPalette()
 {
     Theme::Palette p;
@@ -54,7 +61,34 @@ Theme::Palette discordPalette()
     p.danger = QColor(0xf2, 0x3f, 0x43);
     p.warning = QColor(0xf0, 0xb2, 0x32);
     p.link = QColor(0x00, 0xa8, 0xfc);
-    return withAccent(p, QColor(0x58, 0x65, 0xf2));
+    p.onAccent = QColor(0xff, 0xff, 0xff);
+    return withStatusColors(withAccent(p, QColor(0x58, 0x65, 0xf2)));
+}
+
+Theme::Palette lightPalette()
+{
+    Theme::Palette p;
+    p.bg0 = QColor(0xe3, 0xe5, 0xe8);
+    p.bg1 = QColor(0xf2, 0xf3, 0xf5);
+    p.bg2 = QColor(0xff, 0xff, 0xff);
+    p.bg3 = QColor(0xeb, 0xed, 0xf0);
+    p.bg4 = QColor(0xff, 0xff, 0xff);
+    p.surface = QColor(0xe3, 0xe5, 0xe8);
+    p.hover = QColor(0xd8, 0xdb, 0xdf);
+    p.selected = QColor(0xd0, 0xd4, 0xd9);
+    p.border = QColor(0xd8, 0xdb, 0xdf);
+    p.text = QColor(0x31, 0x33, 0x38);
+    p.textBright = QColor(0x06, 0x06, 0x07);
+    p.textMuted = QColor(0x5c, 0x5e, 0x66);
+    p.textDim = QColor(0x4e, 0x50, 0x58);
+    p.button = QColor(0xd0, 0xd4, 0xd9);
+    p.buttonHover = QColor(0xbc, 0xc1, 0xc7);
+    p.success = QColor(0x24, 0x8a, 0x46);
+    p.danger = QColor(0xda, 0x37, 0x3c);
+    p.warning = QColor(0xb5, 0x78, 0x0c);
+    p.link = QColor(0x00, 0x6c, 0xe7);
+    p.onAccent = QColor(0xff, 0xff, 0xff);
+    return withStatusColors(withAccent(p, QColor(0x58, 0x65, 0xf2)));
 }
 
 QVector<Theme::Preset> buildPresets()
@@ -75,7 +109,7 @@ QVector<Theme::Preset> buildPresets()
         p.selected = QColor(0x26, 0x2a, 0x38);
         p.border = QColor(0x1a, 0x1c, 0x24);
         list.push_back({QStringLiteral("midnight"), QStringLiteral("Midnight"),
-                        withAccent(p, QColor(0x6c, 0x79, 0xff))});
+                        withStatusColors(withAccent(p, QColor(0x6c, 0x79, 0xff)))});
     }
     {
         Theme::Palette p = discordPalette();
@@ -89,7 +123,7 @@ QVector<Theme::Preset> buildPresets()
         p.selected = QColor(0x24, 0x24, 0x24);
         p.border = QColor(0x1a, 0x1a, 0x1a);
         list.push_back({QStringLiteral("amoled"), QStringLiteral("AMOLED"),
-                        withAccent(p, QColor(0x58, 0x65, 0xf2))});
+                        withStatusColors(withAccent(p, QColor(0x58, 0x65, 0xf2)))});
     }
     {
         Theme::Palette p = discordPalette();
@@ -102,17 +136,10 @@ QVector<Theme::Preset> buildPresets()
         p.hover = QColor(0x32, 0x36, 0x3b);
         p.selected = QColor(0x3a, 0x3f, 0x45);
         list.push_back({QStringLiteral("ash"), QStringLiteral("Ash"),
-                        withAccent(p, QColor(0x8b, 0x9c, 0xf7))});
+                        withStatusColors(withAccent(p, QColor(0x8b, 0x9c, 0xf7)))});
     }
 
-    list.push_back({QStringLiteral("rose"), QStringLiteral("Rose"),
-                    withAccent(discordPalette(), QColor(0xeb, 0x45, 0x9f))});
-    list.push_back({QStringLiteral("emerald"), QStringLiteral("Emerald"),
-                    withAccent(discordPalette(), QColor(0x23, 0xa5, 0x59))});
-    list.push_back({QStringLiteral("sunset"), QStringLiteral("Sunset"),
-                    withAccent(discordPalette(), QColor(0xf2, 0x65, 0x22))});
-    list.push_back({QStringLiteral("ocean"), QStringLiteral("Ocean"),
-                    withAccent(discordPalette(), QColor(0x00, 0xb0, 0xf4))});
+    list.push_back({QStringLiteral("light"), QStringLiteral("Light"), lightPalette()});
 
     return list;
 }
@@ -138,6 +165,20 @@ void writeColor(QSettings& settings, const QString& key, const QColor& color)
         settings.setValue(key, color.name(QColor::HexRgb));
     else
         settings.remove(key);
+}
+
+// Map removed accent-only presets to a custom accent so upgrades keep the color.
+QColor accentForLegacyPreset(const QString& id)
+{
+    if (id == QLatin1String("rose"))
+        return QColor(0xeb, 0x45, 0x9f);
+    if (id == QLatin1String("emerald"))
+        return QColor(0x23, 0xa5, 0x59);
+    if (id == QLatin1String("sunset"))
+        return QColor(0xf2, 0x65, 0x22);
+    if (id == QLatin1String("ocean"))
+        return QColor(0x00, 0xb0, 0xf4);
+    return {};
 }
 
 } // namespace
@@ -170,6 +211,20 @@ const Theme::Preset* Theme::findPreset(const QString& id)
     return &list.front();
 }
 
+QVector<QColor> Theme::accentSwatches()
+{
+    return {
+        QColor(0x58, 0x65, 0xf2), // blurple
+        QColor(0x9b, 0x59, 0xb6), // violet
+        QColor(0xeb, 0x45, 0x9f), // rose
+        QColor(0xed, 0x42, 0x45), // red
+        QColor(0xf2, 0x65, 0x22), // sunset
+        QColor(0xfa, 0xa6, 0x1a), // gold
+        QColor(0x23, 0xa5, 0x59), // emerald
+        QColor(0x00, 0xb0, 0xf4), // ocean
+    };
+}
+
 QColor Theme::profilePrimary() const
 {
     return m_settings.profilePrimary.isValid() ? m_settings.profilePrimary : m_palette.bg3;
@@ -184,9 +239,17 @@ void Theme::load()
 {
     const QSettings settings;
     m_settings.presetId = settings.value(QStringLiteral("appearance/preset"), QStringLiteral("discord")).toString();
+    m_settings.customAccent = readColor(settings, QStringLiteral("appearance/customAccent"));
+
+    // Former Rose/Emerald/Sunset/Ocean presets are now accent chips on Discord.
+    if (const QColor legacy = accentForLegacyPreset(m_settings.presetId); legacy.isValid()) {
+        if (!m_settings.customAccent.isValid())
+            m_settings.customAccent = legacy;
+        m_settings.presetId = QStringLiteral("discord");
+    }
+
     if (findPreset(m_settings.presetId)->id != m_settings.presetId)
         m_settings.presetId = QStringLiteral("discord");
-    m_settings.customAccent = readColor(settings, QStringLiteral("appearance/customAccent"));
     m_settings.profilePrimary = readColor(settings, QStringLiteral("appearance/profilePrimary"));
     m_settings.profileAccent = readColor(settings, QStringLiteral("appearance/profileAccent"));
     m_settings.fontSize = qBound(12, settings.value(QStringLiteral("appearance/fontSize"), 14).toInt(), 18);
@@ -255,9 +318,9 @@ void Theme::applyQtPalette(QApplication& app) const
     qt.setColor(QPalette::Text, m_palette.text);
     qt.setColor(QPalette::PlaceholderText, m_palette.textMuted);
     qt.setColor(QPalette::Button, m_palette.button);
-    qt.setColor(QPalette::ButtonText, Qt::white);
+    qt.setColor(QPalette::ButtonText, m_palette.textBright);
     qt.setColor(QPalette::Highlight, m_palette.accent);
-    qt.setColor(QPalette::HighlightedText, Qt::white);
+    qt.setColor(QPalette::HighlightedText, m_palette.onAccent);
     qt.setColor(QPalette::ToolTipBase, m_palette.bg4);
     qt.setColor(QPalette::ToolTipText, m_palette.text);
     qt.setColor(QPalette::Link, m_palette.link);
@@ -294,10 +357,13 @@ QString Theme::buildStyleSheet() const
     replace("@accent", hex(m_palette.accent));
     replace("@buttonHover", hex(m_palette.buttonHover));
     replace("@button", hex(m_palette.button));
+    replace("@successHover", hex(m_palette.successHover));
     replace("@success", hex(m_palette.success));
+    replace("@dangerHover", hex(m_palette.dangerHover));
     replace("@danger", hex(m_palette.danger));
     replace("@warning", hex(m_palette.warning));
     replace("@link", hex(m_palette.link));
+    replace("@onAccent", hex(m_palette.onAccent));
     replace("@profilePrimary", hex(profilePrimary()));
     replace("@profileAccent", hex(profileAccent()));
 

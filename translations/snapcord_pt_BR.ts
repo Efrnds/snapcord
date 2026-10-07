@@ -382,15 +382,15 @@
     <name>MainWindow</name>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="54"/>
-        <location filename="../src/app/MainWindow.cpp" line="246"/>
-        <location filename="../src/app/MainWindow.cpp" line="295"/>
-        <location filename="../src/app/MainWindow.cpp" line="380"/>
+        <location filename="../src/app/MainWindow.cpp" line="252"/>
+        <location filename="../src/app/MainWindow.cpp" line="301"/>
+        <location filename="../src/app/MainWindow.cpp" line="386"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="68"/>
-        <location filename="../src/app/MainWindow.cpp" line="435"/>
+        <location filename="../src/app/MainWindow.cpp" line="441"/>
         <source>Connecting…</source>
         <translation>Conectando…</translation>
     </message>
@@ -400,8 +400,8 @@
         <translation>Voz</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="284"/>
-        <location filename="../src/app/MainWindow.cpp" line="356"/>
+        <location filename="../src/app/MainWindow.cpp" line="290"/>
+        <location filename="../src/app/MainWindow.cpp" line="362"/>
         <source>Unknown user</source>
         <translation>Usuário desconhecido</translation>
     </message>
@@ -411,22 +411,22 @@
         <translation>Escolha uma conversa à esquerda.</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="364"/>
+        <location filename="../src/app/MainWindow.cpp" line="370"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="436"/>
+        <location filename="../src/app/MainWindow.cpp" line="442"/>
         <source>Online</source>
         <translation>Online</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="456"/>
+        <location filename="../src/app/MainWindow.cpp" line="462"/>
         <source>User Volume</source>
         <translation>Volume do usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="479"/>
+        <location filename="../src/app/MainWindow.cpp" line="485"/>
         <source>Mute</source>
         <translation>Silenciar</translation>
     </message>
@@ -620,316 +620,306 @@
 <context>
     <name>SettingsDialog</name>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="229"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="269"/>
         <source>User Settings</source>
         <translation>Configurações de usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="236"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="389"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="276"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="435"/>
         <source>Voice &amp; Audio</source>
         <translation>Voz e áudio</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="237"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="481"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="277"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="528"/>
         <source>Appearance</source>
         <translation>Aparência</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="238"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="454"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="278"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="501"/>
         <source>Notifications</source>
         <translation>Notificações</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="239"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="701"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="794"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="279"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="765"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="864"/>
         <source>Language</source>
         <translation>Idioma</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="241"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="281"/>
         <source>Log Out</source>
         <translation>Sair</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="288"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="294"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="328"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="334"/>
         <source>Default</source>
         <translation>Padrão</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="302"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="348"/>
         <source>Voice Activity</source>
         <translation>Detecção de voz</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="303"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="349"/>
         <source>Push to Talk</source>
         <translation>Pressionar para falar</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="311"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="357"/>
         <source>Automatically determine input sensitivity</source>
         <translation>Determinar automaticamente a sensibilidade de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="314"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="360"/>
         <source>Noise Suppression</source>
         <translation>Supressão de ruído</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="316"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="362"/>
         <source>Echo Cancellation</source>
         <translation>Cancelamento de eco</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="318"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="364"/>
         <source>Automatic Gain Control</source>
         <translation>Controle automático de ganho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="320"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="366"/>
         <source>Play sound effects</source>
         <translation>Tocar efeitos sonoros</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="336"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="382"/>
         <source>Input Device</source>
         <translation>Dispositivo de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="339"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="385"/>
         <source>Input Volume</source>
         <translation>Volume de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="342"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="388"/>
         <source>Output Device</source>
         <translation>Dispositivo de saída</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="345"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="391"/>
         <source>Output Volume</source>
         <translation>Volume de saída</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="353"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="399"/>
         <source>Input Sensitivity</source>
         <translation>Sensibilidade de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="355"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="401"/>
         <source>Talk to test your microphone. The bar turns green when you are loud enough to be heard; drag the white marker to adjust.</source>
         <translation>Fale para testar seu microfone. A barra fica verde quando você fala alto o bastante para ser ouvido; arraste o marcador branco para ajustar.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="367"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="413"/>
         <source>Shortcut</source>
         <translation>Atalho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="370"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="416"/>
         <source>Push to Talk Release Delay</source>
         <translation>Atraso ao soltar a tecla</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="378"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="424"/>
         <source>Push to Talk is not available on this system yet.</source>
         <translation>Pressionar para falar ainda não está disponível neste sistema.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="395"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="441"/>
         <source>Input Mode</source>
         <translation>Modo de entrada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="402"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="448"/>
         <source>Voice Processing</source>
         <translation>Processamento de voz</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="403"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="449"/>
         <source>Removes background noise like keyboards, fans and traffic.</source>
         <translation>Remove ruídos de fundo como teclado, ventilador e trânsito.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="405"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="451"/>
         <source>Stops others from hearing themselves when you use speakers instead of headphones.</source>
         <translation>Evita que os outros ouçam a própria voz quando você usa caixas de som em vez de fone.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="406"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="452"/>
         <source>Keeps your voice at a steady volume.</source>
         <translation>Mantém sua voz em um volume constante.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="408"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="454"/>
         <source>Sounds</source>
         <translation>Sons</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="409"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="455"/>
         <source>Joining, leaving, muting and incoming calls.</source>
         <translation>Entrar, sair, silenciar e chamadas recebidas.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="433"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="436"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="479"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="482"/>
         <source>%1 ms</source>
         <translation>%1 ms</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="459"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="506"/>
         <source>Enable desktop notifications</source>
         <translation>Ativar notificações na área de trabalho</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="462"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="509"/>
         <source>Direct messages and mentions show a notification while Snapcord is in the background.</source>
         <translation>Mensagens diretas e menções mostram uma notificação enquanto o Snapcord está em segundo plano.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="464"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="511"/>
         <source>Play a sound for new messages</source>
         <translation>Tocar um som para novas mensagens</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="467"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="514"/>
         <source>Only for direct messages and mentions, like the notifications.</source>
         <translation>Só para mensagens diretas e menções, como as notificações.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="486"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="533"/>
         <source>Themes and colors stay on this device. They do not change your Discord profile.</source>
         <translation>Temas e cores ficam só neste aparelho. Não alteram seu perfil do Discord.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="492"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="539"/>
         <source>Theme</source>
         <translation>Tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="503"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="732"/>
         <source>Discord</source>
         <translation>Discord</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="505"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="734"/>
         <source>Midnight</source>
         <translation>Meia-noite</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="507"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="736"/>
         <source>AMOLED</source>
         <translation>AMOLED</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="509"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="738"/>
         <source>Ash</source>
         <translation>Cinza</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="511"/>
-        <source>Rose</source>
-        <translation>Rosa</translation>
+        <location filename="../src/app/SettingsDialog.cpp" line="740"/>
+        <source>Light</source>
+        <translation>Claro</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="513"/>
-        <source>Emerald</source>
-        <translation>Esmeralda</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="515"/>
-        <source>Sunset</source>
-        <translation>Pôr do sol</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="517"/>
-        <source>Ocean</source>
-        <translation>Oceano</translation>
-    </message>
-    <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="554"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="571"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="581"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="612"/>
         <source>Accent color</source>
         <translation>Cor de destaque</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="559"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="582"/>
+        <source>Pick a color or open the custom picker.</source>
+        <translation>Escolha uma cor ou abra o seletor personalizado.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/SettingsDialog.cpp" line="600"/>
         <source>Custom accent color</source>
         <translation>Cor de destaque personalizada</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="560"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="602"/>
         <source>Use theme default</source>
         <translation>Usar padrão do tema</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="586"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="622"/>
         <source>My profile (this app only)</source>
         <translation>Meu perfil (só neste app)</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="587"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="623"/>
         <source>Colors for your user panel at the bottom left.</source>
         <translation>Cores do seu painel de usuário no canto inferior esquerdo.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="596"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="630"/>
         <source>Panel background</source>
         <translation>Fundo do painel</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="600"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="632"/>
         <source>Panel accent stripe</source>
         <translation>Faixa de destaque do painel</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="601"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="633"/>
         <source>Reset profile colors</source>
         <translation>Redefinir cores do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="613"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="645"/>
         <source>Profile background</source>
         <translation>Fundo do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="623"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="655"/>
         <source>Profile accent</source>
         <translation>Destaque do perfil</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="639"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="671"/>
         <source>Chat font size</source>
         <translation>Tamanho da fonte</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="650"/>
-        <location filename="../src/app/SettingsDialog.cpp" line="653"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="682"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="685"/>
         <source>%1 px</source>
         <translation>%1 px</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="705"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="769"/>
         <source>Select a language</source>
         <translation>Selecione um idioma</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="795"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="865"/>
         <source>Restart Snapcord to apply the new language.</source>
         <translation>Reinicie o Snapcord para aplicar o novo idioma.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="796"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="866"/>
         <source>Restart Now</source>
         <translation>Reiniciar agora</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="797"/>
+        <location filename="../src/app/SettingsDialog.cpp" line="867"/>
         <source>Later</source>
         <translation>Depois</translation>
     </message>
@@ -983,42 +973,42 @@
 <context>
     <name>VoiceConnection</name>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="179"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="189"/>
         <source>The voice server offered no supported encryption mode.</source>
         <translation>O servidor de voz não ofereceu nenhum modo de criptografia compatível.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="186"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="196"/>
         <source>Could not reach the voice server.</source>
         <translation>Não foi possível alcançar o servidor de voz.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="201"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="211"/>
         <source>Could not establish the voice connection. A firewall may be blocking UDP traffic.</source>
         <translation>Não foi possível estabelecer a conexão de voz. Um firewall pode estar bloqueando o tráfego UDP.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="215"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="225"/>
         <source>The voice server sent an invalid session.</source>
         <translation>O servidor de voz enviou uma sessão inválida.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="275"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="285"/>
         <source>You were disconnected from the voice channel.</source>
         <translation>Você foi desconectado do canal de voz.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="278"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="288"/>
         <source>This call requires end-to-end encryption, which could not be set up.</source>
         <translation>Esta chamada exige criptografia de ponta a ponta, que não pôde ser configurada.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="281"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="291"/>
         <source>The voice session expired. Please join the channel again.</source>
         <translation>A sessão de voz expirou. Entre no canal novamente.</translation>
     </message>
     <message>
-        <location filename="../src/voice/VoiceConnection.cpp" line="284"/>
+        <location filename="../src/voice/VoiceConnection.cpp" line="294"/>
         <source>The voice connection was lost (code %1).</source>
         <translation>A conexão de voz caiu (código %1).</translation>
     </message>
