@@ -9,6 +9,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     Demo.cpp Demo.h
     EmojiPicker.cpp EmojiPicker.h
     ImageCache.cpp ImageCache.h
+    ImageViewer.cpp ImageViewer.h
     IncomingCallWindow.cpp IncomingCallWindow.h
     Language.cpp Language.h
     LoginWindow.cpp LoginWindow.h
@@ -64,7 +65,7 @@ qt_add_translations(snapcord
 )
 
 target_link_libraries(snapcord PRIVATE
-    Qt6::Widgets Qt6::Svg
+    Qt6::Widgets Qt6::Svg Qt6::Multimedia Qt6::MultimediaWidgets Qt6::WebEngineWidgets
     snapcord_core snapcord_voice snapcord_platform
     unofficial::nayuki-qr-code-generator::nayuki-qr-code-generator
 )

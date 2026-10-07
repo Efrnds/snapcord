@@ -6,12 +6,15 @@
 #include "core/Log.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QLocale>
 
 int main(int argc, char* argv[])
 {
+    // Required before QApplication when Qt WebEngine is used (YouTube embeds in the media viewer).
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("Snapcord"));
     QApplication::setOrganizationName(QStringLiteral("Snapcord"));

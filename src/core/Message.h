@@ -33,6 +33,9 @@ struct Attachment
     int height = 0;
 
     bool isImage() const { return width > 0 && height > 0 && !contentType.startsWith(u"video/"); }
+    bool isVideo() const { return width > 0 && height > 0 && contentType.startsWith(u"video/"); }
+    // Image or video shown as an inline preview in chat.
+    bool isMedia() const { return isImage() || isVideo(); }
 };
 
 struct Embed
@@ -44,13 +47,19 @@ struct Embed
     QString authorName;
     QString providerName;
     QString footer;
-    QString imageUrl; // proxied image or thumbnail
+    QString imageUrl;         // proxied image or thumbnail (Discord CDN when available)
+    QString imageOriginalUrl; // non-proxied source (e.g. i.ytimg.com) — more reliable for previews
+    QString videoUrl;         // mp4/webm from gifv / video embeds
     int imageWidth = 0;
     int imageHeight = 0;
     bool imageIsThumbnail = false;
     int color = -1; // -1 = no color bar color
 
-    bool isEmpty() const { return title.isEmpty() && description.isEmpty() && authorName.isEmpty() && imageUrl.isEmpty(); }
+    bool isEmpty() const
+    {
+        return title.isEmpty() && description.isEmpty() && authorName.isEmpty() && imageUrl.isEmpty()
+            && videoUrl.isEmpty();
+    }
 };
 
 struct Reaction

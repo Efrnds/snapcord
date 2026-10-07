@@ -42,12 +42,15 @@ Embed embedFromJson(const QJsonObject& json)
     if (json.contains(u"color"))
         embed.color = json.value(u"color").toInt();
 
-    // Prefer the full image; fall back to the thumbnail. Discord's proxy URL is used when available.
+    // Prefer the full image; fall back to the thumbnail. Keep both the Discord proxy and the
+    // original URL — YouTube thumbs often load more reliably from i.ytimg.com than images-ext.
     auto takeImage = [&embed](const QJsonObject& image, bool thumbnail) {
-        const QString url = image.contains(u"proxy_url") ? string(image, u"proxy_url") : string(image, u"url");
-        if (url.isEmpty())
+        const QString original = string(image, u"url");
+        const QString proxy = string(image, u"proxy_url");
+        if (proxy.isEmpty() && original.isEmpty())
             return false;
-        embed.imageUrl = url;
+        embed.imageUrl = proxy.isEmpty() ? original : proxy;
+        embed.imageOriginalUrl = original;
         embed.imageWidth = image.value(u"width").toInt();
         embed.imageHeight = image.value(u"height").toInt();
         embed.imageIsThumbnail = thumbnail;
@@ -55,6 +58,15 @@ Embed embedFromJson(const QJsonObject& json)
     };
     if (!takeImage(json.value(u"image").toObject(), false))
         takeImage(json.value(u"thumbnail").toObject(), embed.type != u"image" && embed.type != u"gifv");
+
+    const QJsonObject video = json.value(u"video").toObject();
+    if (!video.isEmpty()) {
+        embed.videoUrl = video.contains(u"proxy_url") ? string(video, u"proxy_url") : string(video, u"url");
+        if (embed.imageWidth <= 0)
+            embed.imageWidth = video.value(u"width").toInt();
+        if (embed.imageHeight <= 0)
+            embed.imageHeight = video.value(u"height").toInt();
+    }
     return embed;
 }
 
