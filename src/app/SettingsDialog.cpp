@@ -2,6 +2,7 @@
 
 #include "Language.h"
 #include "Notifier.h"
+#include "RichPresence.h"
 #include "Theme.h"
 #include "VoiceController.h"
 #include "platform/KeyState.h"
@@ -385,6 +386,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     navigation->addItem(tr("Voice & Audio"));
     navigation->addItem(tr("Appearance"));
     navigation->addItem(tr("Notifications"));
+    navigation->addItem(tr("Activity Privacy"));
     navigation->addItem(tr("Language"));
 
     auto* logout = new QPushButton(tr("Log Out"));
@@ -407,6 +409,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     m_settingsPages->addWidget(buildVoicePage());
     m_settingsPages->addWidget(buildAppearancePage());
     m_settingsPages->addWidget(buildNotificationsPage());
+    m_settingsPages->addWidget(buildActivityPage());
     m_settingsPages->addWidget(buildLanguagePage());
     connect(navigation, &QListWidget::currentRowChanged, m_settingsPages, &QStackedWidget::setCurrentIndex);
     navigation->setCurrentRow(0);
@@ -624,6 +627,35 @@ QWidget* SettingsDialog::buildNotificationsPage()
     sound->setChecked(Notifier::soundEnabled());
     connect(sound, &QCheckBox::toggled, this, &Notifier::setSoundEnabled);
     layout->addWidget(option(sound, tr("Only for direct messages and mentions, like the notifications.")));
+    layout->addStretch();
+    return content;
+}
+
+QWidget* SettingsDialog::buildActivityPage()
+{
+    auto* content = new QWidget;
+    content->setObjectName(QStringLiteral("settingsContent"));
+    content->setAttribute(Qt::WA_StyledBackground);
+    auto* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(40, 32, 40, 32);
+    layout->setSpacing(12);
+    auto* title = new QLabel(tr("Activity Privacy"));
+    title->setObjectName(QStringLiteral("settingsTitle"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+
+    auto* games = new QCheckBox(tr("Share the game you are playing"));
+    games->setChecked(RichPresence::shareGames());
+    connect(games, &QCheckBox::toggled, this, &RichPresence::setShareGames);
+    layout->addWidget(option(games, tr("Games are recognized from the programs running on this computer, "
+                                       "using Discord's list of detectable games.")));
+
+    auto* spotify = new QCheckBox(tr("Display Spotify as your status"));
+    spotify->setChecked(RichPresence::shareSpotify());
+    connect(spotify, &QCheckBox::toggled, this, &RichPresence::setShareSpotify);
+    layout->addWidget(option(spotify, tr("Shows the song you are listening to. Requires your Spotify account to be "
+                                         "connected to Discord (Settings > Connections in the official app), with "
+                                         "\"Display Spotify as your status\" turned on there.")));
     layout->addStretch();
     return content;
 }
