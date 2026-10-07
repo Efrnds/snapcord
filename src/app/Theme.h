@@ -3,6 +3,7 @@
 #include <QColor>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 class QApplication;
@@ -14,6 +15,12 @@ class Theme : public QObject
     Q_OBJECT
 
 public:
+    enum class ChatDensity {
+        Compact = 0,
+        Normal = 1,
+        Comfortable = 2,
+    };
+
     struct Palette {
         QColor bg0;       // server rail / deepest
         QColor bg1;       // channel sidebar
@@ -51,9 +58,15 @@ public:
     struct Settings {
         QString presetId = QStringLiteral("discord");
         QColor customAccent;      // invalid => use preset accent
+        QColor customBg0;         // invalid => use preset
+        QColor customBg1;
+        QColor customBg2;
         QColor profilePrimary;    // invalid => use palette.bg3
         QColor profileAccent;     // invalid => use effective accent
         int fontSize = 14;        // 12–18
+        int radius = 4;           // 0 / 4 / 8
+        ChatDensity chatDensity = ChatDensity::Normal;
+        QString fontFamily;       // empty => default stack (Noto/Inter/Segoe)
     };
 
     static Theme& instance();
@@ -64,10 +77,17 @@ public:
     QColor profilePrimary() const;
     QColor profileAccent() const;
 
+    // Extra vertical gap before a message that starts a group (avatar + name).
+    int messageGroupGap() const;
+    // Extra vertical gap between consecutive messages in the same group.
+    int messageTightGap() const;
+
     static QVector<Preset> presets();
     static const Preset* findPreset(const QString& id);
     // Quick accent chips shown in Appearance (includes former accent-only presets).
     static QVector<QColor> accentSwatches();
+    // Short list of open fonts shipped or commonly available; empty id = default stack.
+    static QStringList fontFamilyChoices();
 
     void load();
     void save() const;
@@ -83,6 +103,7 @@ private:
     Palette resolvePalette() const;
     QString buildStyleSheet() const;
     void applyQtPalette(QApplication& app) const;
+    void applyAppFont(QApplication& app) const;
 
     Settings m_settings;
     Palette m_palette;

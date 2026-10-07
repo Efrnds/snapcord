@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Theme.h"
 #include "voice/VoiceSettings.h"
 
 #include <QDialog>
@@ -8,6 +9,7 @@
 #include <QWidget>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 
 class AudioEngine;
@@ -99,6 +101,21 @@ private:
     bool m_selected = false;
 };
 
+// Theme preset card with a tiny rail / sidebar / chat preview.
+class PresetCard : public QPushButton
+{
+    Q_OBJECT
+
+public:
+    PresetCard(const Theme::Preset& preset, const QString& title, QWidget* parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    Theme::Palette m_palette;
+};
+
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
@@ -127,6 +144,7 @@ private:
     void changeLanguage(const QString& code);
     void refreshColorSwatches();
     void setCustomAccent(const QColor& color);
+    void pickColor(const QColor& initial, const QString& title, const std::function<void(QColor)>& onPicked);
     static QString presetDisplayName(const QString& id, const QString& fallback);
 
     VoiceController* m_voice;
@@ -152,7 +170,13 @@ private:
 
     QSlider* m_fontSize = nullptr;
     QLabel* m_fontSizeLabel = nullptr;
+    QComboBox* m_fontFamily = nullptr;
+    QComboBox* m_radius = nullptr;
+    QComboBox* m_chatDensity = nullptr;
     ColorSwatch* m_accentSwatch = nullptr;
+    ColorSwatch* m_bg0Swatch = nullptr;
+    ColorSwatch* m_bg1Swatch = nullptr;
+    ColorSwatch* m_bg2Swatch = nullptr;
     ColorSwatch* m_profilePrimarySwatch = nullptr;
     ColorSwatch* m_profileAccentSwatch = nullptr;
     QButtonGroup* m_presetGroup = nullptr;

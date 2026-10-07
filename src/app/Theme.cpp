@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QCoreApplication>
 #include <QFile>
+#include <QFont>
+#include <QFontDatabase>
 #include <QPalette>
 #include <QSettings>
 #include <QWidget>
@@ -225,6 +227,20 @@ QVector<QColor> Theme::accentSwatches()
     };
 }
 
+QStringList Theme::fontFamilyChoices()
+{
+    // Empty string = default stack. Only list families that usually exist on desktop OSes.
+    QStringList choices{QString()};
+    const QStringList candidates{QStringLiteral("Noto Sans"), QStringLiteral("Inter"),
+                                 QStringLiteral("Segoe UI"), QStringLiteral("Cantarell"),
+                                 QStringLiteral("DejaVu Sans")};
+    for (const QString& family : candidates) {
+        if (QFontDatabase::hasFamily(family))
+            choices.push_back(family);
+    }
+    return choices;
+}
+
 QColor Theme::profilePrimary() const
 {
     return m_settings.profilePrimary.isValid() ? m_settings.profilePrimary : m_palette.bg3;
@@ -235,11 +251,40 @@ QColor Theme::profileAccent() const
     return m_settings.profileAccent.isValid() ? m_settings.profileAccent : m_palette.accent;
 }
 
+int Theme::messageGroupGap() const
+{
+    switch (m_settings.chatDensity) {
+    case ChatDensity::Compact:
+        return 6;
+    case ChatDensity::Comfortable:
+        return 22;
+    case ChatDensity::Normal:
+    default:
+        return 14;
+    }
+}
+
+int Theme::messageTightGap() const
+{
+    switch (m_settings.chatDensity) {
+    case ChatDensity::Compact:
+        return 0;
+    case ChatDensity::Comfortable:
+        return 4;
+    case ChatDensity::Normal:
+    default:
+        return 1;
+    }
+}
+
 void Theme::load()
 {
     const QSettings settings;
     m_settings.presetId = settings.value(QStringLiteral("appearance/preset"), QStringLiteral("discord")).toString();
     m_settings.customAccent = readColor(settings, QStringLiteral("appearance/customAccent"));
+    m_settings.customBg0 = readColor(settings, QStringLiteral("appearance/customBg0"));
+    m_settings.customBg1 = readColor(settings, QStringLiteral("appearance/customBg1"));
+    m_settings.customBg2 = readColor(settings, QStringLiteral("appearance/customBg2"));
 
     // Former Rose/Emerald/Sunset/Ocean presets are now accent chips on Discord.
     if (const QColor legacy = accentForLegacyPreset(m_settings.presetId); legacy.isValid()) {
@@ -253,6 +298,22 @@ void Theme::load()
     m_settings.profilePrimary = readColor(settings, QStringLiteral("appearance/profilePrimary"));
     m_settings.profileAccent = readColor(settings, QStringLiteral("appearance/profileAccent"));
     m_settings.fontSize = qBound(12, settings.value(QStringLiteral("appearance/fontSize"), 14).toInt(), 18);
+
+    const int radius = settings.value(QStringLiteral("appearance/radius"), 4).toInt();
+    m_settings.radius = (radius == 0 || radius == 8) ? radius : 4;
+
+    const int density = settings.value(QStringLiteral("appearance/chatDensity"),
+                                       static_cast<int>(ChatDensity::Normal))
+                            .toInt();
+    if (density == static_cast<int>(ChatDensity::Compact)
+        || density == static_cast<int>(ChatDensity::Comfortable))
+        m_settings.chatDensity = static_cast<ChatDensity>(density);
+    else
+        m_settings.chatDensity = ChatDensity::Normal;
+
+    m_settings.fontFamily = settings.value(QStringLiteral("appearance/fontFamily")).toString();
+    if (!m_settings.fontFamily.isEmpty() && !QFontDatabase::hasFamily(m_settings.fontFamily))
+        m_settings.fontFamily.clear();
 }
 
 void Theme::save() const
@@ -260,7 +321,13 @@ void Theme::save() const
     QSettings settings;
     settings.setValue(QStringLiteral("appearance/preset"), m_settings.presetId);
     settings.setValue(QStringLiteral("appearance/fontSize"), m_settings.fontSize);
+    settings.setValue(QStringLiteral("appearance/radius"), m_settings.radius);
+    settings.setValue(QStringLiteral("appearance/chatDensity"), static_cast<int>(m_settings.chatDensity));
+    settings.setValue(QStringLiteral("appearance/fontFamily"), m_settings.fontFamily);
     writeColor(settings, QStringLiteral("appearance/customAccent"), m_settings.customAccent);
+    writeColor(settings, QStringLiteral("appearance/customBg0"), m_settings.customBg0);
+    writeColor(settings, QStringLiteral("appearance/customBg1"), m_settings.customBg1);
+    writeColor(settings, QStringLiteral("appearance/customBg2"), m_settings.customBg2);
     writeColor(settings, QStringLiteral("appearance/profilePrimary"), m_settings.profilePrimary);
     writeColor(settings, QStringLiteral("appearance/profileAccent"), m_settings.profileAccent);
     settings.sync();
@@ -269,8 +336,14 @@ void Theme::save() const
 void Theme::setSettings(Settings settings)
 {
     settings.fontSize = qBound(12, settings.fontSize, 18);
+    settings.radius = (settings.radius == 0 || settings.radius == 8) ? settings.radius : 4;
+    if (settings.chatDensity != ChatDensity::Compact
+        && settings.chatDensity != ChatDensity::Comfortable)
+        settings.chatDensity = ChatDensity::Normal;
     if (findPreset(settings.presetId)->id != settings.presetId)
         settings.presetId = QStringLiteral("discord");
+    if (!settings.fontFamily.isEmpty() && !QFontDatabase::hasFamily(settings.fontFamily))
+        settings.fontFamily.clear();
 
     const auto sameColor = [](const QColor& a, const QColor& b) {
         if (!a.isValid() && !b.isValid())
@@ -283,9 +356,15 @@ void Theme::setSettings(Settings settings)
     // Skip a full stylesheet rebuild when nothing actually changed (e.g. redundant slider events).
     if (settings.presetId == m_settings.presetId
         && sameColor(settings.customAccent, m_settings.customAccent)
+        && sameColor(settings.customBg0, m_settings.customBg0)
+        && sameColor(settings.customBg1, m_settings.customBg1)
+        && sameColor(settings.customBg2, m_settings.customBg2)
         && sameColor(settings.profilePrimary, m_settings.profilePrimary)
         && sameColor(settings.profileAccent, m_settings.profileAccent)
-        && settings.fontSize == m_settings.fontSize) {
+        && settings.fontSize == m_settings.fontSize
+        && settings.radius == m_settings.radius
+        && settings.chatDensity == m_settings.chatDensity
+        && settings.fontFamily == m_settings.fontFamily) {
         return;
     }
 
@@ -305,6 +384,12 @@ Theme::Palette Theme::resolvePalette() const
     Palette palette = findPreset(m_settings.presetId)->palette;
     if (m_settings.customAccent.isValid())
         palette = withAccent(palette, m_settings.customAccent);
+    if (m_settings.customBg0.isValid())
+        palette.bg0 = m_settings.customBg0;
+    if (m_settings.customBg1.isValid())
+        palette.bg1 = m_settings.customBg1;
+    if (m_settings.customBg2.isValid())
+        palette.bg2 = m_settings.customBg2;
     return palette;
 }
 
@@ -367,6 +452,11 @@ QString Theme::buildStyleSheet() const
     replace("@profilePrimary", hex(profilePrimary()));
     replace("@profileAccent", hex(profileAccent()));
 
+    const int radius = m_settings.radius;
+    const int radiusLg = radius == 0 ? 0 : radius * 2;
+    replace("@radiusLg", QString::number(radiusLg) + QStringLiteral("px"));
+    replace("@radius", QString::number(radius) + QStringLiteral("px"));
+
     // Longer font tokens first so "@fontSize" does not eat "@fontSizeSm".
     replace("@fontSizeDisplay", QString::number(font + 14) + QStringLiteral("px"));
     replace("@fontSizeTitle", QString::number(font + 6) + QStringLiteral("px"));
@@ -381,9 +471,22 @@ QString Theme::buildStyleSheet() const
     return qss;
 }
 
+void Theme::applyAppFont(QApplication& app) const
+{
+    QFont font = app.font();
+    if (m_settings.fontFamily.isEmpty()) {
+        font.setFamilies({QStringLiteral("Noto Sans"), QStringLiteral("Inter"), QStringLiteral("Segoe UI")});
+    } else {
+        font.setFamilies({m_settings.fontFamily, QStringLiteral("Noto Sans"), QStringLiteral("Segoe UI")});
+    }
+    font.setPixelSize(-1); // keep point size from system; QSS drives UI sizes
+    app.setFont(font);
+}
+
 void Theme::apply(QApplication& app)
 {
     m_palette = resolvePalette();
+    applyAppFont(app);
     applyQtPalette(app);
     const QString qss = buildStyleSheet();
     if (app.styleSheet() != qss)

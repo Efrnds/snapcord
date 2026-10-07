@@ -257,6 +257,52 @@ void ColorSwatch::paintEvent(QPaintEvent*)
     painter.drawRoundedRect(box, 6, 6);
 }
 
+// --- PresetCard -------------------------------------------------------------------------------------
+
+PresetCard::PresetCard(const Theme::Preset& preset, const QString& title, QWidget* parent)
+    : QPushButton(parent)
+    , m_palette(preset.palette)
+{
+    setObjectName(QStringLiteral("presetCard"));
+    setCursor(Qt::PointingHandCursor);
+    setCheckable(true);
+    setProperty("presetId", preset.id);
+    setText(title);
+    setMinimumHeight(64);
+    setFocusPolicy(Qt::NoFocus);
+}
+
+void PresetCard::paintEvent(QPaintEvent*)
+{
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    const QRectF outer = QRectF(rect()).adjusted(1.5, 1.5, -1.5, -1.5);
+    const QColor border = isChecked() || underMouse() ? m_palette.accent : m_palette.border;
+    painter.setPen(QPen(border, isChecked() ? 2.5 : 1.5));
+    painter.setBrush(m_palette.bg2);
+    painter.drawRoundedRect(outer, 8, 8);
+
+    // Mini layout: rail | sidebar | chat
+    const QRectF preview(outer.left() + 10, outer.top() + 10, 52, outer.height() - 20);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(m_palette.bg0);
+    painter.drawRoundedRect(QRectF(preview.left(), preview.top(), 10, preview.height()), 2, 2);
+    painter.setBrush(m_palette.bg1);
+    painter.drawRect(QRectF(preview.left() + 12, preview.top(), 16, preview.height()));
+    painter.setBrush(m_palette.bg2);
+    painter.drawRect(QRectF(preview.left() + 28, preview.top(), preview.width() - 28, preview.height()));
+    painter.setBrush(m_palette.accent);
+    painter.drawRoundedRect(QRectF(preview.left() + 32, preview.bottom() - 8, 12, 4), 1, 1);
+
+    painter.setPen(m_palette.textBright);
+    QFont font = painter.font();
+    font.setPixelSize(13);
+    font.setWeight(QFont::DemiBold);
+    painter.setFont(font);
+    painter.drawText(QRectF(preview.right() + 12, outer.top(), outer.right() - preview.right() - 16, outer.height()),
+                     Qt::AlignVCenter | Qt::AlignLeft, text());
+}
+
 // --- SettingsDialog ---------------------------------------------------------------------------------
 
 SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
@@ -545,31 +591,8 @@ QWidget* SettingsDialog::buildAppearancePage()
     const Theme::Settings current = Theme::instance().settings();
     int index = 0;
     for (const Theme::Preset& preset : Theme::presets()) {
-        auto* button = new QPushButton(presetDisplayName(preset.id, preset.name));
-        button->setObjectName(QStringLiteral("presetCard"));
-        button->setCursor(Qt::PointingHandCursor);
-        button->setCheckable(true);
-        button->setProperty("presetId", preset.id);
-        button->setProperty("selected", preset.id == current.presetId);
+        auto* button = new PresetCard(preset, presetDisplayName(preset.id, preset.name));
         button->setChecked(preset.id == current.presetId);
-        button->setStyleSheet(QStringLiteral(
-            "QPushButton#presetCard {"
-            "  text-align: left;"
-            "  padding-left: 44px;"
-            "  min-height: 44px;"
-            "  background-color: %1;"
-            "  border: 2px solid %2;"
-            "  border-radius: 8px;"
-            "  color: %3;"
-            "}"
-            "QPushButton#presetCard:checked {"
-            "  border-color: %4;"
-            "}"
-            "QPushButton#presetCard { border-left: 6px solid %4; }")
-                                  .arg(preset.palette.bg1.name(QColor::HexRgb),
-                                       preset.palette.border.name(QColor::HexRgb),
-                                       preset.palette.textBright.name(QColor::HexRgb),
-                                       preset.palette.accent.name(QColor::HexRgb)));
         m_presetGroup->addButton(button, index);
         presetGrid->addWidget(button, index / 2, index % 2);
         ++index;
@@ -597,7 +620,7 @@ QWidget* SettingsDialog::buildAppearancePage()
         connect(chip, &QPushButton::clicked, this, [this, color] { setCustomAccent(color); });
     }
     m_accentSwatch = new ColorSwatch;
-    m_accentSwatch->setToolTip(tr("Custom accent color"));
+    m_accentSwatch->setToolTip(tr("Custom…"));
     accentRow->addWidget(m_accentSwatch);
     auto* resetAccent = new QPushButton(tr("Use theme default"));
     resetAccent->setObjectName(QStringLiteral("secondaryButton"));
@@ -609,13 +632,66 @@ QWidget* SettingsDialog::buildAppearancePage()
         const Theme::Settings settings = Theme::instance().settings();
         const QColor initial = settings.customAccent.isValid() ? settings.customAccent
                                                                : Theme::instance().accent();
-        const QColor chosen = QColorDialog::getColor(initial, this, tr("Accent color"));
-        if (!chosen.isValid())
-            return;
-        setCustomAccent(chosen);
+        pickColor(initial, tr("Accent color"), [this](const QColor& chosen) { setCustomAccent(chosen); });
     });
     connect(resetAccent, &QPushButton::clicked, this, [this] {
         setCustomAccent(QColor()); // invalid = follow the selected theme
+    });
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Backgrounds")));
+    auto* bgHint = new QLabel(tr("Server rail, channel list, and chat area. Leave unset to follow the theme."));
+    bgHint->setObjectName(QStringLiteral("settingsHint"));
+    bgHint->setWordWrap(true);
+    layout->addWidget(bgHint);
+    auto* bgRow = new QHBoxLayout;
+    bgRow->setSpacing(8);
+    m_bg0Swatch = new ColorSwatch;
+    m_bg0Swatch->setToolTip(tr("Server rail"));
+    m_bg1Swatch = new ColorSwatch;
+    m_bg1Swatch->setToolTip(tr("Channel list"));
+    m_bg2Swatch = new ColorSwatch;
+    m_bg2Swatch->setToolTip(tr("Chat area"));
+    auto* resetBg = new QPushButton(tr("Reset backgrounds"));
+    resetBg->setObjectName(QStringLiteral("secondaryButton"));
+    resetBg->setCursor(Qt::PointingHandCursor);
+    bgRow->addWidget(m_bg0Swatch);
+    bgRow->addWidget(m_bg1Swatch);
+    bgRow->addWidget(m_bg2Swatch);
+    bgRow->addWidget(resetBg);
+    bgRow->addStretch();
+    layout->addLayout(bgRow);
+    connect(m_bg0Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg0, tr("Server rail"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg0 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_bg1Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg1, tr("Channel list"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg1 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(m_bg2Swatch, &QPushButton::clicked, this, [this] {
+        pickColor(Theme::instance().palette().bg2, tr("Chat area"), [this](const QColor& c) {
+            Theme::Settings s = Theme::instance().settings();
+            s.customBg2 = c;
+            Theme::instance().setSettings(s);
+            refreshColorSwatches();
+        });
+    });
+    connect(resetBg, &QPushButton::clicked, this, [this] {
+        Theme::Settings s = Theme::instance().settings();
+        s.customBg0 = QColor();
+        s.customBg1 = QColor();
+        s.customBg2 = QColor();
+        Theme::instance().setSettings(s);
+        refreshColorSwatches();
     });
 
     layout->addSpacing(12);
@@ -640,24 +716,20 @@ QWidget* SettingsDialog::buildAppearancePage()
     layout->addLayout(profileRow);
 
     connect(m_profilePrimarySwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        const QColor chosen = QColorDialog::getColor(Theme::instance().profilePrimary(), this,
-                                                     tr("Profile background"));
-        if (!chosen.isValid())
-            return;
-        settings.profilePrimary = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        pickColor(Theme::instance().profilePrimary(), tr("Profile background"), [this](const QColor& chosen) {
+            Theme::Settings settings = Theme::instance().settings();
+            settings.profilePrimary = chosen;
+            Theme::instance().setSettings(settings);
+            refreshColorSwatches();
+        });
     });
     connect(m_profileAccentSwatch, &QPushButton::clicked, this, [this] {
-        Theme::Settings settings = Theme::instance().settings();
-        const QColor chosen = QColorDialog::getColor(Theme::instance().profileAccent(), this,
-                                                     tr("Profile accent"));
-        if (!chosen.isValid())
-            return;
-        settings.profileAccent = chosen;
-        Theme::instance().setSettings(settings);
-        refreshColorSwatches();
+        pickColor(Theme::instance().profileAccent(), tr("Profile accent"), [this](const QColor& chosen) {
+            Theme::Settings settings = Theme::instance().settings();
+            settings.profileAccent = chosen;
+            Theme::instance().setSettings(settings);
+            refreshColorSwatches();
+        });
     });
     connect(resetProfile, &QPushButton::clicked, this, [this] {
         Theme::Settings settings = Theme::instance().settings();
@@ -668,6 +740,44 @@ QWidget* SettingsDialog::buildAppearancePage()
     });
 
     layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Chat density")));
+    m_chatDensity = new QComboBox;
+    m_chatDensity->addItem(tr("Compact"), static_cast<int>(Theme::ChatDensity::Compact));
+    m_chatDensity->addItem(tr("Normal"), static_cast<int>(Theme::ChatDensity::Normal));
+    m_chatDensity->addItem(tr("Comfortable"), static_cast<int>(Theme::ChatDensity::Comfortable));
+    m_chatDensity->setCurrentIndex(m_chatDensity->findData(static_cast<int>(current.chatDensity)));
+    layout->addWidget(m_chatDensity);
+    connect(m_chatDensity, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Corner radius")));
+    m_radius = new QComboBox;
+    m_radius->addItem(tr("Sharp (0)"), 0);
+    m_radius->addItem(tr("Default (4)"), 4);
+    m_radius->addItem(tr("Rounded (8)"), 8);
+    m_radius->setCurrentIndex(m_radius->findData(current.radius));
+    layout->addWidget(m_radius);
+    connect(m_radius, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Font")));
+    m_fontFamily = new QComboBox;
+    for (const QString& family : Theme::fontFamilyChoices()) {
+        if (family.isEmpty())
+            m_fontFamily->addItem(tr("Default (Noto / Inter)"), family);
+        else
+            m_fontFamily->addItem(family, family);
+    }
+    {
+        const int idx = m_fontFamily->findData(current.fontFamily);
+        m_fontFamily->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    layout->addWidget(m_fontFamily);
+    connect(m_fontFamily, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            &SettingsDialog::applyAppearance);
+
     layout->addWidget(sectionLabel(tr("Chat font size")));
     m_fontSize = new QSlider(Qt::Horizontal);
     m_fontSize->setRange(12, 18);
@@ -697,9 +807,15 @@ QWidget* SettingsDialog::buildAppearancePage()
 
 void SettingsDialog::refreshColorSwatches()
 {
-    const QColor accent = Theme::instance().accent();
+    const Theme::Palette& palette = Theme::instance().palette();
     if (m_accentSwatch)
-        m_accentSwatch->setSwatchColor(accent);
+        m_accentSwatch->setSwatchColor(Theme::instance().accent());
+    if (m_bg0Swatch)
+        m_bg0Swatch->setSwatchColor(palette.bg0);
+    if (m_bg1Swatch)
+        m_bg1Swatch->setSwatchColor(palette.bg1);
+    if (m_bg2Swatch)
+        m_bg2Swatch->setSwatchColor(palette.bg2);
     if (m_profilePrimarySwatch)
         m_profilePrimarySwatch->setSwatchColor(Theme::instance().profilePrimary());
     if (m_profileAccentSwatch)
@@ -726,6 +842,22 @@ void SettingsDialog::setCustomAccent(const QColor& color)
     refreshColorSwatches();
 }
 
+void SettingsDialog::pickColor(const QColor& initial, const QString& title,
+                               const std::function<void(QColor)>& onPicked)
+{
+    // Native portal pickers on Linux often hang the whole Qt app; use Qt's own dialog.
+    auto* dialog = new QColorDialog(initial.isValid() ? initial : Qt::white, this);
+    dialog->setWindowTitle(title);
+    dialog->setOption(QColorDialog::DontUseNativeDialog, true);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    connect(dialog, &QColorDialog::colorSelected, this, [onPicked](const QColor& color) {
+        if (color.isValid())
+            onPicked(color);
+    });
+    dialog->open();
+}
+
 QString SettingsDialog::presetDisplayName(const QString& id, const QString& fallback)
 {
     if (id == QLatin1String("discord"))
@@ -750,6 +882,12 @@ void SettingsDialog::applyAppearance()
     }
     if (m_fontSize)
         settings.fontSize = m_fontSize->value();
+    if (m_fontFamily)
+        settings.fontFamily = m_fontFamily->currentData().toString();
+    if (m_radius)
+        settings.radius = m_radius->currentData().toInt();
+    if (m_chatDensity)
+        settings.chatDensity = static_cast<Theme::ChatDensity>(m_chatDensity->currentData().toInt());
     Theme::instance().setSettings(settings);
     refreshColorSwatches();
 }

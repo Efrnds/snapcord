@@ -39,7 +39,7 @@ QScrollBar:vertical {
 }
 QScrollBar::handle:vertical {
     background: @bg0;
-    border-radius: 4px;
+    border-radius: @radius;
     min-height: 24px;
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
@@ -125,7 +125,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
 #incomingCall {
     background: @bg3;
     border: 1px solid @surface;
-    border-radius: 8px;
+    border-radius: @radiusLg;
 }
 #incomingCallName {
     color: @textBright;
@@ -165,7 +165,7 @@ QCheckBox {
 #voicePanel QToolButton {
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
 }
 #voicePanel QToolButton:hover {
     background: @hover;
@@ -188,7 +188,7 @@ QCheckBox {
 #userPanel QToolButton {
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
 }
 #userPanel QToolButton:hover {
     background: @hover;
@@ -229,7 +229,7 @@ QCheckBox {
     background: transparent;
     color: @text;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 6px 10px;
     font-size: @fontSize;
 }
@@ -238,7 +238,7 @@ QCheckBox {
 }
 #composerBox {
     background: @selected;
-    border-radius: 8px;
+    border-radius: @radiusLg;
 }
 #composer {
     background: transparent;
@@ -274,13 +274,13 @@ QCheckBox {
 #emojiPicker {
     background: @bg1;
     border: 1px solid @surface;
-    border-radius: 8px;
+    border-radius: @radiusLg;
 }
 #emojiSearch {
     background: @surface;
     color: @text;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 6px 8px;
 }
 #emojiGrid {
@@ -290,7 +290,7 @@ QCheckBox {
 }
 #emojiGrid::item:hover {
     background: @selected;
-    border-radius: 4px;
+    border-radius: @radius;
 }
 
 /* Voice channel view */
@@ -309,7 +309,7 @@ QCheckBox {
     background: @success;
     color: @onAccent;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 8px 20px;
     font-size: @fontSize;
     font-weight: 600;
@@ -325,7 +325,7 @@ QCheckBox {
     background: @button;
     color: @textBright;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 8px 16px;
     font-size: @fontSize;
 }
@@ -336,7 +336,7 @@ QCheckBox {
     background: transparent;
     color: @danger;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 8px;
     text-align: left;
     font-size: @fontSizeMd;
@@ -349,7 +349,7 @@ QCheckBox {
     background: @accent;
     color: @onAccent;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 10px 16px;
     font-size: @fontSizeMd;
     font-weight: 600;
@@ -378,7 +378,7 @@ QCheckBox {
     background: @surface;
     color: @text;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 10px;
     font-size: @fontSizeMd;
 }
@@ -391,7 +391,7 @@ QCheckBox {
 }
 #loginCard {
     background: @bg2;
-    border-radius: 8px;
+    border-radius: @radiusLg;
 }
 #loginTitle {
     color: @textBright;
@@ -435,7 +435,7 @@ QCheckBox {
 #settingsNavigation::item {
     color: @textDim;
     padding: 6px 10px;
-    border-radius: 4px;
+    border-radius: @radius;
     margin: 1px 0;
 }
 #settingsNavigation::item:hover {
@@ -474,23 +474,20 @@ QCheckBox {
     background: transparent;
 }
 #presetCard {
-    background: @bg1;
-    border: 2px solid @border;
-    border-radius: 8px;
-    padding: 10px;
+    /* Painted by PresetCard; keep hit target only. */
+    background: transparent;
+    border: none;
+    padding: 0;
 }
-#presetCard[selected="true"] {
-    border-color: @accent;
-}
-#presetCard:hover {
-    border-color: @textMuted;
+#presetCard:hover, #presetCard:checked {
+    background: transparent;
 }
 
 QComboBox {
     background: @surface;
     color: @text;
     border: none;
-    border-radius: 4px;
+    border-radius: @radius;
     padding: 8px 10px;
     min-height: 20px;
 }
@@ -508,11 +505,11 @@ QRadioButton {
 QSlider::groove:horizontal {
     height: 8px;
     background: @button;
-    border-radius: 4px;
+    border-radius: @radius;
 }
 QSlider::sub-page:horizontal {
     background: @accent;
-    border-radius: 4px;
+    border-radius: @radius;
 }
 QSlider::handle:horizontal {
     background: @textBright;

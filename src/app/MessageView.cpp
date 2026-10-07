@@ -331,7 +331,7 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
         l->dayText = QLocale().toString(message.timestamp.date(), QLocale::LongFormat);
         y += 40;
     }
-    y += groupStart ? 14 : 1;
+    y += groupStart ? Theme::instance().messageGroupGap() : Theme::instance().messageTightGap();
     l->top = y;
 
     Markdown::Context context;
