@@ -1076,6 +1076,7 @@ QWidget* SettingsDialog::buildAppearancePage()
     scroll->setWidget(content);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     return scroll;
 }
 
