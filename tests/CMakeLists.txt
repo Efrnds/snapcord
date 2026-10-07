@@ -11,4 +11,5 @@ snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_vo
 snapcord_add_test(snapcord_markdown_tests MarkdownTest.cpp snapcord_core)
 snapcord_add_test(snapcord_member_list_tests MemberListTest.cpp snapcord_core)
 snapcord_add_test(snapcord_game_detector_tests GameDetectorTest.cpp snapcord_core)
+snapcord_add_test(snapcord_client_properties_tests ClientPropertiesTest.cpp snapcord_core)
 snapcord_add_test(snapcord_composer_tests ComposerTest.cpp snapcord_core)

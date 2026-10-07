@@ -67,6 +67,7 @@ LoginWindow::LoginWindow(QWidget* parent)
     setWindowTitle(QStringLiteral("Snapcord"));
     resize(1100, 680);
     setMinimumSize(800, 520);
+    m_rest->setReferer(QStringLiteral("https://discord.com/login"));
 
     // Left column: welcome text and the Terms of Service warning.
     auto* title = new QLabel(tr("Welcome to Snapcord"));

@@ -26,9 +26,10 @@ RemoteAuth::RemoteAuth(QObject* parent)
     : QObject(parent)
     // The remote auth gateway rejects connections without a discord.com Origin. QWebSocket only sends the
     // origin given to its constructor, not one set as a raw request header.
-    , m_socket(QStringLiteral("https://discord.com"))
+    , m_socket(ClientProperties::origin())
     , m_rest(this)
 {
+    m_rest.setReferer(QStringLiteral("https://discord.com/login"));
     connect(&m_socket, &QWebSocket::textMessageReceived, this, &RemoteAuth::onTextMessage);
     connect(&m_socket, &QWebSocket::disconnected, this, &RemoteAuth::onDisconnected);
     connect(&m_socket, &QWebSocket::connected, this, [this] {

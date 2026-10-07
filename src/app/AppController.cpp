@@ -4,10 +4,12 @@
 #include "MainWindow.h"
 #include "RichPresence.h"
 #include "VoiceController.h"
+#include "core/ClientProperties.h"
 #include "core/RestClient.h"
 #include "core/Session.h"
 #include "platform/CredentialStore.h"
 
+#include <QGuiApplication>
 #include <QJsonObject>
 #include <QMessageBox>
 
@@ -24,11 +26,15 @@ AppController::~AppController()
 
 void AppController::start()
 {
-    const QString token = CredentialStore::loadToken();
-    if (token.isEmpty())
-        showLogin();
-    else
-        showMain(token);
+    // Requests must carry the current build number of the official client, so it is known before anything
+    // talks to Discord. Only the very first start waits for it.
+    ClientProperties::ensureBuildNumber([this] {
+        const QString token = CredentialStore::loadToken();
+        if (token.isEmpty())
+            showLogin();
+        else
+            showMain(token);
+    });
 }
 
 void AppController::showLogin()
@@ -48,7 +54,8 @@ void AppController::showMain(const QString& token)
 {
     m_session = new Session(this);
     // Lives and dies with the session.
-    new RichPresence(m_session, m_session);
+    if constexpr (RichPresence::Enabled)
+        new RichPresence(m_session, m_session);
     m_voice = new VoiceController(m_session, this);
     m_main = new MainWindow(m_session, m_voice);
     m_main->setAttribute(Qt::WA_DeleteOnClose);
@@ -66,6 +73,16 @@ void AppController::showMain(const QString& token)
         box->setAttribute(Qt::WA_DeleteOnClose);
         box->show();
     });
+
+    auto reportActivity = [this] {
+        if (!m_session || !m_voice)
+            return;
+        m_session->setActiveState(QGuiApplication::applicationState() == Qt::ApplicationActive,
+                                  m_voice->state() == VoiceConnection::State::Connected);
+    };
+    connect(qGuiApp, &QGuiApplication::applicationStateChanged, m_session, reportActivity);
+    connect(m_voice, &VoiceController::stateChanged, m_session, reportActivity);
+    reportActivity();
 
     m_session->start(token);
     m_main->show();

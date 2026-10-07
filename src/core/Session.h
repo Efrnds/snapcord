@@ -31,6 +31,8 @@ public:
     // Demo mode: never connects; the state comes from these Gateway events (name, payload) instead.
     void startOffline(const QList<std::pair<QString, QJsonObject>>& events);
     void stop();
+    // Window focus and whether a call is running, reported to Discord like the official client does.
+    void setActiveState(bool focused, bool rtcConnected);
 
     QString token() const { return m_token; }
     const User& self() const { return m_self; }
