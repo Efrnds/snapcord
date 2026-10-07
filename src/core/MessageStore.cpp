@@ -2,7 +2,9 @@
 
 #include "core/RestClient.h"
 
+#include <QBuffer>
 #include <QDateTime>
+#include <QFile>
 #include <QJsonArray>
 #include <QUrl>
 
@@ -142,8 +144,60 @@ const Message* MessageStore::message(const QString& channelId, const QString& me
     return index < 0 ? nullptr : &it->messages[index];
 }
 
+// A message with files on its way: the files go up first, then the message that refers to them.
+struct MessageStore::Upload
+{
+    QString channelId;
+    QString nonce;
+    QJsonObject body;
+    QList<OutgoingFile> files;
+    QList<qint64> sent; // bytes sent per file
+    QJsonArray attachments;
+    int remaining = 0;
+    bool failed = false;
+
+    qint64 totalSize() const
+    {
+        qint64 total = 0;
+        for (const OutgoingFile& file : files)
+            total += file.size;
+        return std::max<qint64>(total, 1);
+    }
+};
+
+namespace {
+
+// Opens the bytes of a file to send; null (with `error` set) if the file can no longer be read.
+QIODevice* openFile(const OutgoingFile& file, QObject* parent, QString* error)
+{
+    if (file.path.isEmpty()) {
+        auto* buffer = new QBuffer(parent);
+        buffer->setData(file.data);
+        buffer->open(QIODevice::ReadOnly);
+        return buffer;
+    }
+    auto* device = new QFile(file.path, parent);
+    if (!device->open(QIODevice::ReadOnly)) {
+        *error = QStringLiteral("%1: %2").arg(file.filename, device->errorString());
+        delete device;
+        return nullptr;
+    }
+    return device;
+}
+
+// Discord's error text, or the network error, or the HTTP status.
+QString errorReason(const RestClient::Response& response)
+{
+    const QString message = response.body.object().value(u"message").toString();
+    if (!message.isEmpty())
+        return message;
+    return !response.networkError.isEmpty() ? response.networkError : QStringLiteral("HTTP %1").arg(response.status);
+}
+
+} // namespace
+
 void MessageStore::send(const QString& channelId, const QString& guildId, const QString& content,
-                        const QString& replyToMessageId)
+                        const QString& replyToMessageId, const QList<OutgoingFile>& files)
 {
     // Show the message right away, greyed out until Discord confirms it.
     Message pending;
@@ -155,6 +209,15 @@ void MessageStore::send(const QString& channelId, const QString& guildId, const 
     pending.content = content;
     pending.timestamp = QDateTime::currentDateTime();
     pending.pending = true;
+    for (const OutgoingFile& file : files) {
+        Attachment attachment;
+        attachment.filename = file.filename;
+        attachment.size = file.size;
+        attachment.contentType = file.contentType;
+        pending.attachments.append(attachment);
+    }
+    if (!files.isEmpty())
+        pending.uploadProgress = 0;
     if (!replyToMessageId.isEmpty()) {
         pending.type = Message::Reply;
         pending.referencedMessageId = replyToMessageId;
@@ -179,28 +242,147 @@ void MessageStore::send(const QString& channelId, const QString& guildId, const 
             reference.insert(QStringLiteral("guild_id"), guildId);
         body.insert(QStringLiteral("message_reference"), reference);
     }
+    if (files.isEmpty()) {
+        postMessage(channelId, nonce, body);
+        return;
+    }
+
+    auto upload = std::make_shared<Upload>();
+    upload->channelId = channelId;
+    upload->nonce = nonce;
+    upload->body = body;
+    upload->files = files;
+    uploadToCloud(upload);
+}
+
+void MessageStore::uploadToCloud(const std::shared_ptr<Upload>& upload)
+{
+    // Exactly like the official client: ask for one storage URL per file, upload each there, then send the
+    // message naming the uploaded files. There is deliberately no other way (no multipart fallback): a
+    // request the official client never makes would make this client stand out.
+    QJsonArray requested;
+    for (qsizetype i = 0; i < upload->files.size(); ++i) {
+        requested.append(QJsonObject{
+            {QStringLiteral("filename"), upload->files[i].filename},
+            {QStringLiteral("file_size"), upload->files[i].size},
+            {QStringLiteral("id"), QString::number(i)},
+            {QStringLiteral("is_clip"), false},
+        });
+    }
+    m_rest->post(QStringLiteral("/channels/%1/attachments").arg(upload->channelId),
+                 QJsonDocument(QJsonObject{{QStringLiteral("files"), requested}}),
+                 [this, upload](const RestClient::Response& response) {
+        const QJsonArray targets = response.body.object().value(u"attachments").toArray();
+        if (!response.ok() || targets.size() != upload->files.size()) {
+            markFailed(upload->channelId, upload->nonce, errorReason(response));
+            return;
+        }
+        QList<int> indexes;
+        for (const QJsonValue& value : targets) {
+            const QJsonValue id = value.toObject().value(u"id");
+            const int index = id.isString() ? id.toString().toInt() : id.toInt();
+            if (index < 0 || index >= upload->files.size() || indexes.contains(index)) {
+                markFailed(upload->channelId, upload->nonce, QStringLiteral("Unexpected upload response"));
+                return;
+            }
+            indexes.append(index);
+        }
+
+        upload->sent = QList<qint64>(upload->files.size(), 0);
+        upload->remaining = static_cast<int>(targets.size());
+        const qint64 total = upload->totalSize();
+        for (qsizetype i = 0; i < targets.size(); ++i) {
+            const QJsonObject target = targets.at(i).toObject();
+            const int index = indexes[i];
+            upload->attachments.append(QJsonObject{
+                {QStringLiteral("id"), QString::number(index)},
+                {QStringLiteral("filename"), upload->files[index].filename},
+                {QStringLiteral("uploaded_filename"), target.value(u"upload_filename").toString()},
+            });
+            QString error;
+            QIODevice* device = openFile(upload->files[index], this, &error);
+            if (!device) {
+                upload->failed = true;
+                markFailed(upload->channelId, upload->nonce, error);
+                return;
+            }
+            m_rest->putToStorage(
+                QUrl(target.value(u"upload_url").toString()), device, upload->files[index].size,
+                [this, upload, index, total](qint64 sent, qint64) {
+                    upload->sent[index] = sent;
+                    qint64 all = 0;
+                    for (qint64 bytes : std::as_const(upload->sent))
+                        all += bytes;
+                    setUploadProgress(upload->channelId, upload->nonce, static_cast<int>(all * 100 / total));
+                },
+                [this, upload, device](const RestClient::Response& response) {
+                    device->deleteLater();
+                    if (upload->failed)
+                        return;
+                    if (!response.ok()) {
+                        upload->failed = true;
+                        markFailed(upload->channelId, upload->nonce, errorReason(response));
+                        return;
+                    }
+                    if (--upload->remaining > 0)
+                        return;
+                    QJsonObject body = upload->body;
+                    body.insert(QStringLiteral("attachments"), upload->attachments);
+                    body.insert(QStringLiteral("channel_id"), upload->channelId);
+                    body.insert(QStringLiteral("type"), 0);
+                    body.insert(QStringLiteral("sticker_ids"), QJsonArray());
+                    postMessage(upload->channelId, upload->nonce, body);
+                });
+        }
+    });
+}
+
+void MessageStore::postMessage(const QString& channelId, const QString& nonce, const QJsonObject& body)
+{
     m_rest->post(QStringLiteral("/channels/%1/messages").arg(channelId), QJsonDocument(body),
                  [this, channelId, nonce](const RestClient::Response& response) {
-                     Channel* channel = find(channelId);
-                     if (!channel)
-                         return;
-                     const int index = indexOf(*channel, nonce);
-                     if (response.ok()) {
-                         // Usually the Gateway echo already replaced the pending copy; if not, do it now.
-                         if (index >= 0) {
-                             channel->messages[index] = Message::fromJson(response.body.object());
-                             emit changed(channelId, index);
-                         }
-                         return;
-                     }
-                     if (index >= 0) {
-                         channel->messages[index].pending = false;
-                         channel->messages[index].failed = true;
-                         emit changed(channelId, index);
-                     }
-                     const QString reason = response.body.object().value(u"message").toString();
-                     emit sendFailed(channelId, reason.isEmpty() ? QStringLiteral("HTTP %1").arg(response.status) : reason);
+                     onMessagePosted(channelId, nonce, response);
                  });
+}
+
+void MessageStore::onMessagePosted(const QString& channelId, const QString& nonce, const RestClient::Response& response)
+{
+    if (response.ok()) {
+        // Usually the Gateway echo already replaced the pending copy; if not, do it now.
+        Channel* channel = find(channelId);
+        const int index = channel ? indexOf(*channel, nonce) : -1;
+        if (index >= 0) {
+            channel->messages[index] = Message::fromJson(response.body.object());
+            emit changed(channelId, index);
+        }
+        return;
+    }
+    markFailed(channelId, nonce, errorReason(response));
+}
+
+void MessageStore::setUploadProgress(const QString& channelId, const QString& nonce, int percent)
+{
+    percent = std::clamp(percent, 0, 100);
+    Channel* channel = find(channelId);
+    const int index = channel ? indexOf(*channel, nonce) : -1;
+    if (index < 0 || !channel->messages[index].pending || channel->messages[index].uploadProgress == percent)
+        return;
+    channel->messages[index].uploadProgress = percent;
+    emit changed(channelId, index);
+}
+
+void MessageStore::markFailed(const QString& channelId, const QString& nonce, const QString& reason)
+{
+    if (Channel* channel = find(channelId)) {
+        const int index = indexOf(*channel, nonce);
+        if (index >= 0) {
+            channel->messages[index].pending = false;
+            channel->messages[index].failed = true;
+            channel->messages[index].uploadProgress = -1;
+            emit changed(channelId, index);
+        }
+    }
+    emit sendFailed(channelId, reason);
 }
 
 void MessageStore::edit(const QString& channelId, const QString& messageId, const QString& content)
@@ -261,6 +443,7 @@ void MessageStore::handleDispatch(const QString& event, const QJsonObject& data)
         if (!message.nonce.isEmpty() && message.author.id == m_self.id) {
             const int pendingIndex = indexOf(*channel, message.nonce);
             if (pendingIndex >= 0) {
+                emit aboutToRemove(channelId, pendingIndex);
                 channel->messages.removeAt(pendingIndex);
                 emit removed(channelId, pendingIndex);
             }
@@ -276,6 +459,7 @@ void MessageStore::handleDispatch(const QString& event, const QJsonObject& data)
     } else if (event == u"MESSAGE_DELETE") {
         const int index = indexOf(*channel, data.value(u"id").toString());
         if (index >= 0) {
+            emit aboutToRemove(channelId, index);
             channel->messages.removeAt(index);
             emit removed(channelId, index);
         }
@@ -283,6 +467,7 @@ void MessageStore::handleDispatch(const QString& event, const QJsonObject& data)
         for (const QJsonValue& id : data.value(u"ids").toArray()) {
             const int index = indexOf(*channel, id.toString());
             if (index >= 0) {
+                emit aboutToRemove(channelId, index);
                 channel->messages.removeAt(index);
                 emit removed(channelId, index);
             }

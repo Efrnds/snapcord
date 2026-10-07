@@ -86,6 +86,11 @@ public:
     // Asks the Gateway for a guild member's presence if none is known yet (presenceChanged follows).
     void requestPresence(const QString& guildId, const QString& userId);
 
+    // Guild members seen so far (user ID -> nickname, empty when none), for mention suggestions.
+    QHash<QString, QString> knownMembers(const QString& guildId) const { return m_guildMembers.value(guildId); }
+    // Asks the Gateway for members whose name starts with `query`; they arrive later (usersChanged).
+    void searchGuildMembers(const QString& guildId, const QString& query);
+
     // Member sidebar of a guild channel. `lastRow` is the last row on screen, so the rows around it get
     // filled in while scrolling. Asking again for the same rows sends nothing.
     void subscribeMemberList(const QString& guildId, const QString& channelId, int lastRow = 0);
@@ -209,6 +214,7 @@ private:
         QHash<QString, QString> channelLists;    // channel ID -> list ID
     };
     QHash<QString, GuildMemberLists> m_memberLists; // by guild ID
+    QHash<QString, QHash<QString, QString>> m_guildMembers; // guild ID -> user ID -> nickname
     QString m_listGuildId;   // the channel on screen
     QString m_listChannelId;
     QJsonArray m_listRanges;

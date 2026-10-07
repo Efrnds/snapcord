@@ -76,7 +76,33 @@ void RestClient::dispatch(Request request)
         networkRequest.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     ClientProperties::applyApiHeaders(networkRequest, request.verb, m_referer);
 
-    QNetworkReply* reply = m_network->sendCustomRequest(networkRequest, request.verb, request.body);
+    finish(m_network->sendCustomRequest(networkRequest, request.verb, request.body), std::move(request), nullptr);
+}
+
+void RestClient::putToStorage(const QUrl& url, QIODevice* device, qint64 size, ProgressCallback progress, Callback callback)
+{
+    if (m_offline) {
+        send({"PUT", {}, {}, false, std::move(callback), 0});
+        return;
+    }
+    // The storage bucket is another site, so a browser sends only its own headers there, with discord.com as
+    // Origin and, cross-site, just the origin as Referer.
+    QNetworkRequest networkRequest(url);
+    networkRequest.setHeader(QNetworkRequest::UserAgentHeader, ClientProperties::userAgent());
+    networkRequest.setRawHeader("Origin", ClientProperties::origin().toLatin1());
+    networkRequest.setRawHeader("Referer", ClientProperties::origin().toLatin1() + '/');
+    networkRequest.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/octet-stream"));
+    networkRequest.setHeader(QNetworkRequest::ContentLengthHeader, size);
+    // Not retried on 429: the body was read from `device` already. The storage service does not rate limit like
+    // the API anyway.
+    Request request{"PUT", url.toString(), {}, false, std::move(callback), MaxRateLimitRetries};
+    finish(m_network->put(networkRequest, device), std::move(request), std::move(progress));
+}
+
+void RestClient::finish(QNetworkReply* reply, Request request, ProgressCallback progress)
+{
+    if (progress)
+        connect(reply, &QNetworkReply::uploadProgress, this, std::move(progress));
     connect(reply, &QNetworkReply::finished, this, [this, reply, request = std::move(request)]() mutable {
         reply->deleteLater();
         Response response;

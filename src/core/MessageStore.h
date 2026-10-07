@@ -1,11 +1,22 @@
 #pragma once
 
 #include "core/Message.h"
+#include "core/RestClient.h"
 
 #include <QHash>
 #include <QObject>
 
-class RestClient;
+#include <memory>
+
+// A file to send with a message: read from disk (`path`), or already in memory (`data`, e.g. a pasted picture).
+struct OutgoingFile
+{
+    QString filename;
+    QString path;
+    QByteArray data;
+    qint64 size = 0;
+    QString contentType;
+};
 
 // Messages of the channels the user has opened. Only a few channels are kept in memory (least recently
 // opened ones are dropped) and only the most recent messages are fetched; older ones load on demand.
@@ -28,7 +39,8 @@ public:
     const QList<Message>& messages(const QString& channelId) const;
     const Message* message(const QString& channelId, const QString& messageId) const;
 
-    void send(const QString& channelId, const QString& guildId, const QString& content, const QString& replyToMessageId);
+    void send(const QString& channelId, const QString& guildId, const QString& content, const QString& replyToMessageId,
+              const QList<OutgoingFile>& files = {});
     void edit(const QString& channelId, const QString& messageId, const QString& content);
     void remove(const QString& channelId, const QString& messageId);
     void setReaction(const QString& channelId, const QString& messageId, const Emoji& emoji, bool add);
@@ -41,6 +53,8 @@ signals:
     void olderLoaded(const QString& channelId, int count); // `count` messages were prepended
     void inserted(const QString& channelId, int index);
     void changed(const QString& channelId, int index);
+    // Sent before and after a message leaves the list, so views can follow the change step by step.
+    void aboutToRemove(const QString& channelId, int index);
     void removed(const QString& channelId, int index);
     void sendFailed(const QString& channelId, const QString& reason);
 
@@ -58,6 +72,12 @@ private:
     void insertMessage(const QString& channelId, Message message);
     void evictOldChannels();
     void applyReaction(const QJsonObject& data, bool add);
+    struct Upload;
+    void uploadToCloud(const std::shared_ptr<Upload>& upload);
+    void postMessage(const QString& channelId, const QString& nonce, const QJsonObject& body);
+    void onMessagePosted(const QString& channelId, const QString& nonce, const RestClient::Response& response);
+    void setUploadProgress(const QString& channelId, const QString& nonce, int percent);
+    void markFailed(const QString& channelId, const QString& nonce, const QString& reason);
 
     RestClient* m_rest;
     User m_self;

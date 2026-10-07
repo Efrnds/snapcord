@@ -328,6 +328,55 @@ QCheckBox {
 #composerModeCancel:hover, #emojiButton:hover {
     color: @textBright;
 }
+#attachButton {
+    background: transparent;
+    border: none;
+    padding: 8px 6px;
+}
+#attachmentTrayScroll, #attachmentTrayContent {
+    background: transparent;
+}
+#attachmentCard {
+    background: @bg1;
+    border-radius: @rSm;
+}
+#attachmentPreview {
+    background: @bg0;
+    border-radius: 4px;
+}
+#attachmentName {
+    color: @text;
+    font-size: @fontSizeSm;
+}
+#attachmentSize {
+    color: @textMuted;
+    font-size: @fontSizeHint;
+}
+#attachmentRemove {
+    background: @bg2;
+    color: @danger;
+    border: none;
+    border-radius: 4px;
+}
+#attachmentRemove:hover {
+    background: @danger;
+    color: @onAccent;
+}
+#mentionPopup {
+    background: @bg1;
+    border: 1px solid @surface;
+    border-radius: @rLg;
+}
+#mentionPopupTitle {
+    color: @textMuted;
+    font-size: @fontSizeHint;
+    font-weight: bold;
+    padding-left: 8px;
+}
+#mentionList {
+    background: transparent;
+    border: none;
+}
 #typingLabel {
     color: @text;
     font-size: @fontSizeSm;

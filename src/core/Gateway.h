@@ -29,6 +29,8 @@ public:
     // Opcode 8: asks for member objects of specific users (e.g. people in voice channels we don't know yet).
     // With `presences`, the reply also carries their status and activities.
     void requestGuildMembers(const QString& guildId, const QStringList& userIds, bool presences = false);
+    // Opcode 8 with a query: up to `limit` members whose username or nickname starts with `query`.
+    void searchGuildMembers(const QString& guildId, const QString& query, int limit);
     // Opcode 3: this session's status ("online", "idle", "dnd", "invisible") and activities.
     void updatePresence(const QString& status, const QJsonArray& activities);
     // Opcode 37: what this session follows in a guild (typing, activities, member list rows of a channel).

@@ -26,6 +26,7 @@ User User::fromJson(const QJsonObject& json)
     user.username = string(json, u"username");
     user.globalName = string(json, u"global_name");
     user.avatar = string(json, u"avatar");
+    user.premiumType = json.value(u"premium_type").toInt();
     // Discord stores accent as a 24-bit RGB integer (or null).
     if (json.contains(u"accent_color") && !json.value(u"accent_color").isNull()) {
         user.hasAccentColor = true;
@@ -80,6 +81,7 @@ Role Role::fromJson(const QJsonObject& json)
     role.permissions = permissionBits(json.value(u"permissions"));
     role.position = json.value(u"position").toInt();
     role.color = json.value(u"color").toInt();
+    role.mentionable = json.value(u"mentionable").toBool();
     return role;
 }
 

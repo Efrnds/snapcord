@@ -10,120 +10,194 @@
     </message>
 </context>
 <context>
+    <name>AttachmentTray</name>
+    <message>
+        <location filename="../src/app/AttachmentTray.cpp" line="117"/>
+        <source>Remove Attachment</source>
+        <translation>Remover anexo</translation>
+    </message>
+</context>
+<context>
     <name>ChatView</name>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="178"/>
+        <location filename="../src/app/ChatView.cpp" line="247"/>
         <source>Select emoji</source>
         <translation>Selecionar emoji</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="266"/>
+        <location filename="../src/app/ChatView.cpp" line="260"/>
+        <location filename="../src/app/ChatView.cpp" line="528"/>
+        <source>Upload a File</source>
+        <translation>Enviar um arquivo</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="370"/>
         <source>Your message could not be sent: %1</source>
         <translation>Não foi possível enviar sua mensagem: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="319"/>
+        <location filename="../src/app/ChatView.cpp" line="435"/>
         <source>Hide Member List</source>
         <translation>Ocultar lista de membros</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="319"/>
+        <location filename="../src/app/ChatView.cpp" line="435"/>
         <source>Show Member List</source>
         <translation>Mostrar lista de membros</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="334"/>
+        <location filename="../src/app/ChatView.cpp" line="451"/>
         <source>Message @%1</source>
         <translation>Conversar com @%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="337"/>
+        <location filename="../src/app/ChatView.cpp" line="454"/>
         <source>Join Call</source>
         <translation>Entrar na chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="337"/>
+        <location filename="../src/app/ChatView.cpp" line="454"/>
         <source>Start Call</source>
         <translation>Iniciar chamada</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="346"/>
+        <location filename="../src/app/ChatView.cpp" line="463"/>
         <source>Message #%1</source>
         <translation>Conversar em #%1</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="355"/>
+        <location filename="../src/app/ChatView.cpp" line="476"/>
         <source>You do not have permission to send messages in this channel.</source>
         <translation>Você não tem permissão para enviar mensagens neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="384"/>
+        <location filename="../src/app/ChatView.cpp" line="495"/>
+        <source>Your message is too long (%1 of %2 characters).</source>
+        <translation>Sua mensagem é longa demais (%1 de %2 caracteres).</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="540"/>
+        <source>%1 is not a file that can be sent.</source>
+        <translation>%1 não é um arquivo que possa ser enviado.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="571"/>
+        <source>You do not have permission to attach files in this channel.</source>
+        <translation>Você não tem permissão para anexar arquivos neste canal.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="575"/>
+        <source>You can only upload %1 files at a time.</source>
+        <translation>Você só pode enviar %1 arquivos por vez.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="581"/>
+        <source>%1 is too large. The maximum file size here is %2.</source>
+        <translation>%1 é grande demais. O tamanho máximo de arquivo aqui é %2.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="588"/>
+        <source>These files are too large together. The maximum per message is %1.</source>
+        <translation>Esses arquivos juntos são grandes demais. O máximo por mensagem é %1.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <source>Channels</source>
+        <translation>Canais</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <source>Members</source>
+        <translation>Membros</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="639"/>
+        <source>Members and Roles</source>
+        <translation>Membros e cargos</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="726"/>
+        <source>Role</source>
+        <translation>Cargo</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="733"/>
+        <source>Notify everyone who can see this channel.</source>
+        <translation>Notifica todos que podem ver este canal.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="734"/>
+        <source>Notify everyone online who can see this channel.</source>
+        <translation>Notifica todos online que podem ver este canal.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ChatView.cpp" line="817"/>
         <source>Replying to &lt;b&gt;%1&lt;/b&gt;</source>
         <translation>Respondendo a &lt;b&gt;%1&lt;/b&gt;</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="396"/>
+        <location filename="../src/app/ChatView.cpp" line="829"/>
         <source>Editing message — &lt;b&gt;Escape&lt;/b&gt; to cancel, &lt;b&gt;Enter&lt;/b&gt; to save</source>
         <translation>Editando mensagem — &lt;b&gt;Esc&lt;/b&gt; para cancelar, &lt;b&gt;Enter&lt;/b&gt; para salvar</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="431"/>
+        <location filename="../src/app/ChatView.cpp" line="882"/>
         <source>Add Reaction</source>
         <translation>Adicionar reação</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="441"/>
+        <location filename="../src/app/ChatView.cpp" line="892"/>
         <source>Other…</source>
         <translation>Outra…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="444"/>
+        <location filename="../src/app/ChatView.cpp" line="895"/>
         <source>Reply</source>
         <translation>Responder</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="446"/>
+        <location filename="../src/app/ChatView.cpp" line="897"/>
         <source>Edit Message</source>
         <translation>Editar mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="449"/>
+        <location filename="../src/app/ChatView.cpp" line="900"/>
         <source>Copy Text</source>
         <translation>Copiar texto</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="450"/>
+        <location filename="../src/app/ChatView.cpp" line="901"/>
         <source>Copy Message Link</source>
         <translation>Copiar link da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="454"/>
+        <location filename="../src/app/ChatView.cpp" line="905"/>
         <source>Copy Message ID</source>
         <translation>Copiar ID da mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="457"/>
-        <location filename="../src/app/ChatView.cpp" line="458"/>
+        <location filename="../src/app/ChatView.cpp" line="908"/>
+        <location filename="../src/app/ChatView.cpp" line="909"/>
         <source>Delete Message</source>
         <translation>Excluir mensagem</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="459"/>
+        <location filename="../src/app/ChatView.cpp" line="910"/>
         <source>Are you sure you want to delete this message?</source>
         <translation>Tem certeza de que quer excluir esta mensagem?</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="522"/>
+        <location filename="../src/app/ChatView.cpp" line="973"/>
         <source>&lt;b&gt;%1&lt;/b&gt; is typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; está digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="524"/>
+        <location filename="../src/app/ChatView.cpp" line="975"/>
         <source>&lt;b&gt;%1&lt;/b&gt; and &lt;b&gt;%2&lt;/b&gt; are typing…</source>
         <translation>&lt;b&gt;%1&lt;/b&gt; e &lt;b&gt;%2&lt;/b&gt; estão digitando…</translation>
     </message>
     <message>
-        <location filename="../src/app/ChatView.cpp" line="526"/>
+        <location filename="../src/app/ChatView.cpp" line="977"/>
         <source>Several people are typing…</source>
         <translation>Várias pessoas estão digitando…</translation>
     </message>
@@ -670,57 +744,62 @@
 <context>
     <name>MessageDelegate</name>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="295"/>
+        <location filename="../src/app/MessageView.cpp" line="296"/>
         <source>%1 joined the server.</source>
         <translation>%1 entrou no servidor.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="297"/>
+        <location filename="../src/app/MessageView.cpp" line="298"/>
         <source>%1 pinned a message to this channel.</source>
         <translation>%1 fixou uma mensagem neste canal.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="299"/>
+        <location filename="../src/app/MessageView.cpp" line="300"/>
         <source>%1 started a call.</source>
         <translation>%1 iniciou uma chamada.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="301"/>
+        <location filename="../src/app/MessageView.cpp" line="302"/>
         <source>%1 added someone to the group.</source>
         <translation>%1 adicionou alguém ao grupo.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="303"/>
+        <location filename="../src/app/MessageView.cpp" line="304"/>
         <source>%1 left the group.</source>
         <translation>%1 saiu do grupo.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="305"/>
+        <location filename="../src/app/MessageView.cpp" line="306"/>
         <source>%1 changed the channel name: %2</source>
         <translation>%1 mudou o nome do canal: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="307"/>
+        <location filename="../src/app/MessageView.cpp" line="308"/>
         <source>%1 did something Snapcord can&apos;t show yet.</source>
         <translation>%1 fez algo que o Snapcord ainda não consegue mostrar.</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="368"/>
+        <location filename="../src/app/MessageView.cpp" line="369"/>
         <source>Original message was deleted</source>
         <translation>A mensagem original foi excluída</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="373"/>
+        <location filename="../src/app/MessageView.cpp" line="374"/>
         <source>Click to see attachment</source>
         <translation>Clique para ver o anexo</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="393"/>
+        <location filename="../src/app/MessageView.cpp" line="394"/>
         <source>(edited)</source>
         <translation>(editada)</translation>
     </message>
     <message>
-        <location filename="../src/app/MessageView.cpp" line="481"/>
+        <location filename="../src/app/MessageView.cpp" line="427"/>
+        <source>Uploading… %1%</source>
+        <translation>Enviando… %1%</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MessageView.cpp" line="486"/>
         <source>Sticker: %1</source>
         <translation>Figurinha: %1</translation>
     </message>
@@ -1051,12 +1130,12 @@
 <context>
     <name>Session</name>
     <message>
-        <location filename="../src/core/Session.cpp" line="807"/>
+        <location filename="../src/core/Session.cpp" line="811"/>
         <source>Discord asked for a captcha. Make this change in the official app.</source>
         <translation>O Discord pediu um captcha. Faça essa alteração no app oficial.</translation>
     </message>
     <message>
-        <location filename="../src/core/Session.cpp" line="815"/>
+        <location filename="../src/core/Session.cpp" line="819"/>
         <source>Request failed (HTTP %1).</source>
         <translation>A solicitação falhou (HTTP %1).</translation>
     </message>

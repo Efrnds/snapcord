@@ -172,7 +172,7 @@ MessageModel::MessageModel(MessageStore* store, QObject* parent)
     : QAbstractListModel(parent)
     , m_store(store)
 {
-    // The store has already changed when it signals, so rows are announced right away.
+    // Except for removals, the store has already changed when it signals, so rows are announced right away.
     connect(m_store, &MessageStore::reset, this, [this](const QString& channelId) {
         if (channelId != m_channelId)
             return;
@@ -203,10 +203,14 @@ MessageModel::MessageModel(MessageStore* store, QObject* parent)
         emit messageChanged(message(index).id);
         emit dataChanged(this->index(index), this->index(index));
     });
+    // Removals are announced before the message leaves the store: views still read it while the row goes away.
+    connect(m_store, &MessageStore::aboutToRemove, this, [this](const QString& channelId, int index) {
+        if (channelId == m_channelId)
+            beginRemoveRows({}, index, index);
+    });
     connect(m_store, &MessageStore::removed, this, [this](const QString& channelId, int index) {
         if (channelId != m_channelId)
             return;
-        beginRemoveRows({}, index, index);
         endRemoveRows();
         if (index < rowCount())
             emit messageChanged(message(index).id);
@@ -281,6 +285,7 @@ struct MessageDelegate::Layout
         bool webEmbed = false;  // YouTube etc. — in-app WebEngine lightbox
         QString name;
         QString detail;
+        int progress = -1; // upload progress (0-100) of a file being sent
     };
     struct EmbedBox
     {
@@ -502,6 +507,10 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
             picture.file = true;
             picture.name = attachment.filename;
             picture.detail = formatSize(attachment.size);
+            if (message.pending && message.uploadProgress >= 0) {
+                picture.progress = message.uploadProgress;
+                picture.detail = tr("Uploading… %1%").arg(message.uploadProgress) + QStringLiteral(" · ") + picture.detail;
+            }
             picture.rect = QRect(ContentLeft, y + 4, std::min(400, contentWidth), 56);
         }
         l->pictures.append(picture);
@@ -713,6 +722,14 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
             painter->setFont(messageFont(base, 12));
             painter->setPen(colors.textMuted);
             painter->drawText(QRect(nameRect.left(), nameRect.bottom(), nameRect.width(), 18), Qt::AlignVCenter, picture.detail);
+            if (picture.progress >= 0) {
+                const QRect track(picture.rect.left() + 8, picture.rect.bottom() - 5, picture.rect.width() - 16, 3);
+                painter->setPen(Qt::NoPen);
+                painter->setBrush(colors.hover);
+                painter->drawRoundedRect(track, 1.5, 1.5);
+                painter->setBrush(colors.accent);
+                painter->drawRoundedRect(QRect(track.topLeft(), QSize(track.width() * picture.progress / 100, track.height())), 1.5, 1.5);
+            }
             return;
         }
         const QImage image = m_images->image(picture.source, picture.rect.size() * 2);

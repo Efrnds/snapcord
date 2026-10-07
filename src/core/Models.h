@@ -18,6 +18,7 @@ struct User
     bool hasAccentColor = false;
     quint32 accentColorRgb = 0; // 0xRRGGBB
     QString bannerColorHex;     // "#rrggbb" when present
+    int premiumType = 0;        // 0 none, 1 Nitro Classic, 2 Nitro, 3 Nitro Basic (only known for the current user)
 
     QString displayName() const { return globalName.isEmpty() ? username : globalName; }
     static User fromJson(const QJsonObject& json);
@@ -69,6 +70,7 @@ struct Role
     quint64 permissions = 0;
     int position = 0;
     int color = 0; // 0xRRGGBB, 0 = no color
+    bool mentionable = false;
 
     static Role fromJson(const QJsonObject& json);
 };
@@ -125,6 +127,7 @@ struct Guild
     QString name;
     QString icon;
     QString ownerId;
+    int premiumTier = 0; // server boost level, 0-3
     bool unavailable = false;
     QHash<QString, Channel> channels;
     QHash<QString, Role> roles;
