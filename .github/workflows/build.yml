@@ -33,7 +33,8 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
-          modules: 'qtwebsockets qtimageformats qtmultimedia qtwebengine'
+          # WebEngineWidgets also needs Quick, WebChannel and Positioning; aqt does not pull them in.
+          modules: 'qtwebsockets qtimageformats qtmultimedia qtdeclarative qtshadertools qtwebchannel qtpositioning qtwebengine'
           cache: true
 
       - name: Install CMake and Ninja
@@ -49,7 +50,10 @@ jobs:
             dpkg-dev \
             libsecret-1-dev libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
+            libnss3 libnspr4 libxcomposite1 libxdamage1 libxrandr2 libxtst6 \
+            libdrm2 libgbm1 libasound2t64 libcups2 libpango-1.0-0 libatk1.0-0 \
+            libatk-bridge2.0-0 libatspi2.0-0 libxshmfence1
 
       - name: macOS dependencies
         if: runner.os == 'macOS'
