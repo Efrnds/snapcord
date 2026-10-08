@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDialog>
+#include <QRect>
 #include <QUrl>
 
 class QAudioOutput;
@@ -10,15 +11,14 @@ class QPushButton;
 class QSlider;
 class QVideoWidget;
 
-// Plays a direct Discord file (.mp4 / .webm on the CDN) with the OS media backend.
-// Page embeds (YouTube, Twitch) stay in the system browser.
+// Plays one direct Discord file, then exits with the process so the decoder is freed.
 class VideoViewer : public QDialog
 {
     Q_OBJECT
 
 public:
     static bool isDiscordFile(const QUrl& url);
-    static void open(const QUrl& url, QWidget* parent);
+    static void open(const QUrl& url, const QRect& frame);
 
 protected:
     void keyPressEvent(QKeyEvent* event) override;
@@ -26,7 +26,7 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    explicit VideoViewer(const QUrl& url, QWidget* parent);
+    VideoViewer(const QUrl& url, const QRect& frame);
     ~VideoViewer() override;
 
     void releasePlayback();

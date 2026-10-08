@@ -45,16 +45,16 @@ bool VideoViewer::isDiscordFile(const QUrl& url)
     return path.endsWith(u".mp4") || path.endsWith(u".webm");
 }
 
-void VideoViewer::open(const QUrl& url, QWidget* parent)
+void VideoViewer::open(const QUrl& url, const QRect& frame)
 {
     if (!isDiscordFile(url))
         return;
-    VideoViewer viewer(url, parent);
+    VideoViewer viewer(url, frame);
     viewer.exec();
 }
 
-VideoViewer::VideoViewer(const QUrl& url, QWidget* parent)
-    : QDialog(parent, Qt::FramelessWindowHint | Qt::Dialog)
+VideoViewer::VideoViewer(const QUrl& url, const QRect& frame)
+    : QDialog(nullptr, Qt::FramelessWindowHint | Qt::Dialog)
     , m_url(url)
     , m_player(new QMediaPlayer(this))
     , m_audio(new QAudioOutput(this))
@@ -125,12 +125,10 @@ VideoViewer::VideoViewer(const QUrl& url, QWidget* parent)
     layout->addWidget(m_status);
     layout->addLayout(bar);
 
-    if (parent) {
-        const QPoint topLeft = parent->mapToGlobal(QPoint(0, 0));
-        setGeometry(QRect(topLeft, parent->size()));
-    } else if (QScreen* screen = QGuiApplication::primaryScreen()) {
+    if (frame.isValid())
+        setGeometry(frame);
+    else if (QScreen* screen = QGuiApplication::primaryScreen())
         setGeometry(screen->availableGeometry());
-    }
 
     m_audio->setVolume(1.0);
     m_player->setAudioOutput(m_audio);

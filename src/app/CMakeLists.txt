@@ -9,8 +9,8 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     Demo.cpp Demo.h
     EmojiPicker.cpp EmojiPicker.h
     ImageCache.cpp ImageCache.h
+    DiscordVideo.cpp DiscordVideo.h
     ImageViewer.cpp ImageViewer.h
-    VideoViewer.cpp VideoViewer.h
     IncomingCallWindow.cpp IncomingCallWindow.h
     Language.cpp Language.h
     LoginWindow.cpp LoginWindow.h
@@ -58,15 +58,32 @@ qt_add_resources(snapcord "app_resources"
         "${resource_dir}/icons/members.svg"
 )
 
+# Separate process: Qt Multimedia (and the FFmpeg/Quick libraries it pulls in) live only here.
+# When the window closes, the process exits and that memory is returned to the system.
+qt_add_executable(snapcord_video WIN32
+    video-main.cpp
+    VideoViewer.cpp VideoViewer.h
+    Language.cpp Language.h
+)
+target_link_libraries(snapcord_video PRIVATE Qt6::Widgets Qt6::Multimedia Qt6::MultimediaWidgets)
+target_compile_definitions(snapcord_video PRIVATE SNAPCORD_VERSION="${PROJECT_VERSION}")
+set_target_properties(snapcord_video PROPERTIES OUTPUT_NAME "snapcord-video")
+if(APPLE)
+    # Sit next to Snapcord inside the bundle so the main app can launch it.
+    set_target_properties(snapcord_video PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:snapcord>")
+endif()
+
 # Interface translations. English is the source language; each .ts file adds another language.
-qt_add_translations(snapcord
+qt_add_translations(
+    TARGETS snapcord snapcord_video
     TS_FILES "${PROJECT_SOURCE_DIR}/translations/snapcord_pt_BR.ts"
-    SOURCE_TARGETS snapcord snapcord_core snapcord_voice snapcord_platform
+    SOURCE_TARGETS snapcord snapcord_video snapcord_core snapcord_voice snapcord_platform
     RESOURCE_PREFIX "/i18n"
 )
 
 target_link_libraries(snapcord PRIVATE
-    Qt6::Widgets Qt6::Svg Qt6::Multimedia Qt6::MultimediaWidgets
+    Qt6::Widgets Qt6::Svg
     snapcord_core snapcord_voice snapcord_platform
     unofficial::nayuki-qr-code-generator::nayuki-qr-code-generator
 )
@@ -91,7 +108,7 @@ endif()
 
 # Installation layout, used by the Linux packages (AppImage, Flatpak).
 include(GNUInstallDirs)
-install(TARGETS snapcord
+install(TARGETS snapcord snapcord_video
     BUNDLE DESTINATION .
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 if(UNIX AND NOT APPLE)
@@ -115,6 +132,11 @@ if(WIN32)
             COMMAND "${WINDEPLOYQT_EXECUTABLE}"
                 --no-translations --no-opengl-sw --no-system-d3d-compiler --no-compiler-runtime
                 "$<TARGET_FILE:snapcord>"
+            VERBATIM)
+        add_custom_command(TARGET snapcord_video POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXECUTABLE}"
+                --no-translations --no-opengl-sw --no-system-d3d-compiler --no-compiler-runtime
+                "$<TARGET_FILE:snapcord_video>"
             VERBATIM)
     endif()
 endif()

@@ -3,8 +3,8 @@
 #include "AttachmentTray.h"
 #include "EmojiPicker.h"
 #include "ImageCache.h"
+#include "DiscordVideo.h"
 #include "ImageViewer.h"
-#include "VideoViewer.h"
 #include "MemberListView.h"
 #include "Motion.h"
 #include "MentionPopup.h"
@@ -954,12 +954,12 @@ void ChatView::openImage(const QString& url, bool video, bool web)
     const QUrl parsed(url);
     // YouTube, Twitch and other page embeds always leave the app. Only a direct Discord
     // .mp4/.webm is played here; other video files follow the same browser path.
-    if (web || (video && !VideoViewer::isDiscordFile(parsed))) {
+    if (web || (video && !DiscordVideo::isDiscordFile(parsed))) {
         QDesktopServices::openUrl(parsed);
         return;
     }
     if (video) {
-        VideoViewer::open(parsed, window());
+        DiscordVideo::open(parsed, window());
         return;
     }
     ImageViewer::open(parsed, m_images, window());

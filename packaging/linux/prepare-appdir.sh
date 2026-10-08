@@ -40,7 +40,10 @@ prepare_appdir() {
     fi
 
     # Fill AppDir with Qt plugins and dependent libraries (no AppImage yet).
+    # snapcord-video is the direct-file player. It is the binary that links Qt Multimedia,
+    # so linuxdeploy must see it or the package will miss the media plugins.
     linuxdeploy --appdir "$appdir" --plugin qt \
+        --executable "$appdir/usr/bin/snapcord-video" \
         --desktop-file "$appdir/usr/share/applications/$app_id.desktop" \
         --icon-file "$appdir/usr/share/icons/hicolor/256x256/apps/$app_id.png"
 
