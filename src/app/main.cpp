@@ -28,14 +28,13 @@ int main(int argc, char* argv[])
     QGuiApplication::setDesktopFileName(QStringLiteral("io.github.pedrordgsr.Snapcord"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/snapcord.svg")));
 
+    // Fusion looks the same on all three platforms; the saved theme is applied before any window exists,
+    // so the first frame is already the right colors.
+    QApplication::setStyle(QStringLiteral("Fusion"));
+    Theme::instance().apply(app);
+
     Log::installFileHandler();
     Language::install(app);
-
-    // Fusion looks the same on all three platforms; Theme paints Discord-like colors on top.
-    QApplication::setStyle(QStringLiteral("Fusion"));
-
-    // Font family comes from Theme settings (default stack: Noto Sans / Inter / Segoe UI).
-    Theme::instance().apply(app);
     Motion::installWindowFades();
 
     if (demo) {

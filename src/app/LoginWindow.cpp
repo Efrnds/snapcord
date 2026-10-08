@@ -1,6 +1,7 @@
 #include "LoginWindow.h"
 
 #include "Motion.h"
+#include "Theme.h"
 
 #include "core/RemoteAuth.h"
 #include "core/RestClient.h"
@@ -66,6 +67,12 @@ LoginWindow::LoginWindow(QWidget* parent)
 {
     setObjectName(QStringLiteral("loginWindow"));
     setAttribute(Qt::WA_StyledBackground);
+    const QColor background = Theme::instance().palette().bg2;
+    QPalette colors = palette();
+    colors.setColor(QPalette::Window, background);
+    colors.setColor(QPalette::WindowText, Theme::instance().palette().text);
+    setPalette(colors);
+    setAutoFillBackground(true);
     setWindowTitle(QStringLiteral("Snapcord"));
     resize(1100, 680);
     setMinimumSize(800, 520);

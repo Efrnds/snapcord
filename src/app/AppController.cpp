@@ -2,7 +2,6 @@
 
 #include "LoginWindow.h"
 #include "MainWindow.h"
-#include "Motion.h"
 #include "RichPresence.h"
 #include "VoiceController.h"
 #include "core/ClientProperties.h"
@@ -27,15 +26,13 @@ AppController::~AppController()
 
 void AppController::start()
 {
-    // Requests must carry the current build number of the official client, so it is known before anything
-    // talks to Discord. Only the very first start waits for it.
-    ClientProperties::ensureBuildNumber([this] {
-        const QString token = CredentialStore::loadToken();
-        if (token.isEmpty())
-            showLogin();
-        else
-            showMain(token);
-    });
+    // The window comes up with the saved theme immediately. Discord's build number is fetched in the
+    // background; only the gateway waits for it, and only when nothing is cached yet.
+    const QString token = CredentialStore::loadToken();
+    if (token.isEmpty())
+        showLogin();
+    else
+        showMain(token);
 }
 
 void AppController::showLogin()
@@ -48,7 +45,6 @@ void AppController::showLogin()
         m_login->deleteLater();
         showMain(token);
     });
-    Motion::fadeInWindow(m_login);
     m_login->show();
 }
 
@@ -86,9 +82,12 @@ void AppController::showMain(const QString& token)
     connect(m_voice, &VoiceController::stateChanged, m_session, reportActivity);
     reportActivity();
 
-    m_session->start(token);
-    Motion::fadeInWindow(m_main);
     m_main->show();
+    Session* session = m_session;
+    ClientProperties::ensureBuildNumber([this, session, token] {
+        if (m_session == session)
+            m_session->start(token);
+    });
 }
 
 void AppController::logout()

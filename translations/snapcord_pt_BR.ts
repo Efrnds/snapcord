@@ -1418,11 +1418,6 @@
         <translation>Clique na barra, lista, chat ou destaque no mapa. As mudanças aplicam na hora.</translation>
     </message>
     <message>
-        <location filename="../src/app/SettingsDialog.cpp" line="721"/>
-        <source>Reset all customization</source>
-        <translation>Redefinir toda a customização</translation>
-    </message>
-    <message>
         <location filename="../src/app/SettingsDialog.cpp" line="751"/>
         <source>Tone &amp; scale</source>
         <translation>Tom e escala</translation>
