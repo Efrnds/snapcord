@@ -732,6 +732,25 @@ QMessageBox QPushButton:hover {
 #profileEditor {
     background: @bg2;
 }
+#dialogTitle {
+    color: @textBright;
+    font-size: @fontSizeXl;
+    font-weight: 700;
+}
+#inviteList {
+    background: transparent;
+    border: none;
+}
+#inviteList::item {
+    border-radius: @rSm;
+}
+#inviteList::item:hover {
+    background: @hover;
+}
+#inviteName {
+    color: @text;
+    font-size: @fontSizeMd;
+}
 #profileError {
     color: @danger;
     font-size: @fontSize;

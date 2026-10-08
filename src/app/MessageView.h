@@ -55,7 +55,7 @@ class MessageDelegate : public QStyledItemDelegate
 public:
     struct Hit
     {
-        enum Kind { None, Link, Spoiler, Image, File, Reaction, Reply, Author } kind = None;
+        enum Kind { None, Link, Spoiler, Image, File, Reaction, Reply, Author, Invite } kind = None;
         QString url;
         QString messageId;
         int reactionIndex = -1;
@@ -82,6 +82,7 @@ private:
     Layout& layout(const QModelIndex& index, int width) const;
     QString systemText(const Message& message) const;
     QPixmap avatar(const User& user, int size) const;
+    void paintInvite(QPainter* painter, const QFont& base, const QRect& box, const QRect& button, const QString& code) const;
 
     Session* m_session;
     ImageCache* m_images;
@@ -90,6 +91,7 @@ private:
     mutable QHash<QString, QPixmap> m_avatars; // by user ID + size
     QSet<QString> m_revealedSpoilers;
     int m_viewWidth = 600;
+    mutable QSet<QString> m_requestedInvites; // looked up once per code, even when it fails
 };
 
 // The scrolling list: keeps the view pinned to the newest message, loads history at the top and
@@ -108,6 +110,8 @@ signals:
     void imageActivated(const QString& url, bool video, bool web);
     void reactionClicked(const QString& messageId, int reactionIndex);
     void replyClicked(const QString& messageId);
+    // The "Join" button of an invite card.
+    void inviteClicked(const QString& code, const QString& messageId);
     void userClicked(const QString& userId, const QPoint& globalPosition);
     void messageContextMenuRequested(const QString& messageId, const QPoint& globalPosition);
     void topReached();

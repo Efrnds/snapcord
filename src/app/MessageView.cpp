@@ -3,6 +3,7 @@
 #include "Avatar.h"
 #include "ImageCache.h"
 #include "Theme.h"
+#include "core/GuildFolders.h"
 #include "core/Markdown.h"
 #include "core/MessageStore.h"
 #include "core/Session.h"
@@ -33,6 +34,7 @@ constexpr int GroupGapMs = 7 * 60 * 1000;
 constexpr int MaxPictureWidth = 400;
 constexpr int MaxPictureHeight = 300;
 constexpr int MaxEmbedWidth = 432;
+constexpr int InviteCardHeight = 110;
 constexpr int ReactionHeight = 26;
 
 const Theme::Palette& themeColors()
@@ -321,6 +323,13 @@ struct MessageDelegate::Layout
     QPoint contentPos;
     QList<Picture> pictures;
     std::vector<EmbedBox> embeds;
+    struct InviteBox
+    {
+        QRect box;
+        QRect button;
+        QString code;
+    };
+    QList<InviteBox> invites;
     QList<QRect> reactionRects;
     QString stickers;
     QRect stickerRect;
@@ -582,6 +591,16 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
         l->embeds.push_back(std::move(box));
     }
 
+    // Invite links get a card with the server and a "Join" button, like Discord shows them.
+    for (const QString& code : Invites::codesInMessage(message.content).mid(0, 3)) {
+        Layout::InviteBox invite;
+        invite.code = code;
+        invite.box = QRect(ContentLeft, y + 4, std::min(MaxEmbedWidth, contentWidth), InviteCardHeight);
+        invite.button = QRect(invite.box.right() - 16 - 92, invite.box.top() + 44 + 5, 92, 40);
+        l->invites.append(invite);
+        y += InviteCardHeight + 8;
+    }
+
     if (!message.stickerNames.isEmpty()) {
         l->stickers = tr("Sticker: %1").arg(message.stickerNames.join(QStringLiteral(", ")));
         l->stickerRect = QRect(ContentLeft, y + 2, contentWidth, 20);
@@ -793,6 +812,9 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
             drawPicture(box.picture);
     }
 
+    for (const Layout::InviteBox& invite : l.invites)
+        paintInvite(painter, base, invite.box, invite.button, invite.code);
+
     if (!l.stickers.isEmpty()) {
         painter->setFont(messageFont(base, 13));
         painter->setPen(colors.textMuted);
@@ -833,6 +855,14 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
     const QPoint p = position - itemRect.topLeft();
     hit.messageId = message.id;
 
+    for (const Layout::InviteBox& invite : l.invites) {
+        const InviteInfo* info = m_session->cachedInvite(invite.code);
+        if (info && invite.button.contains(p)) {
+            hit.kind = Hit::Invite;
+            hit.url = invite.code;
+            return hit;
+        }
+    }
     for (qsizetype i = 0; i < l.reactionRects.size(); ++i) {
         if (l.reactionRects[i].contains(p)) {
             hit.kind = Hit::Reaction;
@@ -901,6 +931,107 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
         }
     }
     return hit;
+}
+
+void MessageDelegate::paintInvite(QPainter* painter, const QFont& base, const QRect& box, const QRect& button,
+                                  const QString& code) const
+{
+    const auto& colors = themeColors();
+    const InviteInfo* invite = m_session->cachedInvite(code);
+    const bool failed = !invite && m_session->inviteFailed(code);
+    if (!invite && !failed && !m_requestedInvites.contains(code)) {
+        // Looked up once; Session::inviteLoaded repaints the list when it arrives.
+        m_requestedInvites.insert(code);
+        m_session->fetchInvite(code, false, {});
+    }
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(colors.bg1);
+    painter->drawRoundedRect(box, 8, 8);
+
+    const bool groupInvite = invite && invite->type == 1;
+    painter->setFont(messageFont(base, 12, QFont::Bold));
+    painter->setPen(colors.textMuted);
+    const QRect header(box.left() + 16, box.top() + 16, box.width() - 32, 16);
+    painter->drawText(header, Qt::AlignVCenter,
+                      (groupInvite ? tr("You've been invited to join a group DM") : tr("You've been invited to join a server")).toUpper());
+
+    const QRect icon(box.left() + 16, box.top() + 44, 50, 50);
+    const int textLeft = icon.right() + 16;
+    const int textWidth = (invite ? button.left() - 12 : box.right() - 16) - textLeft;
+    if (!invite) {
+        painter->setBrush(colors.bg3);
+        painter->setPen(Qt::NoPen);
+        painter->drawRoundedRect(icon, 16, 16);
+        painter->setFont(messageFont(base, 16, QFont::DemiBold));
+        painter->setPen(failed ? colors.danger : colors.textMuted);
+        painter->drawText(QRect(textLeft, icon.top() + 2, textWidth, 24), Qt::AlignVCenter,
+                          failed ? tr("Invalid Invite") : tr("Resolving invite…"));
+        if (failed) {
+            painter->setFont(messageFont(base, 13));
+            painter->setPen(colors.textMuted);
+            painter->drawText(QRect(textLeft, icon.top() + 26, textWidth, 20), Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(tr("This invite may be expired, or you might not have permission to join."),
+                                                                Qt::ElideRight, textWidth));
+        }
+        return;
+    }
+
+    const QString name = invite->guildName.isEmpty() ? invite->channelName : invite->guildName;
+    const QImage picture = invite->guildIcon.isEmpty() ? QImage()
+                                                       : m_images->image(ImageCache::guildIconUrl(invite->guildId, invite->guildIcon));
+    QPainterPath shape;
+    shape.addRoundedRect(icon, 16, 16);
+    if (!picture.isNull()) {
+        painter->save();
+        painter->setClipPath(shape);
+        painter->drawImage(icon, picture);
+        painter->restore();
+    } else {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.bg3);
+        painter->drawPath(shape);
+        painter->setFont(messageFont(base, 16, QFont::DemiBold));
+        painter->setPen(colors.text);
+        QString initials;
+        for (const QString& word : name.split(u' ', Qt::SkipEmptyParts)) {
+            if (initials.size() < 3)
+                initials += word.front();
+        }
+        painter->drawText(icon, Qt::AlignCenter, initials);
+    }
+
+    painter->setFont(messageFont(base, 16, QFont::DemiBold));
+    painter->setPen(colors.textBright);
+    painter->drawText(QRect(textLeft, icon.top() + 2, textWidth, 24), Qt::AlignVCenter,
+                      painter->fontMetrics().elidedText(name, Qt::ElideRight, textWidth));
+
+    // Online / member counts with Discord's dots.
+    int x = textLeft;
+    const int countsY = icon.top() + 28;
+    painter->setFont(messageFont(base, 13));
+    auto drawCount = [&](const QColor& dot, const QString& text) {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dot);
+        painter->drawEllipse(QRectF(x, countsY + 6, 8, 8));
+        x += 12;
+        painter->setPen(colors.textMuted);
+        painter->drawText(QRect(x, countsY, textWidth, 20), Qt::AlignVCenter, text);
+        x += painter->fontMetrics().horizontalAdvance(text) + 12;
+    };
+    if (invite->onlineCount >= 0)
+        drawCount(colors.success, tr("%n Online", nullptr, invite->onlineCount));
+    if (invite->memberCount >= 0)
+        drawCount(colors.textMuted, tr("%n Members", nullptr, invite->memberCount));
+
+    const bool member = invite->guildId.isEmpty() ? m_session->privateChannel(invite->channelId) != nullptr
+                                                  : m_session->guild(invite->guildId) != nullptr;
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(member ? colors.button : colors.success);
+    painter->drawRoundedRect(button, 4, 4);
+    painter->setFont(messageFont(base, 14, QFont::DemiBold));
+    painter->setPen(member ? colors.textBright : colors.onAccent);
+    painter->drawText(button, Qt::AlignCenter, member ? tr("Joined") : tr("Join"));
 }
 
 // --- MessageListView --------------------------------------------------------------------------------
@@ -972,6 +1103,9 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
         break;
     case MessageDelegate::Hit::Reply:
         emit replyClicked(hit.url);
+        break;
+    case MessageDelegate::Hit::Invite:
+        emit inviteClicked(hit.url, hit.messageId);
         break;
     case MessageDelegate::Hit::Author:
         emit userClicked(hit.url, event->globalPosition().toPoint());

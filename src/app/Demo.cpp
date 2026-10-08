@@ -246,7 +246,7 @@ QJsonObject readyJson()
         guilds.append(simpleGuildJson(servers()[i], i + 1));
 
     QJsonArray privateChannels{
-        privateChannelJson(DmBia, 1, {QStringLiteral("Bia")}, QStringLiteral("600000000000000005")),
+        privateChannelJson(DmBia, 1, {QStringLiteral("Bia")}, QStringLiteral("600000000000000006")),
         privateChannelJson(GroupTrip, 3, {QStringLiteral("Alex"), QStringLiteral("Kenji"), QStringLiteral("Marina")},
                            QStringLiteral("600000000000000004"), QStringLiteral("Weekend trip")),
         privateChannelJson(DmTheo, 1, {QStringLiteral("Theo")}, QStringLiteral("600000000000000003")),
@@ -261,13 +261,23 @@ QJsonObject readyJson()
         readState(MusicShare, QStringLiteral("500000000000000100"), 1),
         readState(QStringLiteral("320000000000000002"), QStringLiteral("500000000000000000"), 2),
         readState(QStringLiteral("340000000000000002"), QStringLiteral("500000000000000000")),
-        readState(DmBia, QStringLiteral("600000000000000005")),
+        readState(DmBia, QStringLiteral("600000000000000006")),
         readState(GroupTrip, QStringLiteral("600000000000000000"), 3),
         readState(DmTheo, QStringLiteral("600000000000000003")),
     };
 
     const QJsonObject settings{
         {QStringLiteral("status"), QStringLiteral("online")},
+        // Music Club and Pixel Art share a folder.
+        {QStringLiteral("guild_folders"), QJsonArray{
+            QJsonObject{{QStringLiteral("guild_ids"), QJsonArray{servers()[0].id}}},
+            QJsonObject{{QStringLiteral("guild_ids"), QJsonArray{servers()[1].id}}},
+            QJsonObject{{QStringLiteral("id"), 1234567},
+                        {QStringLiteral("name"), QStringLiteral("Creative")},
+                        {QStringLiteral("color"), 0xE91E63},
+                        {QStringLiteral("guild_ids"), QJsonArray{servers()[2].id, servers()[3].id}}},
+            QJsonObject{{QStringLiteral("guild_ids"), QJsonArray{servers()[4].id}}},
+        }},
         {QStringLiteral("custom_status"), QJsonObject{{QStringLiteral("text"), QStringLiteral("Building a voice client")},
                                                       {QStringLiteral("emoji_name"), QStringLiteral("🛠️")}}},
     };
@@ -425,6 +435,7 @@ QList<Message> directMessages()
         message(3, QStringLiteral("Bia"), 15, QStringLiteral("cool, I'll save you a spot in Lounge 🎮")),
         message(4, QStringLiteral("Bia"), 15, QStringLiteral("also, this app is *so* snappy on my old laptop")),
         message(5, QStringLiteral("Sam"), 17, QStringLiteral("right? no browser inside, so it stays light ✨")),
+        message(6, QStringLiteral("Bia"), 18, QStringLiteral("btw join my new server! https://discord.gg/cozycorner")),
     };
 }
 
@@ -534,6 +545,14 @@ void DemoController::start(const QString& screenshotFolder)
                              {QStringLiteral("READY_SUPPLEMENTAL"), presencesJson()}});
     const QString aboutAlex = QStringLiteral("Night owl, part-time farmer. Ask me about **co-op runs** 🌙");
     const QString aboutSam = QStringLiteral("Making calls lighter, one frame at a time.");
+    InviteInfo invite;
+    invite.code = QStringLiteral("cozycorner");
+    invite.guildId = QStringLiteral("300000000000000099");
+    invite.guildName = QStringLiteral("Cozy Corner");
+    invite.inviterName = QStringLiteral("Bia");
+    invite.onlineCount = 128;
+    invite.memberCount = 1024;
+    m_session->cacheInvite(invite);
     m_session->cacheProfile(demoProfile(QStringLiteral("Alex"), NightOwls, aboutAlex, QStringLiteral("he/him"), 0x8e44ad,
                                         {ModeratorRole, NightShiftRole}));
     m_session->cacheProfile(demoProfile(QStringLiteral("Alex"), QString(), aboutAlex, QStringLiteral("he/him"), 0x8e44ad));

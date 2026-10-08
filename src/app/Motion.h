@@ -52,9 +52,14 @@ public:
     qreal target() const { return m_target; }
     void animateTo(qreal target);
     void setValue(qreal value); // jumps without animating
+    // Called with every new value, before the owner repaints (e.g. to resize something with it).
+    void setOnChange(std::function<void(qreal)> callback) { m_onChange = std::move(callback); }
 
 private:
+    void apply(qreal value);
+
     QWidget* m_owner;
+    std::function<void(qreal)> m_onChange;
     QVariantAnimation* m_animation = nullptr;
     qreal m_value;
     qreal m_target;

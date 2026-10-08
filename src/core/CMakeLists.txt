@@ -1,6 +1,7 @@
 add_library(snapcord_core STATIC
     ClientProperties.cpp ClientProperties.h
     GameDetector.cpp GameDetector.h
+    GuildFolders.cpp GuildFolders.h
     Gateway.cpp Gateway.h
     Log.cpp Log.h
     Markdown.cpp Markdown.h

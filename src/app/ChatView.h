@@ -73,6 +73,10 @@ signals:
     // From the member sidebar, whose profiles open to its left.
     void memberProfileRequested(const QString& userId, const QString& guildId, const QPoint& globalPosition);
     void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
+    // A Discord invite link in a message was clicked.
+    void inviteLinkActivated(const QString& code);
+    // Go to a server (empty channel = its default one) or, with an empty guildId, a conversation.
+    void openChannelRequested(const QString& guildId, const QString& channelId);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -100,6 +104,7 @@ private:
     void toggleReaction(const QString& messageId, int reactionIndex);
     void pickReaction(const QString& messageId, const QPoint& globalPosition);
     void openLink(const QString& url);
+    void joinInvite(const QString& code, const QString& messageId);
     void openImage(const QString& url, bool video, bool web);
     void jumpTo(const QString& messageId);
     void updateTyping();

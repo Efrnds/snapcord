@@ -424,12 +424,34 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Limitação:** no Flatpak o sandbox não enxerga os processos do sistema, então jogos não são detectados lá.
 - **Falta o teste real** com uma conta.
 
+### Pastas de servidores e convites
+
+- **Pastas:** `core/GuildFolders` guarda o modelo (configuração `guild_folders` da conta) e as operações de
+  arrastar (`moveGuild`, `moveFolder`), com testes em `tests/GuildFoldersTest.cpp`. Servidores novos aparecem no
+  topo. Salvar usa `PATCH /users/@me/settings` com `guild_folders` (mesmo endpoint legado do status; o cliente
+  oficial usa o `settings-proto`). Mudanças vindas de outros clientes chegam por `USER_SETTINGS_UPDATE`.
+- **Barra (`app/ServerRail`):** arrastar reordena; soltar um servidor no meio de outro cria pasta; no meio de uma
+  pasta fechada, coloca dentro. Pastas abertas ficam no QSettings (`ui/openFolders`, só local, como no Discord).
+  Botão direito: "Convidar pessoas" e "Sair do servidor" (dono não vê); na pasta, "Configurações da pasta"
+  (nome e cor, `app/ServerDialogs`). Botão "+" abre "Entrar em um servidor".
+- **Convites:** `GET /invites/{code}?with_counts=true&with_expiration=true` (com `inputValue` quando digitado),
+  em cache por 5 min, inclusive falhas. Entrar: `POST /invites/{code}` com `session_id` e o header
+  `X-Context-Properties` ("Join Guild" no diálogo, "Invite Button Embed" no cartão do chat). Criar:
+  `POST /channels/{id}/invites` (7 dias, sem limite de usos), exige `CREATE_INSTANT_INVITE`. "Convidar" para uma DM
+  manda o link como mensagem normal, como o cliente oficial. Sair: `DELETE /users/@me/guilds/{id}`.
+- **Chat:** links `discord.gg/...` e `discord.com/invite/...` ganham um cartão com o servidor e o botão "Entrar"
+  (`MessageDelegate::paintInvite`); clicar no link abre o diálogo de convite dentro do app.
+- **Captcha:** entrar em servidor pode pedir captcha; o app mostra o erro (sem alternativa).
+- **Falta o teste real** com uma conta.
+
 ### Animações
 
 - **`app/Motion`** concentra tudo: transições curtas (120–180 ms) que só gastam CPU enquanto rodam; parado,
   continua ~0%.
   - `Motion::Value`: número que desliza até o alvo (pílula e forma dos ícones na `ServerRail`, borda verde do
-    `ParticipantTile`).
+    `ParticipantTile`). `setOnChange` permite redimensionar algo junto: as pastas da `ServerRail` abrem e fecham
+    deslizando (caixa com os servidores muda de altura e recorta) e o mosaico de ícones vira o símbolo de pasta
+    com fade.
   - `Motion::ItemAnimator`: hover/seleção/fala em delegates (`ChannelSidebar`, `MemberListView`), repintando só
     as linhas em movimento.
   - Popups, menus, tooltips e diálogos aparecem com fade (opacidade da janela, via filtro no app). Desligado no

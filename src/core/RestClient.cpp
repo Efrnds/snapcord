@@ -2,6 +2,7 @@
 
 #include "core/ClientProperties.h"
 #include "core/Log.h"
+#include "core/OrderedJson.h"
 
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -33,9 +34,12 @@ void RestClient::get(const QString& path, Callback callback)
     send({"GET", path, {}, false, std::move(callback), 0});
 }
 
-void RestClient::post(const QString& path, const QJsonDocument& body, Callback callback)
+void RestClient::post(const QString& path, const QJsonDocument& body, Callback callback, const OrderedJson* contextProperties)
 {
-    send({"POST", path, body.toJson(QJsonDocument::Compact), true, std::move(callback), 0});
+    Request request{"POST", path, body.toJson(QJsonDocument::Compact), true, std::move(callback), 0};
+    if (contextProperties)
+        request.contextProperties = contextProperties->toJson().toBase64();
+    send(std::move(request));
 }
 
 void RestClient::patch(const QString& path, const QJsonDocument& body, Callback callback)
@@ -51,6 +55,11 @@ void RestClient::put(const QString& path, Callback callback)
 void RestClient::deleteResource(const QString& path, Callback callback)
 {
     send({"DELETE", path, {}, false, std::move(callback), 0});
+}
+
+void RestClient::deleteResource(const QString& path, const QJsonDocument& body, Callback callback)
+{
+    send({"DELETE", path, body.toJson(QJsonDocument::Compact), true, std::move(callback), 0});
 }
 
 void RestClient::send(Request request)
@@ -75,6 +84,8 @@ void RestClient::dispatch(Request request)
     if (request.hasBody)
         networkRequest.setHeader(QNetworkRequest::ContentTypeHeader, QByteArrayLiteral("application/json"));
     ClientProperties::applyApiHeaders(networkRequest, request.verb, m_referer);
+    if (!request.contextProperties.isEmpty())
+        networkRequest.setRawHeader("X-Context-Properties", request.contextProperties);
 
     // Send first, in its own statement: `request` is moved into finish(), and argument order is unspecified.
     QNetworkReply* reply = m_network->sendCustomRequest(networkRequest, request.verb, request.body);
