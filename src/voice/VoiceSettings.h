@@ -20,6 +20,7 @@ struct VoiceSettings
     bool echoCancellation = false;
     bool automaticGainControl = false;
     bool soundEffects = true;
+    bool participantMuteSounds = false; // a sound when someone else in the call mutes or unmutes
 
     static VoiceSettings load();
     void save() const;

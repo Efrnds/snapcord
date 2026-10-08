@@ -83,6 +83,8 @@ private:
     bool m_mutedBeforeDeafen = false;
     QSet<QString> m_speaking;
     QSet<QString> m_participants; // other users in our channel, to play join/leave sounds
+    QSet<QString> m_mutedParticipants; // the muted ones among them, for the optional mute/unmute sounds
+    bool m_participantMuteSounds = false;
     bool m_participantsKnown = false;
     QList<int> m_pingHistory;
     bool m_demoCall = false;

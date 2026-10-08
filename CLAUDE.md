@@ -259,6 +259,11 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
     de -60 dB.
   - **Sons (`SoundEffects`):** sintetizados em código, sem arquivos e sem os sons do Discord.
     Tocam num stream de saída próprio, aberto só enquanto há som tocando.
+    - Página **Configurações > Sound Effects**: cada som (entrar/sair, alguém entra/sai, mutar, ensurdecer,
+      alguém muta/desmuta, toque, mensagem) tem um estilo (`Classic`, `Soft`, `Digital`, `Pop` ou `Off`), com botão
+      de prévia. Só o estilo escolhido fica em memória; salvo no QSettings em `sounds/<som>`.
+    - Opção **"tocar um som quando outros mutarem/desmutarem"** (`voice/participantMuteSounds`, desligada por
+      padrão): `VoiceController::updateParticipants` compara `selfMute || mute` de quem continua no canal.
   - **Chamadas em DM e grupos:**
     - Capability `AUTO_CALL_CONNECT`; eventos `CALL_CREATE`, `CALL_UPDATE` e `CALL_DELETE`.
     - `VOICE_STATE_UPDATE` sem `guild_id`; o `server_id` da voz é o ID do canal.

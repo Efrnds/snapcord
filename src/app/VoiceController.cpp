@@ -27,6 +27,8 @@ VoiceController::VoiceController(Session* session, QObject* parent)
     m_sounds->setEnabled(voiceSettings.soundEffects);
     m_sounds->setOutputDevice(voiceSettings.outputDevice);
     m_sounds->setVolume(voiceSettings.outputVolume);
+    m_sounds->loadStyles();
+    m_participantMuteSounds = voiceSettings.participantMuteSounds;
 
     connect(m_session, &Session::ownVoiceStateChanged, this, &VoiceController::onOwnVoiceState);
     connect(m_session, &Session::voiceServerUpdated, this, &VoiceController::onVoiceServer);
@@ -93,6 +95,7 @@ void VoiceController::join(const QString& guildId, const QString& channelId)
     m_haveVoiceState = false;
     m_ringWhenJoined = false;
     m_participants.clear();
+    m_mutedParticipants.clear();
     m_participantsKnown = false;
     m_pingHistory.clear();
     sendVoiceState();
@@ -143,6 +146,7 @@ void VoiceController::resetChannel()
     m_haveVoiceState = false;
     m_ringWhenJoined = false;
     m_participants.clear();
+    m_mutedParticipants.clear();
     m_participantsKnown = false;
     m_demoCall = false;
     m_speaking.clear();
@@ -203,6 +207,7 @@ void VoiceController::applySettings(const VoiceSettings& settings)
     m_sounds->setEnabled(settings.soundEffects);
     m_sounds->setOutputDevice(settings.outputDevice);
     m_sounds->setVolume(settings.outputVolume);
+    m_participantMuteSounds = settings.participantMuteSounds;
 }
 
 void VoiceController::sendVoiceState()
@@ -215,18 +220,29 @@ void VoiceController::updateParticipants()
     if (m_channelId.isEmpty() || m_connection->state() != VoiceConnection::State::Connected)
         return;
     QSet<QString> current;
+    QSet<QString> muted;
     for (const VoiceState& state : m_session->voiceStatesInChannel(m_guildId, m_channelId)) {
-        if (state.userId != m_session->self().id)
-            current.insert(state.userId);
+        if (state.userId == m_session->self().id)
+            continue;
+        current.insert(state.userId);
+        if (state.selfMute || state.mute)
+            muted.insert(state.userId);
     }
     // The first snapshot after connecting is just who was already there: no sound for it.
     if (m_participantsKnown) {
+        // Mute changes only count for people who were already here and still are.
+        const QSet<QString> stayed = current & m_participants;
         if (!(current - m_participants).isEmpty())
             m_sounds->play(SoundEffects::Sound::UserJoin);
         else if (!(m_participants - current).isEmpty())
             m_sounds->play(SoundEffects::Sound::UserLeave);
+        else if (m_participantMuteSounds && !((muted - m_mutedParticipants) & stayed).isEmpty())
+            m_sounds->play(SoundEffects::Sound::UserMute);
+        else if (m_participantMuteSounds && !((m_mutedParticipants - muted) & stayed).isEmpty())
+            m_sounds->play(SoundEffects::Sound::UserUnmute);
     }
     m_participants = current;
+    m_mutedParticipants = muted;
     m_participantsKnown = true;
 }
 
@@ -246,7 +262,8 @@ void VoiceController::onOwnVoiceState(const VoiceState& state)
         // Moved to another channel by a moderator; a new voice server update follows.
         m_channelId = state.channelId;
         m_participants.clear();
-    m_participantsKnown = false;
+        m_mutedParticipants.clear();
+        m_participantsKnown = false;
         emit channelChanged();
     }
     if (m_ringWhenJoined && m_guildId.isEmpty()) {

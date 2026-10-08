@@ -106,14 +106,17 @@ void VoicePipelineTest::echoCancellationRemovesPlayback()
 
 void VoicePipelineTest::soundEffectsAreSynthesized()
 {
-    SoundEffects effects;
     for (int i = 0; i < static_cast<int>(SoundEffects::Sound::Count); ++i) {
-        const auto& samples = effects.samples(static_cast<SoundEffects::Sound>(i));
-        QVERIFY(samples.size() > 48000 / 10); // at least 100 ms
-        float peak = 0.0f;
-        for (const float sample : samples)
-            peak = std::max(peak, std::abs(sample));
-        QVERIFY(peak > 0.05f && peak <= 1.0f);
+        const auto sound = static_cast<SoundEffects::Sound>(i);
+        QVERIFY(SoundEffects::synthesize(sound, SoundEffects::Style::Off).empty());
+        for (int s = 0; s < static_cast<int>(SoundEffects::Style::Off); ++s) {
+            const auto samples = SoundEffects::synthesize(sound, static_cast<SoundEffects::Style>(s));
+            QVERIFY(samples.size() > 48000 / 10); // at least 100 ms
+            float peak = 0.0f;
+            for (const float sample : samples)
+                peak = std::max(peak, std::abs(sample));
+            QVERIFY(peak > 0.05f && peak <= 1.0f);
+        }
     }
 }
 

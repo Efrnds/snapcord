@@ -385,6 +385,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
     navigation->setFixedWidth(200);
     navigation->setFocusPolicy(Qt::NoFocus);
     navigation->addItem(tr("Voice & Audio"));
+    navigation->addItem(tr("Sound Effects"));
     navigation->addItem(tr("Appearance"));
     navigation->addItem(tr("Notifications"));
     if constexpr (RichPresence::Enabled)
@@ -409,6 +410,7 @@ SettingsDialog::SettingsDialog(VoiceController* voice, QWidget* parent)
 
     m_settingsPages = new QStackedWidget;
     m_settingsPages->addWidget(buildVoicePage());
+    m_settingsPages->addWidget(buildSoundsPage());
     m_settingsPages->addWidget(buildAppearancePage());
     m_settingsPages->addWidget(buildNotificationsPage());
     if constexpr (RichPresence::Enabled)
@@ -484,8 +486,6 @@ QWidget* SettingsDialog::buildVoicePage()
     m_echoCancellation->setChecked(m_settings.echoCancellation);
     m_automaticGainControl = new QCheckBox(tr("Automatic Gain Control"));
     m_automaticGainControl->setChecked(m_settings.automaticGainControl);
-    m_soundEffects = new QCheckBox(tr("Play sound effects"));
-    m_soundEffects->setChecked(m_settings.soundEffects);
 
     m_keybind = new KeybindButton;
     m_keybind->setKey(m_settings.pushToTalkKey);
@@ -571,9 +571,6 @@ QWidget* SettingsDialog::buildVoicePage()
     layout->addWidget(option(m_echoCancellation,
                              tr("Stops others from hearing themselves when you use speakers instead of headphones.")));
     layout->addWidget(option(m_automaticGainControl, tr("Keeps your voice at a steady volume.")));
-    layout->addSpacing(16);
-    layout->addWidget(sectionLabel(tr("Sounds")));
-    layout->addWidget(option(m_soundEffects, tr("Joining, leaving, muting and incoming calls.")));
     layout->addStretch();
 
     connect(m_inputDevice, &QComboBox::currentIndexChanged, this, [this] {
@@ -593,7 +590,7 @@ QWidget* SettingsDialog::buildVoicePage()
         updateModeWidgets();
         apply();
     });
-    for (QCheckBox* checkBox : {m_noiseSuppression, m_echoCancellation, m_automaticGainControl, m_soundEffects})
+    for (QCheckBox* checkBox : {m_noiseSuppression, m_echoCancellation, m_automaticGainControl})
         connect(checkBox, &QCheckBox::toggled, this, &SettingsDialog::apply);
     connect(m_keybind, &KeybindButton::keyChanged, this, &SettingsDialog::apply);
     connect(m_releaseDelay, &QSlider::valueChanged, this, [this] {
@@ -602,6 +599,99 @@ QWidget* SettingsDialog::buildVoicePage()
     });
     m_releaseDelayLabel->setText(tr("%1 ms").arg(m_releaseDelay->value()));
     updateModeWidgets();
+
+    auto* scroll = new QScrollArea;
+    scroll->setWidget(content);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    return scroll;
+}
+
+QWidget* SettingsDialog::buildSoundsPage()
+{
+    using Sound = SoundEffects::Sound;
+    using Style = SoundEffects::Style;
+    SoundEffects* sounds = m_voice->sounds();
+
+    m_soundEffects = new QCheckBox(tr("Play sound effects"));
+    m_soundEffects->setChecked(m_settings.soundEffects);
+    m_participantMuteSounds = new QCheckBox(tr("Play a sound when others mute or unmute"));
+    m_participantMuteSounds->setChecked(m_settings.participantMuteSounds);
+    for (QCheckBox* checkBox : {m_soundEffects, m_participantMuteSounds})
+        connect(checkBox, &QCheckBox::toggled, this, &SettingsDialog::apply);
+
+    auto* content = new QWidget;
+    content->setObjectName(QStringLiteral("settingsContent"));
+    content->setAttribute(Qt::WA_StyledBackground);
+    auto* layout = new QVBoxLayout(content);
+    layout->setContentsMargins(40, 32, 40, 32);
+    layout->setSpacing(12);
+    auto* title = new QLabel(tr("Sound Effects"));
+    title->setObjectName(QStringLiteral("settingsTitle"));
+    layout->addWidget(title);
+    layout->addSpacing(8);
+    layout->addWidget(option(m_soundEffects, tr("Joining, leaving, muting and incoming calls.")));
+    layout->addWidget(option(m_participantMuteSounds,
+                             tr("While you are in a call, hear when someone else in it mutes or unmutes.")));
+    layout->addSpacing(16);
+    layout->addWidget(sectionLabel(tr("Sounds")));
+
+    const std::pair<Sound, QString> rows[] = {
+        {Sound::Join, tr("You join a call")},
+        {Sound::Leave, tr("You leave a call")},
+        {Sound::UserJoin, tr("Someone joins")},
+        {Sound::UserLeave, tr("Someone leaves")},
+        {Sound::Mute, tr("Mute")},
+        {Sound::Unmute, tr("Unmute")},
+        {Sound::Deafen, tr("Deafen")},
+        {Sound::Undeafen, tr("Undeafen")},
+        {Sound::UserMute, tr("Someone mutes")},
+        {Sound::UserUnmute, tr("Someone unmutes")},
+        {Sound::Ringtone, tr("Incoming call ringtone")},
+        {Sound::Message, tr("New message")},
+    };
+    const std::pair<Style, QString> styles[] = {
+        {Style::Classic, tr("Classic")}, {Style::Soft, tr("Soft")}, {Style::Digital, tr("Digital")},
+        {Style::Pop, tr("Pop")},         {Style::Off, tr("Off")},
+    };
+
+    auto* grid = new QGridLayout;
+    grid->setHorizontalSpacing(12);
+    grid->setVerticalSpacing(8);
+    grid->setColumnStretch(0, 1);
+    int row = 0;
+    for (const auto& [sound, name] : rows) {
+        auto* label = new QLabel(name);
+        auto* combo = new QComboBox;
+        for (const auto& [style, styleName] : styles)
+            combo->addItem(styleName, static_cast<int>(style));
+        combo->setCurrentIndex(qMax(0, combo->findData(static_cast<int>(sounds->style(sound)))));
+        combo->setMinimumWidth(140);
+        ignoreWheel(combo);
+        auto* play = new QPushButton(tr("Preview"));
+        play->setObjectName(QStringLiteral("secondaryButton"));
+        play->setCursor(Qt::PointingHandCursor);
+
+        connect(combo, &QComboBox::currentIndexChanged, this, [sounds, combo, play, sound] {
+            const auto style = static_cast<Style>(combo->currentData().toInt());
+            sounds->setStyle(sound, style);
+            sounds->saveStyles();
+            play->setEnabled(style != Style::Off);
+            sounds->preview(sound, style);
+        });
+        connect(play, &QPushButton::clicked, this, [sounds, combo, sound] {
+            sounds->preview(sound, static_cast<Style>(combo->currentData().toInt()));
+        });
+        play->setEnabled(sounds->style(sound) != Style::Off);
+
+        grid->addWidget(label, row, 0);
+        grid->addWidget(combo, row, 1);
+        grid->addWidget(play, row, 2);
+        ++row;
+    }
+    layout->addLayout(grid);
+    layout->addStretch();
 
     auto* scroll = new QScrollArea;
     scroll->setWidget(content);
@@ -1322,10 +1412,12 @@ void SettingsDialog::ignoreWheel(QWidget* widget)
 bool SettingsDialog::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() == QEvent::Wheel) {
-        // Wheel over sliders/combos must scroll the Appearance page, not nudge the control.
-        Q_UNUSED(watched);
-        if (m_appearanceScroll) {
-            if (auto* bar = m_appearanceScroll->verticalScrollBar()) {
+        // Wheel over sliders/combos must scroll the page they are on, not nudge the control.
+        QScrollArea* scroll = nullptr;
+        for (QObject* object = watched; object && !scroll; object = object->parent())
+            scroll = qobject_cast<QScrollArea*>(object);
+        if (scroll) {
+            if (auto* bar = scroll->verticalScrollBar()) {
                 const auto* wheel = static_cast<const QWheelEvent*>(event);
                 bar->setValue(bar->value() - wheel->angleDelta().y());
             }
@@ -1410,6 +1502,7 @@ void SettingsDialog::apply()
     m_settings.echoCancellation = m_echoCancellation->isChecked();
     m_settings.automaticGainControl = m_automaticGainControl->isChecked();
     m_settings.soundEffects = m_soundEffects->isChecked();
+    m_settings.participantMuteSounds = m_participantMuteSounds->isChecked();
     m_voice->applySettings(m_settings);
 }
 
