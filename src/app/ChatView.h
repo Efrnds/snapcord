@@ -80,6 +80,8 @@ protected:
     void dropEvent(QDropEvent* event) override;
 
 private:
+    void saveDraft();
+    void restoreDraft();
     void submit(const QString& text);
     void chooseFiles();
     void addFiles(const QStringList& paths);
@@ -135,6 +137,20 @@ private:
     bool m_canAttach = true;
     QList<OutgoingFile> m_files;          // attachments of the next message
     QList<MentionToken> m_mentionTokens;  // mentions picked in the composer
+    // Session-local drafts keep private text and pasted images off disk. Channel IDs are globally unique.
+    struct Draft
+    {
+        QString text;
+        QList<MentionToken> mentions;
+        QList<OutgoingFile> files;
+        QString replyTo;
+        QString editing;
+        QString modeLabel;
+        int cursor = 0;
+        int anchor = 0;
+    };
+    QHash<QString, Draft> m_drafts;
+    bool m_restoringDraft = false;
     int m_mentionStart = -1;              // where the "@..." / "#..." being completed starts
     QString m_memberQuery;                // last name searched on the server
     QTimer m_memberSearchTimer;
