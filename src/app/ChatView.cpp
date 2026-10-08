@@ -26,6 +26,7 @@
 #include <QDropEvent>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QPointer>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QKeyEvent>
@@ -107,6 +108,8 @@ void Composer::adjustHeight()
 void Composer::keyPressEvent(QKeyEvent* event)
 {
     if (m_popup && m_popup->handleKey(event))
+        return;
+    if (event->matches(QKeySequence::Copy) && !textCursor().hasSelection() && m_copyFallback && m_copyFallback())
         return;
     if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && !(event->modifiers() & Qt::ShiftModifier)) {
         // May be empty: a message can be only attachments; the chat view decides.
@@ -341,10 +344,25 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
     connect(m_list, &MessageListView::imageActivated, this, &ChatView::openImage);
     connect(m_list, &MessageListView::reactionClicked, this, &ChatView::toggleReaction);
     connect(m_list, &MessageListView::replyClicked, this, &ChatView::jumpTo);
+    connect(m_list, &MessageListView::inviteClicked, this, &ChatView::joinInvite);
+    // Invite cards change when their invite loads and when the user joins its server.
+    connect(m_session, &Session::inviteLoaded, m_list->viewport(), qOverload<>(&QWidget::update));
+    connect(m_session, &Session::guildListChanged, m_list->viewport(), qOverload<>(&QWidget::update));
     connect(m_list, &MessageListView::userClicked, this, [this](const QString& userId, const QPoint& position) {
         emit profileRequested(userId, m_guildId, position);
     });
     connect(m_list, &MessageListView::messageContextMenuRequested, this, &ChatView::showMessageMenu);
+    connect(m_list, &MessageListView::selectionStarted, this, [this] {
+        QTextCursor cursor = m_composer->textCursor();
+        cursor.clearSelection();
+        m_composer->setTextCursor(cursor);
+    });
+    m_composer->setCopyFallback([this] {
+        if (!m_list->hasSelection())
+            return false;
+        m_list->copySelection();
+        return true;
+    });
     connect(m_list, &MessageListView::topReached, this, [this] {
         if (!m_channelId.isEmpty() && m_session->messages()->hasOlder(m_channelId))
             m_session->messages()->loadOlder(m_channelId);
@@ -945,6 +963,8 @@ void ChatView::showMessageMenu(const QString& messageId, const QPoint& globalPos
     if (own && !message->isSystemMessage())
         menu.addAction(tr("Edit Message"), this, [this, messageId] { startEdit(messageId); });
     menu.addSeparator();
+    if (m_list->hasSelection())
+        menu.addAction(tr("Copy"), this, [this] { m_list->copySelection(); });
     if (!message->content.isEmpty())
         menu.addAction(tr("Copy Text"), this, [content = message->content] { QApplication::clipboard()->setText(content); });
     menu.addAction(tr("Copy Message Link"), this, [this, messageId] {
@@ -985,8 +1005,45 @@ void ChatView::toggleReaction(const QString& messageId, int reactionIndex)
 
 void ChatView::openLink(const QString& url)
 {
+    // Invites open in the app, like in Discord.
+    if (const QString code = Invites::codeFromUrl(QUrl(url)); !code.isEmpty()) {
+        emit inviteLinkActivated(code);
+        return;
+    }
     if (url.startsWith(u"http://") || url.startsWith(u"https://"))
         QDesktopServices::openUrl(QUrl(url));
+}
+
+void ChatView::joinInvite(const QString& code, const QString& messageId)
+{
+    const InviteInfo* invite = m_session->cachedInvite(code);
+    if (!invite)
+        return;
+    const QString guildId = invite->guildId;
+    const QString channelId = guildId.isEmpty() ? invite->channelId : QString();
+    const bool member = guildId.isEmpty() ? m_session->privateChannel(invite->channelId) != nullptr
+                                          : m_session->guild(guildId) != nullptr;
+    if (member) {
+        emit openChannelRequested(guildId, channelId);
+        return;
+    }
+    Session::InviteSource source;
+    source.guildId = m_guildId;
+    source.channelId = m_channelId;
+    source.messageId = messageId;
+    if (const Channel* channel = m_session->channel(m_guildId, m_channelId))
+        source.channelType = static_cast<int>(channel->type);
+    else if (const PrivateChannel* conversation = m_session->privateChannel(m_channelId))
+        source.channelType = static_cast<int>(conversation->type);
+    QPointer<ChatView> guard(this);
+    m_session->acceptInvite(*invite, source, [guard, guildId, channelId](const QString& error) {
+        if (!guard)
+            return;
+        if (!error.isEmpty())
+            guard->showError(error);
+        else
+            emit guard->openChannelRequested(guildId, channelId);
+    });
 }
 
 void ChatView::openImage(const QString& url, bool video, bool web)

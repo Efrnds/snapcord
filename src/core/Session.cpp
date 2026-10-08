@@ -3,6 +3,7 @@
 #include "core/ClientProperties.h"
 #include "core/Gateway.h"
 #include "core/Log.h"
+#include "core/OrderedJson.h"
 #include "core/Permissions.h"
 #include "core/RestClient.h"
 
@@ -10,6 +11,7 @@
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QUrl>
 
 #include <algorithm>
 
@@ -250,7 +252,8 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
         loadGuild(data);
         const QString id = data.value(u"id").toString();
         if (!m_guildOrder.contains(id)) {
-            m_guildOrder.append(id);
+            // A newly joined server goes to the top of the list.
+            loadGuildFolders(m_guildFolders);
             emit guildListChanged();
         }
         emit guildChanged(id);
@@ -271,7 +274,7 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
                 m_guilds[id].unavailable = true;
         } else {
             m_guilds.remove(id);
-            m_guildOrder.removeAll(id);
+            loadGuildFolders(m_guildFolders);
         }
         emit guildListChanged();
     } else if (event == u"GUILD_ROLE_CREATE" || event == u"GUILD_ROLE_UPDATE") {
@@ -313,6 +316,13 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
             m_selfCustomStatus = CustomStatus::fromJson(data.value(u"custom_status"));
         if (data.contains(u"status") || data.contains(u"custom_status"))
             emit presenceChanged(m_self.id, true);
+        // The server list was rearranged (in another client, or the echo of our own change).
+        if (data.contains(u"guild_folders")) {
+            const QList<GuildFolder> previous = m_guildFolders;
+            loadGuildFolders(GuildFolders::fromJson(data.value(u"guild_folders").toArray()));
+            if (m_guildFolders != previous)
+                emit guildListChanged();
+        }
     } else if ((event == u"CHANNEL_CREATE" || event == u"CHANNEL_UPDATE") && guildId.isEmpty()) {
         for (const QJsonValue& recipient : data.value(u"recipients").toArray())
             storeUser(recipient.toObject());
@@ -482,20 +492,10 @@ void Session::loadReady(const QJsonObject& data)
             storeMember(id, member.toObject());
     }
 
-    // Order guilds like the user arranged them in the official client (folders flattened).
-    const QJsonArray folders = data.value(u"user_settings").toObject().value(u"guild_folders").toArray();
-    for (const QJsonValue& folder : folders) {
-        for (const QJsonValue& id : folder.toObject().value(u"guild_ids").toArray()) {
-            const QString guildId = id.isString() ? id.toString() : QString::number(id.toInteger());
-            if (m_guilds.contains(guildId) && !m_guildOrder.contains(guildId))
-                m_guildOrder.append(guildId);
-        }
-    }
-    for (const QJsonValue& value : guilds) {
-        const QString id = value.toObject().value(u"id").toString();
-        if (!m_guildOrder.contains(id))
-            m_guildOrder.append(id);
-    }
+    // Order guilds like the user arranged them in the official client, with their folders.
+    for (const QJsonValue& value : guilds)
+        m_guildOrder.append(value.toObject().value(u"id").toString());
+    loadGuildFolders(GuildFolders::fromJson(userSettings.value(u"guild_folders").toArray()));
 
     // Identify sent the "unknown" status; announce the real one, with the custom status, like the official client.
     sendOwnPresence();
@@ -926,6 +926,245 @@ void Session::updateProfile(const ProfileChanges& changes, ResultCallback callba
                       }
                       patchProfile();
                   });
+}
+
+void Session::loadGuildFolders(const QList<GuildFolder>& folders)
+{
+    // Guilds keep their known order; ones never placed (just joined) come after and end up at the top.
+    QStringList known;
+    for (const QString& id : std::as_const(m_guildOrder)) {
+        if (m_guilds.contains(id))
+            known.append(id);
+    }
+    for (auto it = m_guilds.cbegin(); it != m_guilds.cend(); ++it) {
+        if (!known.contains(it.key()))
+            known.append(it.key());
+    }
+    m_guildFolders = GuildFolders::normalized(folders, known);
+    m_guildOrder = GuildFolders::flatten(m_guildFolders);
+}
+
+void Session::setGuildFolders(const QList<GuildFolder>& folders)
+{
+    const QList<GuildFolder> previous = m_guildFolders;
+    loadGuildFolders(folders);
+    if (m_guildFolders == previous)
+        return;
+    emit guildListChanged();
+    patchSettings({{QStringLiteral("guild_folders"), GuildFolders::toJson(m_guildFolders)}});
+}
+
+void Session::fetchInvite(const QString& code, bool typed, InviteCallback callback)
+{
+    // Invites change rarely; a looked up one (or a dead link) is remembered for a while.
+    constexpr qint64 InviteCacheMs = 5 * 60 * 1000;
+    const auto cached = m_invites.constFind(code);
+    if (cached != m_invites.cend()
+        && (cached->fetchedAt == 0 || QDateTime::currentMSecsSinceEpoch() - cached->fetchedAt < InviteCacheMs)) {
+        if (callback)
+            callback(cached->invite ? &*cached->invite : nullptr, cached->error);
+        return;
+    }
+    auto pending = m_pendingInvites.find(code);
+    if (pending != m_pendingInvites.end()) {
+        pending->append(std::move(callback));
+        return;
+    }
+    m_pendingInvites[code].append(std::move(callback));
+
+    const QString encoded = QString::fromLatin1(QUrl::toPercentEncoding(code));
+    QString path = QStringLiteral("/invites/") + encoded;
+    path += typed ? QStringLiteral("?inputValue=%1&with_counts=true&with_expiration=true").arg(encoded)
+                  : QStringLiteral("?with_counts=true&with_expiration=true");
+    m_rest->get(path, [this, code](const RestClient::Response& response) {
+        CachedInvite entry;
+        entry.fetchedAt = QDateTime::currentMSecsSinceEpoch();
+        if (response.ok())
+            entry.invite = InviteInfo::fromJson(response.body.object());
+        else if (response.status == 404)
+            entry.error = QCoreApplication::translate("Session", "This invite is invalid or has expired.");
+        else
+            entry.error = errorText(response);
+        // Network failures are not remembered: the next look retries.
+        if (response.status != 0)
+            m_invites.insert(code, entry);
+        const QList<InviteCallback> callbacks = m_pendingInvites.take(code);
+        for (const InviteCallback& callback : callbacks) {
+            if (callback)
+                callback(entry.invite ? &*entry.invite : nullptr, entry.error);
+        }
+        emit inviteLoaded(code);
+    });
+}
+
+const InviteInfo* Session::cachedInvite(const QString& code) const
+{
+    const auto it = m_invites.constFind(code);
+    return it != m_invites.cend() && it->invite ? &*it->invite : nullptr;
+}
+
+void Session::cacheInvite(const InviteInfo& invite)
+{
+    m_invites.insert(invite.code, CachedInvite{invite, {}, 0});
+}
+
+bool Session::inviteFailed(const QString& code) const
+{
+    const auto it = m_invites.constFind(code);
+    return it != m_invites.cend() && !it->invite;
+}
+
+void Session::acceptInvite(const InviteInfo& invite, const InviteSource& source, ResultCallback callback)
+{
+    // The official client says where the join started: the invite card of a message, or the dialog.
+    OrderedJson context;
+    if (source.messageId.isEmpty()) {
+        context.insert(u"location", QStringLiteral("Join Guild"))
+            .insert(u"location_guild_id", invite.guildId)
+            .insert(u"location_channel_id", invite.channelId)
+            .insert(u"location_channel_type", invite.channelType);
+    } else {
+        context.insert(u"location", QStringLiteral("Invite Button Embed"))
+            .insert(u"location_guild_id", source.guildId.isEmpty() ? QJsonValue() : QJsonValue(source.guildId))
+            .insert(u"location_channel_id", source.channelId)
+            .insert(u"location_channel_type", source.channelType)
+            .insert(u"location_message_id", source.messageId);
+    }
+    const QJsonObject body{{QStringLiteral("session_id"), sessionId()}};
+    m_rest->post(QStringLiteral("/invites/") + QString::fromLatin1(QUrl::toPercentEncoding(invite.code)), QJsonDocument(body),
+                 [callback](const RestClient::Response& response) {
+                     // The guild itself arrives through GUILD_CREATE.
+                     if (callback)
+                         callback(response.ok() ? QString() : errorText(response));
+                 },
+                 &context);
+}
+
+QString Session::inviteChannel(const QString& guildId, const QString& preferred) const
+{
+    const Guild* g = guild(guildId);
+    if (!g)
+        return {};
+    auto allowed = [&](const Channel& c) {
+        if (c.type == ChannelType::GuildCategory)
+            return false;
+        const quint64 permissions = Permissions::compute(*g, c, m_self.id);
+        return (permissions & Permissions::ViewChannel) && (permissions & Permissions::CreateInstantInvite);
+    };
+    if (const Channel* c = channel(guildId, preferred); c && allowed(*c))
+        return c->id;
+    for (const Channel& c : visibleChannels(guildId)) {
+        if (allowed(c))
+            return c.id;
+    }
+    return {};
+}
+
+void Session::createInvite(const QString& channelId, InviteCallback callback)
+{
+    // The defaults of the official "Invite People" dialog: expires after 7 days, no use limit.
+    const QJsonObject body{{QStringLiteral("max_age"), 604800},
+                           {QStringLiteral("max_uses"), 0},
+                           {QStringLiteral("target_type"), QJsonValue()},
+                           {QStringLiteral("temporary"), false}};
+    m_rest->post(QStringLiteral("/channels/%1/invites").arg(channelId), QJsonDocument(body),
+                 [this, callback](const RestClient::Response& response) {
+                     if (!response.ok()) {
+                         if (callback)
+                             callback(nullptr, errorText(response));
+                         return;
+                     }
+                     CachedInvite entry;
+                     entry.invite = InviteInfo::fromJson(response.body.object());
+                     entry.fetchedAt = QDateTime::currentMSecsSinceEpoch();
+                     m_invites.insert(entry.invite->code, entry);
+                     if (callback)
+                         callback(&*entry.invite, QString());
+                 });
+}
+
+void Session::leaveGuild(const QString& guildId, ResultCallback callback)
+{
+    // GUILD_DELETE follows and removes it from the list.
+    m_rest->deleteResource(QStringLiteral("/users/@me/guilds/") + guildId,
+                           QJsonDocument(QJsonObject{{QStringLiteral("lurking"), false}}),
+                           [callback](const RestClient::Response& response) {
+                               if (callback)
+                                   callback(response.ok() ? QString() : errorText(response));
+                           });
+}
+
+bool Session::canManageChannels(const QString& guildId, const QString& channelId) const
+{
+    const Guild* g = guild(guildId);
+    if (!g)
+        return false;
+    if (channelId.isEmpty())
+        return Permissions::compute(*g, Channel(), m_self.id) & Permissions::ManageChannels;
+    const Channel* c = channel(guildId, channelId);
+    if (!c)
+        return false;
+    const quint64 permissions = Permissions::compute(*g, *c, m_self.id);
+    return (permissions & Permissions::ViewChannel) && (permissions & Permissions::ManageChannels);
+}
+
+void Session::storeChannel(const QJsonObject& json)
+{
+    // The Gateway sends the same channel again (CHANNEL_CREATE / CHANNEL_UPDATE); storing the reply right
+    // away lets the interface show the change without waiting for it.
+    const Channel channel = Channel::fromJson(json, QString());
+    auto it = m_guilds.find(channel.guildId);
+    if (channel.id.isEmpty() || it == m_guilds.end())
+        return;
+    it->channels.insert(channel.id, channel);
+    emit guildChanged(channel.guildId);
+}
+
+void Session::createChannel(const QString& guildId, ChannelType type, const QString& name, const QString& parentId,
+                            ChannelCallback callback)
+{
+    // The body of the official "Create Channel" dialog (for a channel that is not private).
+    QJsonObject body{{QStringLiteral("type"), static_cast<int>(type)},
+                     {QStringLiteral("name"), name},
+                     {QStringLiteral("permission_overwrites"), QJsonArray()}};
+    if (!parentId.isEmpty())
+        body.insert(QStringLiteral("parent_id"), parentId);
+    m_rest->post(QStringLiteral("/guilds/%1/channels").arg(guildId), QJsonDocument(body),
+                 [this, callback](const RestClient::Response& response) {
+                     if (!response.ok()) {
+                         if (callback)
+                             callback(QString(), errorText(response));
+                         return;
+                     }
+                     storeChannel(response.body.object());
+                     if (callback)
+                         callback(response.body.object().value(u"id").toString(), QString());
+                 });
+}
+
+void Session::editChannel(const QString& channelId, const QJsonObject& changes, ResultCallback callback)
+{
+    m_rest->patch(QStringLiteral("/channels/") + channelId, QJsonDocument(changes),
+                  [this, callback](const RestClient::Response& response) {
+                      if (response.ok())
+                          storeChannel(response.body.object());
+                      if (callback)
+                          callback(response.ok() ? QString() : errorText(response));
+                  });
+}
+
+void Session::deleteChannel(const QString& guildId, const QString& channelId, ResultCallback callback)
+{
+    m_rest->deleteResource(QStringLiteral("/channels/") + channelId,
+                           [this, guildId, channelId, callback](const RestClient::Response& response) {
+                               if (response.ok()) {
+                                   auto it = m_guilds.find(guildId);
+                                   if (it != m_guilds.end() && it->channels.remove(channelId))
+                                       emit guildChanged(guildId);
+                               }
+                               if (callback)
+                                   callback(response.ok() ? QString() : errorText(response));
+                           });
 }
 
 void Session::patchSettings(const QJsonObject& changes)

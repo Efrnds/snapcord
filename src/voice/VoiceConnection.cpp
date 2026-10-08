@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <set>
 
 namespace {
 
@@ -29,6 +30,8 @@ constexpr float AutomaticSensitivityFloorDb = -60.0f;
 // A remote user counts as speaking for this long after their last audio packet.
 constexpr int64_t SpeakingTimeoutMs = 250;
 constexpr int64_t KeepAliveIntervalMs = 5000;
+// How often packets from an SSRC without a known sender are tried against the participants' keys.
+constexpr int64_t IdentifyIntervalMs = 200;
 constexpr uint32_t UdpPingMagic = 0x1337CAFE;
 constexpr int SpeakingFlagVoice = 1 << 0;
 
@@ -57,7 +60,14 @@ struct VoiceConnection::Stream
     OpusDecoderWrapper decoder;
     std::atomic<float> volume{1.0f};
     std::atomic<int64_t> lastVoiceMs{0};
-    std::vector<uint8_t> packet; // playback thread scratch
+    // Playback thread: the last decoded packet, handed to the mix 20 ms at a time (packets can be longer).
+    std::vector<uint8_t> packet;
+    std::vector<float> pcm = std::vector<float>(static_cast<size_t>(OpusFormat::MaxFrameSamples) * OpusFormat::Channels);
+    size_t pcmSamples = 0; // per channel
+    size_t pcmOffset = 0;
+    bool pcmIsVoice = false;
+    int lastFrameSamples = OpusFormat::FrameSamples; // duration of a lost packet, for concealment
+    bool formatLogged = false; // receive thread
 };
 
 VoiceConnection::VoiceConnection(QObject* parent)
@@ -313,6 +323,7 @@ void VoiceConnection::startMedia()
     m_silenceFramesToSend = 0;
     m_mixReadOffset = m_mixFrame.size();
 
+    m_identifyAttempts.clear();
     m_receiving.store(true);
     m_receiveThread = std::thread(&VoiceConnection::receiveLoop, this);
     m_mediaRunning = true;
@@ -621,36 +632,64 @@ void VoiceConnection::mixNextFrame()
 
     for (const auto& stream : m_mixStreams) {
         // Streams are always drained, even when deafened, so audio doesn't pile up.
-        int samples = 0;
-        switch (stream->buffer.pop(stream->packet)) {
-        case JitterBuffer::Result::Packet:
-            samples = stream->decoder.decode(stream->packet.data(), static_cast<int>(stream->packet.size()),
-                                             m_decodeFrame.data(), static_cast<int>(FrameSamples));
-            if (!isSilenceFrame(stream->packet.data(), stream->packet.size()))
-                stream->lastVoiceMs.store(now, std::memory_order_relaxed);
-            m_playedFrames.fetch_add(1, std::memory_order_relaxed);
-            break;
-        case JitterBuffer::Result::Recover:
-            samples = stream->decoder.recover(stream->packet.data(), static_cast<int>(stream->packet.size()),
-                                              m_decodeFrame.data(), static_cast<int>(FrameSamples));
-            m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
-            break;
-        case JitterBuffer::Result::Lost:
-            samples = stream->decoder.conceal(m_decodeFrame.data(), static_cast<int>(FrameSamples));
-            m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
-            break;
-        case JitterBuffer::Result::Idle:
-            continue;
-        }
+        const size_t samples = readStream(*stream, now);
         const float gain = stream->volume.load(std::memory_order_relaxed) * outputGain;
-        if (deafened || gain <= 0.0f)
+        if (samples == 0 || deafened || gain <= 0.0f)
             continue;
-        const size_t count = static_cast<size_t>(samples) * OpusFormat::Channels;
+        const size_t count = samples * OpusFormat::Channels;
         for (size_t i = 0; i < count && i < m_mixFrame.size(); ++i)
             m_mixFrame[i] += m_decodeFrame[i] * gain;
     }
     m_mixStreams.clear();
     limitMix();
+}
+
+size_t VoiceConnection::readStream(Stream& stream, int64_t now)
+{
+    size_t filled = 0;
+    while (filled < FrameSamples) {
+        if (stream.pcmOffset >= stream.pcmSamples && !decodeNext(stream))
+            break;
+        const size_t chunk = std::min(FrameSamples - filled, stream.pcmSamples - stream.pcmOffset);
+        std::memcpy(m_decodeFrame.data() + filled * OpusFormat::Channels,
+                    stream.pcm.data() + stream.pcmOffset * OpusFormat::Channels,
+                    chunk * OpusFormat::Channels * sizeof(float));
+        filled += chunk;
+        stream.pcmOffset += chunk;
+        if (stream.pcmIsVoice)
+            stream.lastVoiceMs.store(now, std::memory_order_relaxed);
+    }
+    return filled;
+}
+
+bool VoiceConnection::decodeNext(Stream& stream)
+{
+    int samples = 0;
+    stream.pcmIsVoice = false;
+    switch (stream.buffer.pop(stream.packet)) {
+    case JitterBuffer::Result::Packet:
+        samples = stream.decoder.decode(stream.packet.data(), static_cast<int>(stream.packet.size()), stream.pcm.data(),
+                                        OpusFormat::MaxFrameSamples);
+        if (samples > 0)
+            stream.lastFrameSamples = samples;
+        stream.pcmIsVoice = !isSilenceFrame(stream.packet.data(), stream.packet.size());
+        m_playedFrames.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case JitterBuffer::Result::Recover:
+        samples = stream.decoder.recover(stream.packet.data(), static_cast<int>(stream.packet.size()), stream.pcm.data(),
+                                         stream.lastFrameSamples);
+        m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case JitterBuffer::Result::Lost:
+        samples = stream.decoder.conceal(stream.pcm.data(), stream.lastFrameSamples);
+        m_concealedFrames.fetch_add(1, std::memory_order_relaxed);
+        break;
+    case JitterBuffer::Result::Idle:
+        break;
+    }
+    stream.pcmSamples = static_cast<size_t>(std::max(samples, 0));
+    stream.pcmOffset = 0;
+    return stream.pcmSamples > 0;
 }
 
 void VoiceConnection::limitMix()
@@ -729,12 +768,15 @@ void VoiceConnection::handlePacket(const uint8_t* data, size_t size)
     {
         std::lock_guard lock(m_streamsMutex);
         const auto it = m_streams.find(header->ssrc);
-        if (it == m_streams.end()) {
-            // The Speaking event mapping this SSRC to a user hasn't arrived yet.
-            m_stats.unknownSsrc.fetch_add(1, std::memory_order_relaxed);
-            return;
-        }
-        stream = it->second;
+        if (it != m_streams.end())
+            stream = it->second;
+    }
+    if (!stream) {
+        // No Speaking event has mapped this SSRC to a user yet. Usually it's on its way, but someone who
+        // was already talking when we joined (a music bot streaming nonstop) may never send another one.
+        m_stats.unknownSsrc.fetch_add(1, std::memory_order_relaxed);
+        identifySender(header->ssrc, payload, payloadSize);
+        return;
     }
 
     // The silence frames that end a sentence are not end-to-end encrypted. They still go through the
@@ -747,5 +789,36 @@ void VoiceConnection::handlePacket(const uint8_t* data, size_t size)
         m_stats.decryptFailures.fetch_add(1, std::memory_order_relaxed);
         return;
     }
+    if (!stream->formatLogged) {
+        stream->formatLogged = true;
+        const int samples = OpusDecoderWrapper::packetSamples(frame.data(), static_cast<int>(frame.size()));
+        qCInfo(lcVoice) << "receiving a stream with" << samples * 1000 / OpusFormat::SampleRate << "ms packets";
+    }
     stream->buffer.push(header->sequence, frame);
+}
+
+void VoiceConnection::identifySender(uint32_t ssrc, const uint8_t* payload, size_t size)
+{
+    thread_local std::vector<uint8_t> frame;
+    if (!m_dave || isSilenceFrame(payload, size))
+        return;
+    // Trying every user's key costs a few decryptions, so each unknown SSRC is tried a few times a second.
+    const int64_t now = nowMs();
+    int64_t& lastAttempt = m_identifyAttempts[ssrc];
+    if (now - lastAttempt < IdentifyIntervalMs)
+        return;
+    lastAttempt = now;
+
+    std::set<QString> mappedUsers;
+    {
+        std::lock_guard lock(m_streamsMutex);
+        for (const auto& [streamSsrc, stream] : m_streams)
+            mappedUsers.insert(stream->userId);
+    }
+    const QString userId = m_dave->identifySender(payload, size, mappedUsers, frame);
+    if (userId.isEmpty())
+        return;
+    qCInfo(lcVoice) << "mapped an SSRC without a Speaking event to its sender";
+    // The stream is created on the main thread like any other, with the user's saved volume.
+    QMetaObject::invokeMethod(this, [this, userId, ssrc] { onSpeaking(userId, ssrc, 0); }, Qt::QueuedConnection);
 }

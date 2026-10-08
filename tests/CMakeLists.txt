@@ -18,12 +18,13 @@ function(snapcord_add_test name source)
     endif()
 endfunction()
 
-snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_voice ZLIB::ZLIB)
+snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_voice ZLIB::ZLIB Opus::opus)
 snapcord_add_test(snapcord_markdown_tests MarkdownTest.cpp snapcord_core)
 snapcord_add_test(snapcord_member_list_tests MemberListTest.cpp snapcord_core)
 snapcord_add_test(snapcord_game_detector_tests GameDetectorTest.cpp snapcord_core)
 snapcord_add_test(snapcord_client_properties_tests ClientPropertiesTest.cpp snapcord_core)
 snapcord_add_test(snapcord_composer_tests ComposerTest.cpp snapcord_core)
+snapcord_add_test(snapcord_guild_folders_tests GuildFoldersTest.cpp snapcord_core)
 
 # Exercise the real composer and channel switching with an offline session.
 set(chat_draft_sources ChatDraftTest.cpp)

@@ -61,6 +61,9 @@ Channel Channel::fromJson(const QJsonObject& json, const QString& guildId)
     channel.type = static_cast<ChannelType>(json.value(u"type").toInt());
     channel.position = json.value(u"position").toInt();
     channel.userLimit = json.value(u"user_limit").toInt();
+    channel.bitrate = json.value(u"bitrate").toInt();
+    channel.rateLimitPerUser = json.value(u"rate_limit_per_user").toInt();
+    channel.nsfw = json.value(u"nsfw").toBool();
     for (const QJsonValue& value : json.value(u"permission_overwrites").toArray()) {
         const QJsonObject object = value.toObject();
         PermissionOverwrite overwrite;

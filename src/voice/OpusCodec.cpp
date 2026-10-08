@@ -51,6 +51,12 @@ OpusDecoderWrapper::~OpusDecoderWrapper()
         opus_decoder_destroy(m_decoder);
 }
 
+int OpusDecoderWrapper::packetSamples(const uint8_t* packet, int size)
+{
+    const int samples = opus_packet_get_nb_samples(packet, size, OpusFormat::SampleRate);
+    return samples > 0 ? samples : 0;
+}
+
 int OpusDecoderWrapper::decode(const uint8_t* packet, int size, float* stereoOut, int maxSamples)
 {
     if (!m_decoder)
@@ -59,21 +65,19 @@ int OpusDecoderWrapper::decode(const uint8_t* packet, int size, float* stereoOut
     return samples > 0 ? samples : 0;
 }
 
-int OpusDecoderWrapper::recover(const uint8_t* nextPacket, int size, float* stereoOut, int maxSamples)
+int OpusDecoderWrapper::recover(const uint8_t* nextPacket, int size, float* stereoOut, int frameSamples)
 {
     if (!m_decoder)
         return 0;
     // With decode_fec set, the frame size must be exactly the missing frame's duration.
-    const int frame = maxSamples < OpusFormat::FrameSamples ? maxSamples : OpusFormat::FrameSamples;
-    const int samples = opus_decode_float(m_decoder, nextPacket, size, stereoOut, frame, 1);
-    return samples > 0 ? samples : conceal(stereoOut, maxSamples);
+    const int samples = opus_decode_float(m_decoder, nextPacket, size, stereoOut, frameSamples, 1);
+    return samples > 0 ? samples : conceal(stereoOut, frameSamples);
 }
 
-int OpusDecoderWrapper::conceal(float* stereoOut, int maxSamples)
+int OpusDecoderWrapper::conceal(float* stereoOut, int frameSamples)
 {
     if (!m_decoder)
         return 0;
-    const int frame = maxSamples < OpusFormat::FrameSamples ? maxSamples : OpusFormat::FrameSamples;
-    const int samples = opus_decode_float(m_decoder, nullptr, 0, stereoOut, frame, 0);
+    const int samples = opus_decode_float(m_decoder, nullptr, 0, stereoOut, frameSamples, 0);
     return samples > 0 ? samples : 0;
 }

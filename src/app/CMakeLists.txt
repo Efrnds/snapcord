@@ -24,6 +24,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     ProfileCard.cpp ProfileCard.h
     ProfileEditor.cpp ProfileEditor.h
     ProfilePopup.cpp ProfilePopup.h
+    ServerDialogs.cpp ServerDialogs.h
     ServerRail.cpp ServerRail.h
     SettingsDialog.cpp SettingsDialog.h
     Theme.cpp Theme.h

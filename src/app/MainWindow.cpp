@@ -11,6 +11,7 @@
 #include "ProfileCard.h"
 #include "ProfileEditor.h"
 #include "ProfilePopup.h"
+#include "ServerDialogs.h"
 #include "ServerRail.h"
 #include "SettingsDialog.h"
 #include "Theme.h"
@@ -27,6 +28,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QPushButton>
 #include <QSettings>
 #include <QSlider>
 #include <QScopeGuard>
@@ -135,6 +137,13 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     });
     connect(m_session, &Session::guildListChanged, this, &MainWindow::rebuildServerRail);
     connect(m_session, &Session::guildChanged, this, [this, scheduleRefresh](const QString& guildId) {
+        // The open channel was deleted: move to another one, like Discord does.
+        const Guild* guild = guildId.isEmpty() || guildId != m_guildId ? nullptr : m_session->guild(guildId);
+        if (guild && !guild->unavailable && !guild->channels.isEmpty() && !m_channelId.isEmpty()
+            && !guild->channels.contains(m_channelId)) {
+            selectGuild(guildId);
+            return;
+        }
         if (guildId == m_guildId || guildId == m_voice->guildId())
             scheduleRefresh();
     });
@@ -149,6 +158,7 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         else if (statusChanged && m_guildId.isEmpty())
             scheduleRefresh(); // status dots in the direct message list
     });
+    connect(m_session, &Session::privateChannelsChanged, this, &MainWindow::openPendingDestination);
     connect(m_session, &Session::privateChannelsChanged, this, [this, scheduleRefresh] {
         if (m_guildId.isEmpty())
             scheduleRefresh();
@@ -189,6 +199,12 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
 
     connect(m_rail, &ServerRail::serverSelected, this, &MainWindow::selectGuild);
     connect(m_rail, &ServerRail::homeSelected, this, [this] { selectGuild(QString()); });
+    connect(m_rail, &ServerRail::foldersChanged, m_session, &Session::setGuildFolders);
+    connect(m_rail, &ServerRail::addServerRequested, this, [this] { openJoinDialog({}); });
+    connect(m_rail, &ServerRail::serverContextMenuRequested, this, &MainWindow::showServerMenu);
+    connect(m_rail, &ServerRail::folderContextMenuRequested, this, &MainWindow::showFolderMenu);
+    connect(m_chatView, &ChatView::inviteLinkActivated, this, &MainWindow::openJoinDialog);
+    connect(m_chatView, &ChatView::openChannelRequested, this, &MainWindow::goTo);
 
     connect(m_sidebar, &ChannelSidebar::channelClicked, this, [this](const QString& id, ChannelSidebar::ItemKind kind) {
         // Discord joins a guild voice channel on a single click.
@@ -197,6 +213,9 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
         openChannel(id);
     });
     connect(m_sidebar, &ChannelSidebar::memberContextMenuRequested, this, &MainWindow::showUserMenu);
+    connect(m_sidebar, &ChannelSidebar::channelContextMenuRequested, this,
+            [this](const QString& id, ChannelSidebar::ItemKind, const QPoint& position) { showChannelMenu(id, position); });
+    connect(m_sidebar, &ChannelSidebar::createChannelRequested, this, &MainWindow::openCreateChannel);
     connect(m_sidebar, &ChannelSidebar::memberClicked, this, [this](const QString& userId, const QPoint& position) {
         showProfile(userId, m_guildId, position);
     });
@@ -278,15 +297,160 @@ QWidget* MainWindow::buildPlaceholderPage(const QString& title, const QString& s
 
 void MainWindow::rebuildServerRail()
 {
-    m_rail->clearServers();
+    QHash<QString, ServerRail::ServerInfo> servers;
     for (const QString& id : m_session->guildOrder()) {
         const Guild* guild = m_session->guild(id);
         if (!guild || guild->unavailable)
             continue;
-        m_rail->addServer(id, guild->name, m_images->image(ImageCache::guildIconUrl(id, guild->icon)));
+        servers.insert(id, {guild->name, m_images->image(ImageCache::guildIconUrl(id, guild->icon))});
     }
-    m_rail->select(m_guildId);
+    m_rail->setServers(m_session->guildFolders(), servers);
     refreshUnreadBadges();
+    // The server on screen was left (or the user was removed from it).
+    if (!m_guildId.isEmpty() && !m_session->guild(m_guildId))
+        selectGuild(QString());
+    else
+        m_rail->select(m_guildId);
+    openPendingDestination();
+}
+
+void MainWindow::goTo(const QString& guildId, const QString& channelId)
+{
+    m_pendingGuildId = guildId;
+    m_pendingChannelId = guildId.isEmpty() ? channelId : QString();
+    openPendingDestination();
+}
+
+void MainWindow::openPendingDestination()
+{
+    if (!m_pendingGuildId.isEmpty() && m_session->guild(m_pendingGuildId)) {
+        const QString guildId = std::exchange(m_pendingGuildId, QString());
+        selectGuild(guildId);
+    } else if (m_pendingGuildId.isEmpty() && !m_pendingChannelId.isEmpty() && m_session->privateChannel(m_pendingChannelId)) {
+        const QString channelId = std::exchange(m_pendingChannelId, QString());
+        selectGuild(QString());
+        openChannel(channelId);
+    }
+}
+
+void MainWindow::openJoinDialog(const QString& code)
+{
+    auto* dialog = new JoinServerDialog(m_session, m_images, code, this);
+    connect(dialog, &JoinServerDialog::joined, this, &MainWindow::goTo);
+    dialog->open();
+}
+
+void MainWindow::showServerMenu(const QString& guildId, const QPoint& globalPosition)
+{
+    const Guild* guild = m_session->guild(guildId);
+    if (!guild)
+        return;
+    QMenu menu(this);
+    if (m_session->canManageChannels(guildId)) {
+        menu.addAction(tr("Create Channel"), this, [this, guildId] {
+            if (guildId != m_guildId)
+                selectGuild(guildId);
+            openCreateChannel({});
+        });
+    }
+    const QString inviteChannel = m_session->inviteChannel(guildId, guildId == m_guildId ? m_channelId : QString());
+    if (!inviteChannel.isEmpty()) {
+        menu.addAction(tr("Invite People"), this, [this, guildId, inviteChannel] {
+            auto* dialog = new InviteDialog(m_session, guildId, inviteChannel, this);
+            dialog->open();
+        });
+    }
+    // The owner cannot leave without handing the server over, which the official app does.
+    if (guild->ownerId != m_session->self().id) {
+        if (!menu.isEmpty())
+            menu.addSeparator();
+        menu.addAction(tr("Leave Server"), this, [this, guildId, name = guild->name] {
+            QMessageBox box(QMessageBox::Warning, tr("Leave '%1'").arg(name),
+                            tr("Are you sure you want to leave %1? You won't be able to rejoin this server unless you are re-invited.")
+                                .arg(name),
+                            QMessageBox::Cancel, this);
+            QPushButton* confirm = box.addButton(tr("Leave Server"), QMessageBox::DestructiveRole);
+            box.exec();
+            if (box.clickedButton() != confirm)
+                return;
+            m_session->leaveGuild(guildId, [this](const QString& error) {
+                if (error.isEmpty())
+                    return;
+                auto* failure = new QMessageBox(QMessageBox::Warning, tr("Leave Server"), error, QMessageBox::Ok, this);
+                failure->setAttribute(Qt::WA_DeleteOnClose);
+                failure->show();
+            });
+        });
+    }
+    if (!menu.isEmpty())
+        menu.exec(globalPosition);
+}
+
+void MainWindow::showFolderMenu(const QString& folderId, const QPoint& globalPosition)
+{
+    QMenu menu(this);
+    menu.addAction(tr("Folder Settings"), this, [this, folderId] {
+        QList<GuildFolder> folders = m_session->guildFolders();
+        const qsizetype index = GuildFolders::folderIndex(folders, folderId);
+        if (index < 0)
+            return;
+        QStringList names;
+        for (const QString& id : std::as_const(folders[index].guildIds)) {
+            if (const Guild* guild = m_session->guild(id))
+                names.append(guild->name);
+        }
+        FolderSettingsDialog dialog(folders[index], names.join(QStringLiteral(", ")), this);
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+        // The list may have changed while the dialog was open.
+        folders = m_session->guildFolders();
+        const qsizetype current = GuildFolders::folderIndex(folders, folderId);
+        if (current < 0)
+            return;
+        folders[current].name = dialog.folder().name;
+        folders[current].color = dialog.folder().color;
+        m_session->setGuildFolders(folders);
+    });
+    menu.exec(globalPosition);
+}
+
+void MainWindow::showChannelMenu(const QString& channelId, const QPoint& globalPosition)
+{
+    if (m_guildId.isEmpty())
+        return;
+    const Channel* channel = m_session->channel(m_guildId, channelId);
+    const bool category = channel && channel->type == ChannelType::GuildCategory;
+    QMenu menu(this);
+    // New channels go inside the category that was clicked (or the clicked channel's category).
+    const QString parentId = !channel ? QString() : category ? channel->id : channel->parentId;
+    if (parentId.isEmpty() ? m_session->canManageChannels(m_guildId) : m_session->canManageChannels(m_guildId, parentId))
+        menu.addAction(tr("Create Channel"), this, [this, parentId] { openCreateChannel(parentId); });
+    if (channel && m_session->canManageChannels(m_guildId, channelId)) {
+        if (!menu.isEmpty())
+            menu.addSeparator();
+        menu.addAction(category ? tr("Edit Category") : tr("Edit Channel"), this, [this, channelId] {
+            auto* dialog = new ChannelSettingsDialog(m_session, m_guildId, channelId, this);
+            dialog->open();
+        });
+        menu.addAction(category ? tr("Delete Category") : tr("Delete Channel"), this,
+                       [this, channelId] { confirmDeleteChannel(m_session, m_guildId, channelId, this); });
+    }
+    if (!menu.isEmpty())
+        menu.exec(globalPosition);
+}
+
+void MainWindow::openCreateChannel(const QString& categoryId)
+{
+    if (m_guildId.isEmpty())
+        return;
+    auto* dialog = new CreateChannelDialog(m_session, m_guildId, categoryId, this);
+    connect(dialog, &CreateChannelDialog::created, this, [this, guildId = m_guildId](const QString& channelId) {
+        // Like Discord, a new text channel opens right away.
+        const Channel* channel = m_session->channel(guildId, channelId);
+        if (guildId == m_guildId && channel && !channel->isVoice())
+            openChannel(channelId);
+    });
+    dialog->open();
 }
 
 void MainWindow::refreshUnreadBadges()
@@ -374,7 +538,7 @@ void MainWindow::refreshChannels()
     } else {
         for (const Channel& channel : m_session->visibleChannels(m_guildId)) {
             if (channel.type == ChannelType::GuildCategory) {
-                m_sidebar->addCategory(channel.id, channel.name);
+                m_sidebar->addCategory(channel.id, channel.name, m_session->canManageChannels(m_guildId, channel.id));
                 continue;
             }
             if (!channel.isVoice()) {

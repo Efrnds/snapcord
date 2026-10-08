@@ -289,10 +289,16 @@ void Value::setValue(qreal value)
     if (m_animation)
         m_animation->stop();
     m_target = value;
-    if (m_value != value) {
-        m_value = value;
-        m_owner->update();
-    }
+    if (m_value != value)
+        apply(value);
+}
+
+void Value::apply(qreal value)
+{
+    m_value = value;
+    if (m_onChange)
+        m_onChange(value);
+    m_owner->update();
 }
 
 void Value::animateTo(qreal target)
@@ -307,10 +313,8 @@ void Value::animateTo(qreal target)
     if (!m_animation) {
         m_animation = new QVariantAnimation(this);
         m_animation->setEasingCurve(QEasingCurve::OutCubic);
-        connect(m_animation, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
-            m_value = value.toReal();
-            m_owner->update();
-        });
+        connect(m_animation, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant& value) { apply(value.toReal()); });
     }
     m_animation->stop();
     m_animation->setDuration(m_duration);

@@ -49,6 +49,15 @@ private:
     void refreshUserPanel();
     void onSpeakingChanged(const QString& userId, bool speaking);
     void showUserMenu(const QString& userId, const QPoint& globalPosition);
+    void showServerMenu(const QString& guildId, const QPoint& globalPosition);
+    void showFolderMenu(const QString& folderId, const QPoint& globalPosition);
+    // Right click in the channel list: create, edit or delete channels (an empty `channelId` = empty space).
+    void showChannelMenu(const QString& channelId, const QPoint& globalPosition);
+    void openCreateChannel(const QString& categoryId);
+    void openJoinDialog(const QString& code);
+    // Goes to a server or conversation, waiting for it to arrive when it was just joined.
+    void goTo(const QString& guildId, const QString& channelId);
+    void openPendingDestination();
     void openSettings();
     void connectProfilePopup(ProfilePopup* popup);
     void openProfileEditor();
@@ -77,6 +86,8 @@ private:
 
     QString m_guildId;   // guild shown in the sidebar (empty = direct messages)
     QString m_channelId; // channel shown in the center area
+    QString m_pendingGuildId;   // a server just joined, opened once the Gateway sends it
+    QString m_pendingChannelId; // a group conversation just joined
     QTimer m_refreshTimer;
     QTimer m_badgeTimer;
 };

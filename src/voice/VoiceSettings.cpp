@@ -22,6 +22,7 @@ VoiceSettings VoiceSettings::load()
     result.echoCancellation = settings.value(QStringLiteral("echoCancellation"), false).toBool();
     result.automaticGainControl = settings.value(QStringLiteral("automaticGainControl"), false).toBool();
     result.soundEffects = settings.value(QStringLiteral("soundEffects"), true).toBool();
+    result.participantMuteSounds = settings.value(QStringLiteral("participantMuteSounds"), false).toBool();
     return result;
 }
 
@@ -43,6 +44,7 @@ void VoiceSettings::save() const
     settings.setValue(QStringLiteral("echoCancellation"), echoCancellation);
     settings.setValue(QStringLiteral("automaticGainControl"), automaticGainControl);
     settings.setValue(QStringLiteral("soundEffects"), soundEffects);
+    settings.setValue(QStringLiteral("participantMuteSounds"), participantMuteSounds);
 }
 
 float VoiceSettings::userVolume(const QString& userId)

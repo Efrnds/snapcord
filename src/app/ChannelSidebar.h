@@ -35,7 +35,8 @@ public:
 
     // Rebuilding keeps the scroll position and collapsed categories.
     void beginRebuild();
-    void addCategory(const QString& id, const QString& name);
+    // `canCreate` shows a "+" on hover that asks to create a channel inside the category.
+    void addCategory(const QString& id, const QString& name, bool canCreate = false);
     // `unread` shows the channel in bold with a pill; `mentions` adds a red counter; muted channels are dimmed.
     void addChannel(const QString& id, const QString& name, ItemKind kind, bool unread = false, int mentions = 0,
                     bool muted = false);
@@ -55,6 +56,10 @@ signals:
     void channelClicked(const QString& channelId, ChannelSidebar::ItemKind kind);
     void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
     void memberClicked(const QString& userId, const QPoint& globalPosition);
+    // Right click on a category or channel; an empty `id` means the empty space below the list.
+    void channelContextMenuRequested(const QString& id, ChannelSidebar::ItemKind kind, const QPoint& globalPosition);
+    // The "+" of a category was clicked.
+    void createChannelRequested(const QString& categoryId);
 
 private:
     void onItemClicked(QTreeWidgetItem* item);

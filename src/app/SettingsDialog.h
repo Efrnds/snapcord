@@ -152,6 +152,7 @@ protected:
 private:
     QWidget* buildVoicePage();
     QWidget* buildAppearancePage();
+    QWidget* buildSoundsPage();
     QWidget* buildNotificationsPage();
     QWidget* buildActivityPage();
     QWidget* buildLanguagePage();
@@ -192,6 +193,7 @@ private:
     QCheckBox* m_echoCancellation = nullptr;
     QCheckBox* m_automaticGainControl = nullptr;
     QCheckBox* m_soundEffects = nullptr;
+    QCheckBox* m_participantMuteSounds = nullptr;
 
     QSlider* m_fontSize = nullptr;
     QLabel* m_fontSizeLabel = nullptr;

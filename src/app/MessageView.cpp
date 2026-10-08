@@ -3,11 +3,14 @@
 #include "Avatar.h"
 #include "ImageCache.h"
 #include "Theme.h"
+#include "core/GuildFolders.h"
 #include "core/Markdown.h"
 #include "core/MessageStore.h"
 #include "core/Session.h"
 
 #include <QAbstractTextDocumentLayout>
+#include <QApplication>
+#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QGuiApplication>
@@ -17,7 +20,9 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QScrollBar>
+#include <QTextCursor>
 #include <QTextDocument>
+#include <QTextDocumentFragment>
 #include <QTimer>
 #include <QUrlQuery>
 
@@ -33,6 +38,7 @@ constexpr int GroupGapMs = 7 * 60 * 1000;
 constexpr int MaxPictureWidth = 400;
 constexpr int MaxPictureHeight = 300;
 constexpr int MaxEmbedWidth = 432;
+constexpr int InviteCardHeight = 110;
 constexpr int ReactionHeight = 26;
 
 const Theme::Palette& themeColors()
@@ -321,6 +327,13 @@ struct MessageDelegate::Layout
     QPoint contentPos;
     QList<Picture> pictures;
     std::vector<EmbedBox> embeds;
+    struct InviteBox
+    {
+        QRect box;
+        QRect button;
+        QString code;
+    };
+    QList<InviteBox> invites;
     QList<QRect> reactionRects;
     QString stickers;
     QRect stickerRect;
@@ -582,6 +595,16 @@ MessageDelegate::Layout& MessageDelegate::layout(const QModelIndex& index, int w
         l->embeds.push_back(std::move(box));
     }
 
+    // Invite links get a card with the server and a "Join" button, like Discord shows them.
+    for (const QString& code : Invites::codesInMessage(message.content).mid(0, 3)) {
+        Layout::InviteBox invite;
+        invite.code = code;
+        invite.box = QRect(ContentLeft, y + 4, std::min(MaxEmbedWidth, contentWidth), InviteCardHeight);
+        invite.button = QRect(invite.box.right() - 16 - 92, invite.box.top() + 44 + 5, 92, 40);
+        l->invites.append(invite);
+        y += InviteCardHeight + 8;
+    }
+
     if (!message.stickerNames.isEmpty()) {
         l->stickers = tr("Sticker: %1").arg(message.stickerNames.join(QStringLiteral(", ")));
         l->stickerRect = QRect(ContentLeft, y + 2, contentWidth, 20);
@@ -705,6 +728,17 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         painter->translate(l.contentPos);
         QAbstractTextDocumentLayout::PaintContext context;
         context.palette.setColor(QPalette::Text, textColor);
+        const auto [from, to] = selectionRange(index.row(), l.content->characterCount() - 1);
+        if (from < to) {
+            QAbstractTextDocumentLayout::Selection selection;
+            selection.cursor = QTextCursor(l.content.get());
+            selection.cursor.setPosition(from);
+            selection.cursor.setPosition(to, QTextCursor::KeepAnchor);
+            QColor highlight = colors.accent;
+            highlight.setAlpha(110);
+            selection.format.setBackground(highlight);
+            context.selections.append(selection);
+        }
         l.content->documentLayout()->draw(painter, context);
         painter->restore();
     }
@@ -793,6 +827,9 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
             drawPicture(box.picture);
     }
 
+    for (const Layout::InviteBox& invite : l.invites)
+        paintInvite(painter, base, invite.box, invite.button, invite.code);
+
     if (!l.stickers.isEmpty()) {
         painter->setFont(messageFont(base, 13));
         painter->setPen(colors.textMuted);
@@ -833,6 +870,14 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
     const QPoint p = position - itemRect.topLeft();
     hit.messageId = message.id;
 
+    for (const Layout::InviteBox& invite : l.invites) {
+        const InviteInfo* info = m_session->cachedInvite(invite.code);
+        if (info && invite.button.contains(p)) {
+            hit.kind = Hit::Invite;
+            hit.url = invite.code;
+            return hit;
+        }
+    }
     for (qsizetype i = 0; i < l.reactionRects.size(); ++i) {
         if (l.reactionRects[i].contains(p)) {
             hit.kind = Hit::Reaction;
@@ -903,6 +948,206 @@ MessageDelegate::Hit MessageDelegate::hitTest(const QModelIndex& index, const QR
     return hit;
 }
 
+MessageDelegate::TextPoint MessageDelegate::textPointAt(const QModelIndex& index, const QRect& itemRect,
+                                                        const QPoint& position) const
+{
+    if (!index.isValid())
+        return {};
+    const Layout& l = layout(index, m_viewWidth);
+    if (!l.content)
+        return {};
+    const QPoint p = position - itemRect.topLeft() - l.contentPos;
+    TextPoint point;
+    point.messageId = m_model->message(index.row()).id;
+    const int end = l.content->characterCount() - 1;
+    if (p.y() < 0)
+        point.position = 0;
+    else if (p.y() >= l.content->size().height())
+        point.position = end;
+    else
+        point.position = std::clamp(l.content->documentLayout()->hitTest(p, Qt::FuzzyHit), 0, end);
+    return point;
+}
+
+bool MessageDelegate::isOverText(const QModelIndex& index, const QRect& itemRect, const QPoint& position) const
+{
+    if (!index.isValid())
+        return false;
+    const Layout& l = layout(index, m_viewWidth);
+    return l.content
+           && l.content->documentLayout()->hitTest(position - itemRect.topLeft() - l.contentPos, Qt::ExactHit) >= 0;
+}
+
+std::pair<MessageDelegate::TextPoint, MessageDelegate::TextPoint> MessageDelegate::wordAt(const QModelIndex& index,
+                                                                                          const TextPoint& point) const
+{
+    const Layout& l = layout(index, m_viewWidth);
+    if (!l.content || !point.isValid())
+        return {};
+    QTextCursor cursor(l.content.get());
+    cursor.setPosition(point.position);
+    cursor.select(QTextCursor::WordUnderCursor);
+    return {{point.messageId, cursor.selectionStart()}, {point.messageId, cursor.selectionEnd()}};
+}
+
+void MessageDelegate::setSelection(const TextPoint& anchor, const TextPoint& focus)
+{
+    m_selectionAnchor = anchor;
+    m_selectionFocus = focus;
+}
+
+bool MessageDelegate::hasSelection() const
+{
+    if (!m_selectionAnchor.isValid() || !m_selectionFocus.isValid() || m_selectionAnchor == m_selectionFocus)
+        return false;
+    return m_model->rowOf(m_selectionAnchor.messageId) >= 0 && m_model->rowOf(m_selectionFocus.messageId) >= 0;
+}
+
+std::pair<int, int> MessageDelegate::selectionRange(int row, int length) const
+{
+    if (!m_selectionAnchor.isValid() || !m_selectionFocus.isValid())
+        return {-1, -1};
+    const int anchorRow = m_model->rowOf(m_selectionAnchor.messageId);
+    const int focusRow = m_model->rowOf(m_selectionFocus.messageId);
+    if (anchorRow < 0 || focusRow < 0)
+        return {-1, -1};
+    const bool forward = anchorRow < focusRow
+                         || (anchorRow == focusRow && m_selectionAnchor.position <= m_selectionFocus.position);
+    const TextPoint& first = forward ? m_selectionAnchor : m_selectionFocus;
+    const TextPoint& last = forward ? m_selectionFocus : m_selectionAnchor;
+    const int firstRow = std::min(anchorRow, focusRow);
+    const int lastRow = std::max(anchorRow, focusRow);
+    if (row < firstRow || row > lastRow)
+        return {-1, -1};
+    const int from = row == firstRow ? std::min(first.position, length) : 0;
+    const int to = row == lastRow ? std::min(last.position, length) : length;
+    return {from, to};
+}
+
+QString MessageDelegate::selectedText() const
+{
+    if (!hasSelection())
+        return {};
+    const int anchorRow = m_model->rowOf(m_selectionAnchor.messageId);
+    const int focusRow = m_model->rowOf(m_selectionFocus.messageId);
+    QStringList parts;
+    for (int row = std::min(anchorRow, focusRow); row <= std::max(anchorRow, focusRow); ++row) {
+        const Layout& l = layout(m_model->index(row), m_viewWidth);
+        if (!l.content)
+            continue;
+        const auto [from, to] = selectionRange(row, l.content->characterCount() - 1);
+        if (from >= to)
+            continue;
+        QTextCursor cursor(l.content.get());
+        cursor.setPosition(from);
+        cursor.setPosition(to, QTextCursor::KeepAnchor);
+        // Custom emoji are inline images: drop their placeholder characters.
+        parts.append(QTextDocumentFragment(cursor).toPlainText().remove(QChar::ObjectReplacementCharacter));
+    }
+    return parts.join(u'\n');
+}
+
+void MessageDelegate::paintInvite(QPainter* painter, const QFont& base, const QRect& box, const QRect& button,
+                                  const QString& code) const
+{
+    const auto& colors = themeColors();
+    const InviteInfo* invite = m_session->cachedInvite(code);
+    const bool failed = !invite && m_session->inviteFailed(code);
+    if (!invite && !failed && !m_requestedInvites.contains(code)) {
+        // Looked up once; Session::inviteLoaded repaints the list when it arrives.
+        m_requestedInvites.insert(code);
+        m_session->fetchInvite(code, false, {});
+    }
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(colors.bg1);
+    painter->drawRoundedRect(box, 8, 8);
+
+    const bool groupInvite = invite && invite->type == 1;
+    painter->setFont(messageFont(base, 12, QFont::Bold));
+    painter->setPen(colors.textMuted);
+    const QRect header(box.left() + 16, box.top() + 16, box.width() - 32, 16);
+    painter->drawText(header, Qt::AlignVCenter,
+                      (groupInvite ? tr("You've been invited to join a group DM") : tr("You've been invited to join a server")).toUpper());
+
+    const QRect icon(box.left() + 16, box.top() + 44, 50, 50);
+    const int textLeft = icon.right() + 16;
+    const int textWidth = (invite ? button.left() - 12 : box.right() - 16) - textLeft;
+    if (!invite) {
+        painter->setBrush(colors.bg3);
+        painter->setPen(Qt::NoPen);
+        painter->drawRoundedRect(icon, 16, 16);
+        painter->setFont(messageFont(base, 16, QFont::DemiBold));
+        painter->setPen(failed ? colors.danger : colors.textMuted);
+        painter->drawText(QRect(textLeft, icon.top() + 2, textWidth, 24), Qt::AlignVCenter,
+                          failed ? tr("Invalid Invite") : tr("Resolving invite…"));
+        if (failed) {
+            painter->setFont(messageFont(base, 13));
+            painter->setPen(colors.textMuted);
+            painter->drawText(QRect(textLeft, icon.top() + 26, textWidth, 20), Qt::AlignVCenter,
+                              painter->fontMetrics().elidedText(tr("This invite may be expired, or you might not have permission to join."),
+                                                                Qt::ElideRight, textWidth));
+        }
+        return;
+    }
+
+    const QString name = invite->guildName.isEmpty() ? invite->channelName : invite->guildName;
+    const QImage picture = invite->guildIcon.isEmpty() ? QImage()
+                                                       : m_images->image(ImageCache::guildIconUrl(invite->guildId, invite->guildIcon));
+    QPainterPath shape;
+    shape.addRoundedRect(icon, 16, 16);
+    if (!picture.isNull()) {
+        painter->save();
+        painter->setClipPath(shape);
+        painter->drawImage(icon, picture);
+        painter->restore();
+    } else {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(colors.bg3);
+        painter->drawPath(shape);
+        painter->setFont(messageFont(base, 16, QFont::DemiBold));
+        painter->setPen(colors.text);
+        QString initials;
+        for (const QString& word : name.split(u' ', Qt::SkipEmptyParts)) {
+            if (initials.size() < 3)
+                initials += word.front();
+        }
+        painter->drawText(icon, Qt::AlignCenter, initials);
+    }
+
+    painter->setFont(messageFont(base, 16, QFont::DemiBold));
+    painter->setPen(colors.textBright);
+    painter->drawText(QRect(textLeft, icon.top() + 2, textWidth, 24), Qt::AlignVCenter,
+                      painter->fontMetrics().elidedText(name, Qt::ElideRight, textWidth));
+
+    // Online / member counts with Discord's dots.
+    int x = textLeft;
+    const int countsY = icon.top() + 28;
+    painter->setFont(messageFont(base, 13));
+    auto drawCount = [&](const QColor& dot, const QString& text) {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dot);
+        painter->drawEllipse(QRectF(x, countsY + 6, 8, 8));
+        x += 12;
+        painter->setPen(colors.textMuted);
+        painter->drawText(QRect(x, countsY, textWidth, 20), Qt::AlignVCenter, text);
+        x += painter->fontMetrics().horizontalAdvance(text) + 12;
+    };
+    if (invite->onlineCount >= 0)
+        drawCount(colors.success, tr("%n Online", nullptr, invite->onlineCount));
+    if (invite->memberCount >= 0)
+        drawCount(colors.textMuted, tr("%n Members", nullptr, invite->memberCount));
+
+    const bool member = invite->guildId.isEmpty() ? m_session->privateChannel(invite->channelId) != nullptr
+                                                  : m_session->guild(invite->guildId) != nullptr;
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(member ? colors.button : colors.success);
+    painter->drawRoundedRect(button, 4, 4);
+    painter->setFont(messageFont(base, 14, QFont::DemiBold));
+    painter->setPen(member ? colors.textBright : colors.onAccent);
+    painter->drawText(button, Qt::AlignCenter, member ? tr("Joined") : tr("Join"));
+}
+
 // --- MessageListView --------------------------------------------------------------------------------
 
 MessageListView::MessageListView(MessageDelegate* delegate, QWidget* parent)
@@ -927,6 +1172,60 @@ MessageListView::MessageListView(MessageDelegate* delegate, QWidget* parent)
     });
 }
 
+void MessageListView::copySelection() const
+{
+    const QString text = m_delegate->selectedText();
+    if (!text.isEmpty())
+        QApplication::clipboard()->setText(text);
+}
+
+MessageDelegate::TextPoint MessageListView::textPointAt(const QPoint& position) const
+{
+    if (!model() || model()->rowCount() == 0)
+        return {};
+    // Dragging past the top or bottom of the list keeps selecting from the first or last visible row.
+    const QPoint inside(position.x(), std::clamp(position.y(), 0, viewport()->height() - 1));
+    QModelIndex index = indexAt(inside);
+    if (!index.isValid())
+        index = model()->index(model()->rowCount() - 1, 0); // the empty space below the newest message
+    return m_delegate->textPointAt(index, visualRect(index), position);
+}
+
+void MessageListView::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton) {
+        if (m_delegate->hasSelection()) {
+            m_delegate->clearSelection();
+            viewport()->update();
+        }
+        m_selecting = false;
+        m_pressPosition = event->position().toPoint();
+        const auto kind = hitAt(m_pressPosition).kind;
+        // Text (links included) starts a selection when dragged; pictures, buttons and names don't.
+        const bool onText = kind == MessageDelegate::Hit::None || kind == MessageDelegate::Hit::Link
+                            || kind == MessageDelegate::Hit::Spoiler;
+        m_pressPoint = onText ? textPointAt(m_pressPosition) : MessageDelegate::TextPoint{};
+    }
+    QListView::mousePressEvent(event);
+}
+
+void MessageListView::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    const QPoint position = event->position().toPoint();
+    const QModelIndex index = indexAt(position);
+    if (event->button() != Qt::LeftButton || !m_delegate->isOverText(index, visualRect(index), position)) {
+        QListView::mouseDoubleClickEvent(event);
+        return;
+    }
+    // A double click selects the word; dragging on extends the selection from there.
+    const auto [start, end] = m_delegate->wordAt(index, m_delegate->textPointAt(index, visualRect(index), position));
+    m_delegate->setSelection(start, end);
+    m_pressPoint = start;
+    m_selecting = true;
+    emit selectionStarted();
+    viewport()->update();
+}
+
 bool MessageListView::isAtBottom() const
 {
     return verticalScrollBar()->value() >= verticalScrollBar()->maximum() - 8;
@@ -942,8 +1241,36 @@ MessageDelegate::Hit MessageListView::hitAt(const QPoint& position) const
 
 void MessageListView::mouseMoveEvent(QMouseEvent* event)
 {
-    const auto hit = hitAt(event->position().toPoint());
-    viewport()->setCursor(hit.kind == MessageDelegate::Hit::None ? Qt::ArrowCursor : Qt::PointingHandCursor);
+    const QPoint position = event->position().toPoint();
+    if ((event->buttons() & Qt::LeftButton) && m_pressPoint.isValid()) {
+        if (!m_selecting && (position - m_pressPosition).manhattanLength() >= QApplication::startDragDistance()) {
+            m_selecting = true;
+            emit selectionStarted();
+        }
+        if (m_selecting) {
+            // Scrolls along when the drag leaves the list at the top or bottom.
+            if (position.y() < 0)
+                verticalScrollBar()->setValue(verticalScrollBar()->value() + position.y());
+            else if (position.y() >= viewport()->height())
+                verticalScrollBar()->setValue(verticalScrollBar()->value() + position.y() - viewport()->height() + 1);
+            const auto focus = textPointAt(position);
+            if (focus.isValid()) {
+                m_delegate->setSelection(m_pressPoint, focus);
+                viewport()->update();
+            }
+            viewport()->setCursor(Qt::IBeamCursor);
+            return;
+        }
+    }
+
+    const auto hit = hitAt(position);
+    if (hit.kind != MessageDelegate::Hit::None) {
+        viewport()->setCursor(Qt::PointingHandCursor);
+    } else {
+        const QModelIndex index = indexAt(position);
+        viewport()->setCursor(m_delegate->isOverText(index, visualRect(index), position) ? Qt::IBeamCursor
+                                                                                         : Qt::ArrowCursor);
+    }
     QListView::mouseMoveEvent(event);
 }
 
@@ -952,6 +1279,12 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
     QListView::mouseReleaseEvent(event);
     if (event->button() != Qt::LeftButton)
         return;
+    m_pressPoint = {};
+    if (m_selecting) {
+        // The end of a selection drag, not a click on what's under the mouse.
+        m_selecting = false;
+        return;
+    }
     const auto hit = hitAt(event->position().toPoint());
     switch (hit.kind) {
     case MessageDelegate::Hit::Link:
@@ -972,6 +1305,9 @@ void MessageListView::mouseReleaseEvent(QMouseEvent* event)
         break;
     case MessageDelegate::Hit::Reply:
         emit replyClicked(hit.url);
+        break;
+    case MessageDelegate::Hit::Invite:
+        emit inviteClicked(hit.url, hit.messageId);
         break;
     case MessageDelegate::Hit::Author:
         emit userClicked(hit.url, event->globalPosition().toPoint());

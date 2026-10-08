@@ -259,6 +259,11 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
     de -60 dB.
   - **Sons (`SoundEffects`):** sintetizados em código, sem arquivos e sem os sons do Discord.
     Tocam num stream de saída próprio, aberto só enquanto há som tocando.
+    - Página **Configurações > Sound Effects**: cada som (entrar/sair, alguém entra/sai, mutar, ensurdecer,
+      alguém muta/desmuta, toque, mensagem) tem um estilo (`Classic`, `Soft`, `Digital`, `Pop` ou `Off`), com botão
+      de prévia. Só o estilo escolhido fica em memória; salvo no QSettings em `sounds/<som>`.
+    - Opção **"tocar um som quando outros mutarem/desmutarem"** (`voice/participantMuteSounds`, desligada por
+      padrão): `VoiceController::updateParticipants` compara `selfMute || mute` de quem continua no canal.
   - **Chamadas em DM e grupos:**
     - Capability `AUTO_CALL_CONNECT`; eventos `CALL_CREATE`, `CALL_UPDATE` e `CALL_DELETE`.
     - `VOICE_STATE_UPDATE` sem `guild_id`; o `server_id` da voz é o ID do canal.
@@ -424,12 +429,48 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Limitação:** no Flatpak o sandbox não enxerga os processos do sistema, então jogos não são detectados lá.
 - **Falta o teste real** com uma conta.
 
+### Pastas de servidores e convites
+
+- **Pastas:** `core/GuildFolders` guarda o modelo (configuração `guild_folders` da conta) e as operações de
+  arrastar (`moveGuild`, `moveFolder`), com testes em `tests/GuildFoldersTest.cpp`. Servidores novos aparecem no
+  topo. Salvar usa `PATCH /users/@me/settings` com `guild_folders` (mesmo endpoint legado do status; o cliente
+  oficial usa o `settings-proto`). Mudanças vindas de outros clientes chegam por `USER_SETTINGS_UPDATE`.
+- **Barra (`app/ServerRail`):** arrastar reordena; soltar um servidor no meio de outro cria pasta; no meio de uma
+  pasta fechada, coloca dentro. Pastas abertas ficam no QSettings (`ui/openFolders`, só local, como no Discord).
+  Botão direito: "Convidar pessoas" e "Sair do servidor" (dono não vê); na pasta, "Configurações da pasta"
+  (nome e cor, `app/ServerDialogs`). Botão "+" abre "Entrar em um servidor".
+- **Convites:** `GET /invites/{code}?with_counts=true&with_expiration=true` (com `inputValue` quando digitado),
+  em cache por 5 min, inclusive falhas. Entrar: `POST /invites/{code}` com `session_id` e o header
+  `X-Context-Properties` ("Join Guild" no diálogo, "Invite Button Embed" no cartão do chat). Criar:
+  `POST /channels/{id}/invites` (7 dias, sem limite de usos), exige `CREATE_INSTANT_INVITE`. "Convidar" para uma DM
+  manda o link como mensagem normal, como o cliente oficial. Sair: `DELETE /users/@me/guilds/{id}`.
+- **Chat:** links `discord.gg/...` e `discord.com/invite/...` ganham um cartão com o servidor e o botão "Entrar"
+  (`MessageDelegate::paintInvite`); clicar no link abre o diálogo de convite dentro do app.
+- **Captcha:** entrar em servidor pode pedir captcha; o app mostra o erro (sem alternativa).
+- **Falta o teste real** com uma conta.
+
+### Gerenciar canais
+
+- **Permissão:** `MANAGE_CHANNELS` (`Session::canManageChannels`): no servidor para criar fora de categoria, na
+  categoria para criar dentro dela, no próprio canal para editar/excluir. Sem permissão, as opções não aparecem.
+- **Criar:** `POST /guilds/{id}/channels` com `type`, `name`, `permission_overwrites: []` e `parent_id` (se em
+  categoria). Aberto pelo "+" que aparece ao passar o mouse numa categoria, pelo botão direito na lista de canais
+  (ou no espaço vazio) e pelo menu do servidor na barra. Canal de texto novo abre na hora.
+- **Editar:** `PATCH /channels/{id}` só com os campos alterados (`app/ChannelSettingsDialog`): nome; texto tem tópico,
+  modo lento e restrição de idade; voz tem bitrate (máximo pelo nível de boost: 96/128/256/384 kbps) e limite de
+  usuários. Categorias só têm nome. Nome de canal de texto vira minúsculo com hífens enquanto digita.
+- **Excluir:** `DELETE /channels/{id}`, sempre com confirmação. Se o canal aberto some, o app vai para outro.
+- A resposta da API já atualiza a `Session` (o evento do gateway chega depois e só confirma).
+- **Falta o teste real** com uma conta.
+
 ### Animações
 
 - **`app/Motion`** concentra tudo: transições curtas (120–180 ms) que só gastam CPU enquanto rodam; parado,
   continua ~0%.
   - `Motion::Value`: número que desliza até o alvo (pílula e forma dos ícones na `ServerRail`, borda verde do
-    `ParticipantTile`).
+    `ParticipantTile`). `setOnChange` permite redimensionar algo junto: as pastas da `ServerRail` abrem e fecham
+    deslizando (caixa com os servidores muda de altura e recorta) e o mosaico de ícones vira o símbolo de pasta
+    com fade.
   - `Motion::ItemAnimator`: hover/seleção/fala em delegates (`ChannelSidebar`, `MemberListView`), repintando só
     as linhas em movimento.
   - Popups, menus, tooltips e diálogos aparecem com fade (opacidade da janela, via filtro no app). Desligado no

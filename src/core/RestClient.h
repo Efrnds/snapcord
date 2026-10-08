@@ -9,6 +9,7 @@
 
 #include <QNetworkRequest>
 
+class OrderedJson;
 class QIODevice;
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -40,10 +41,13 @@ public:
     bool isOffline() const { return m_offline; }
 
     void get(const QString& path, Callback callback);
-    void post(const QString& path, const QJsonDocument& body, Callback callback);
+    // `contextProperties` is the X-Context-Properties header: where in the interface the action started, which
+    // the official client sends with some requests (e.g. joining a server). Empty = no header.
+    void post(const QString& path, const QJsonDocument& body, Callback callback, const OrderedJson* contextProperties = nullptr);
     void patch(const QString& path, const QJsonDocument& body, Callback callback);
     void put(const QString& path, Callback callback);
     void deleteResource(const QString& path, Callback callback);
+    void deleteResource(const QString& path, const QJsonDocument& body, Callback callback);
     // Uploads a file's bytes to a storage URL handed out by the API, without the API's headers. `device`
     // must stay open until the callback runs.
     void putToStorage(const QUrl& url, QIODevice* device, qint64 size, ProgressCallback progress, Callback callback);
@@ -57,6 +61,7 @@ private:
         bool hasBody = false;
         Callback callback;
         int attempt = 0;
+        QByteArray contextProperties;
     };
 
     void send(Request request);

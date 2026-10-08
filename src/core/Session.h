@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/GuildFolders.h"
 #include "core/Message.h"
 #include "core/MessageStore.h"
 #include "core/Models.h"
@@ -39,6 +40,10 @@ public:
     QString sessionId() const;
 
     QStringList guildOrder() const { return m_guildOrder; }
+    // The server list as arranged by the user: folders and single servers, every guild exactly once.
+    QList<GuildFolder> guildFolders() const { return m_guildFolders; }
+    // Rearranges the server list and saves it to the account, so the official clients show it the same way.
+    void setGuildFolders(const QList<GuildFolder>& folders);
     const Guild* guild(const QString& id) const;
     const Channel* channel(const QString& guildId, const QString& channelId) const;
     // Channels the user can see, sorted the way Discord shows them (categories with their children).
@@ -124,6 +129,43 @@ public:
     // status. `source` keeps them apart ("game", "spotify"); an empty activity removes that source's one.
     void setLocalActivity(const QString& source, const QJsonObject& activity);
 
+    // Invites. Looking one up is cached for a few minutes (also when it fails), so the same link in many
+    // messages is asked for once; `invite` is null on failure, with an error text.
+    using InviteCallback = std::function<void(const InviteInfo* invite, const QString& error)>;
+    // `typed` = the code was typed in the "Join a Server" dialog (the official client says so in the request).
+    void fetchInvite(const QString& code, bool typed, InviteCallback callback);
+    // The cached invite, or null when it was not looked up yet / failed.
+    const InviteInfo* cachedInvite(const QString& code) const;
+    bool inviteFailed(const QString& code) const;
+    // Demo mode: an invite that never expires and never touches the network.
+    void cacheInvite(const InviteInfo& invite);
+    // Where the user clicked "Join": a message's invite card, or the "Join a Server" dialog (no message).
+    struct InviteSource
+    {
+        QString guildId;
+        QString channelId;
+        int channelType = 0;
+        QString messageId;
+    };
+    void acceptInvite(const InviteInfo& invite, const InviteSource& source, ResultCallback callback);
+    // The channel an invite to this guild is made for: `preferred` when the user may invite there, else the
+    // first channel that allows it. Empty when the user cannot invite anyone.
+    QString inviteChannel(const QString& guildId, const QString& preferred = {}) const;
+    // A new 7-day, unlimited invite to the channel, like the official "Invite People" dialog creates.
+    void createInvite(const QString& channelId, InviteCallback callback);
+    void leaveGuild(const QString& guildId, ResultCallback callback);
+
+    // Channel management (Manage Channels permission). An empty `channelId` asks about the server as a
+    // whole; a category's own permissions decide whether channels can be created inside it.
+    bool canManageChannels(const QString& guildId, const QString& channelId = {}) const;
+    // `callback` gets the new channel's ID, or an empty ID and an error text.
+    using ChannelCallback = std::function<void(const QString& channelId, const QString& error)>;
+    void createChannel(const QString& guildId, ChannelType type, const QString& name, const QString& parentId,
+                       ChannelCallback callback);
+    // `changes` holds only the fields that changed (name, topic, nsfw, rate_limit_per_user, bitrate, user_limit).
+    void editChannel(const QString& channelId, const QJsonObject& changes, ResultCallback callback);
+    void deleteChannel(const QString& guildId, const QString& channelId, ResultCallback callback);
+
     RestClient* rest() const { return m_rest; }
 
 signals:
@@ -151,6 +193,8 @@ signals:
     void notificationMessage(const Message& message);
     // Connected accounts (Spotify, Steam...) were added, removed or changed.
     void connectionsChanged();
+    // An invite looked up for a message finished loading (or failed).
+    void inviteLoaded(const QString& code);
 
 private:
     void onDispatch(const QString& event, const QJsonObject& data);
@@ -174,6 +218,8 @@ private:
     void sendOwnPresence();
     void patchSettings(const QJsonObject& changes);
     void forgetOwnProfile();
+    void loadGuildFolders(const QList<GuildFolder>& folders);
+    void storeChannel(const QJsonObject& json);
 
     struct CachedProfile
     {
@@ -193,7 +239,16 @@ private:
     QString m_token;
     User m_self;
     QHash<QString, Guild> m_guilds;
-    QStringList m_guildOrder;
+    QStringList m_guildOrder; // m_guildFolders flattened
+    QList<GuildFolder> m_guildFolders;
+    struct CachedInvite
+    {
+        std::optional<InviteInfo> invite; // empty when the lookup failed
+        QString error;
+        qint64 fetchedAt = 0;
+    };
+    QHash<QString, CachedInvite> m_invites; // by code
+    QHash<QString, QList<InviteCallback>> m_pendingInvites;
     QHash<QString, User> m_users;
     QHash<QString, QSet<QString>> m_missingUsers; // guild ID -> user IDs to request
     QTimer m_missingUsersTimer;

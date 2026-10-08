@@ -27,6 +27,7 @@ enum Role {
     UnreadRole,
     MentionsRole,
     ChannelMutedRole,
+    CanCreateRole,
 };
 
 using ItemKind = ChannelSidebar::ItemKind;
@@ -47,6 +48,12 @@ int drawMentionBadge(QPainter* painter, int right, int centerY, int count, const
     painter->setPen(Theme::instance().palette().onAccent);
     painter->drawText(badge, Qt::AlignCenter, text);
     return badge.left();
+}
+
+// The "+" drawn on a category row that can have new channels.
+QRect createButtonRect(const QRect& row)
+{
+    return QRect(row.right() - 24, row.bottom() - 21, 16, 16);
 }
 
 ItemKind kindOf(const QModelIndex& index)
@@ -115,12 +122,26 @@ public:
                 ? QPolygonF{center + QPointF(-3, -1.5), center + QPointF(0, 1.5), center + QPointF(3, -1.5)}
                 : QPolygonF{center + QPointF(-1.5, -3), center + QPointF(1.5, 0), center + QPointF(-1.5, 3)};
             painter->drawPolyline(chevron);
+            int textRight = rect.right() - 8;
+            if (index.data(CanCreateRole).toBool()) {
+                textRight = createButtonRect(rect).left() - 4;
+                if (hover > 0.0) {
+                    QColor plusColor = colors.text;
+                    plusColor.setAlphaF(hover);
+                    painter->setPen(QPen(plusColor, 1.6, Qt::SolidLine, Qt::RoundCap));
+                    const QPointF c = QRectF(createButtonRect(rect)).center();
+                    painter->drawLine(c + QPointF(-5, 0), c + QPointF(5, 0));
+                    painter->drawLine(c + QPointF(0, -5), c + QPointF(0, 5));
+                }
+            }
             font.setPixelSize(12);
             font.setWeight(QFont::DemiBold);
             painter->setFont(font);
             painter->setPen(color);
-            painter->drawText(rect.adjusted(20, 0, -8, -6), Qt::AlignLeft | Qt::AlignBottom,
-                              index.data(Qt::DisplayRole).toString().toUpper());
+            const QRect textRect = QRect(rect.left() + 20, rect.top(), textRight - rect.left() - 20, rect.height() - 6);
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignBottom,
+                              painter->fontMetrics().elidedText(index.data(Qt::DisplayRole).toString().toUpper(),
+                                                                Qt::ElideRight, textRect.width()));
             break;
         }
         case ItemKind::TextChannel:
@@ -253,8 +274,17 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
     connect(m_tree, &QTreeWidget::itemClicked, this, &ChannelSidebar::onItemClicked);
     connect(m_tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint& position) {
         QTreeWidgetItem* item = m_tree->itemAt(position);
-        if (item && static_cast<ItemKind>(item->data(0, KindRole).toInt()) == ItemKind::VoiceMember)
-            emit memberContextMenuRequested(item->data(0, IdRole).toString(), m_tree->viewport()->mapToGlobal(position));
+        const QPoint global = m_tree->viewport()->mapToGlobal(position);
+        if (!item) {
+            emit channelContextMenuRequested(QString(), ItemKind::Category, global);
+            return;
+        }
+        const auto kind = static_cast<ItemKind>(item->data(0, KindRole).toInt());
+        const QString id = item->data(0, IdRole).toString();
+        if (kind == ItemKind::VoiceMember)
+            emit memberContextMenuRequested(id, global);
+        else if (kind != ItemKind::DirectMessage)
+            emit channelContextMenuRequested(id, kind, global);
     });
     connect(&Theme::instance(), &Theme::changed, m_tree->viewport(), QOverload<>::of(&QWidget::update));
 
@@ -281,12 +311,13 @@ void ChannelSidebar::beginRebuild()
     m_currentVoiceChannel = nullptr;
 }
 
-void ChannelSidebar::addCategory(const QString& id, const QString& name)
+void ChannelSidebar::addCategory(const QString& id, const QString& name, bool canCreate)
 {
     auto* item = new QTreeWidgetItem(m_tree, {name});
     item->setFlags(Qt::ItemIsEnabled);
     item->setData(0, IdRole, id);
     item->setData(0, KindRole, static_cast<int>(ItemKind::Category));
+    item->setData(0, CanCreateRole, canCreate);
     m_currentCategory = item;
     m_currentVoiceChannel = nullptr;
 }
@@ -371,6 +402,11 @@ void ChannelSidebar::onItemClicked(QTreeWidgetItem* item)
     const auto kind = static_cast<ItemKind>(item->data(0, KindRole).toInt());
     const QString id = item->data(0, IdRole).toString();
     if (kind == ItemKind::Category) {
+        if (item->data(0, CanCreateRole).toBool()
+            && createButtonRect(m_tree->visualItemRect(item)).contains(m_tree->viewport()->mapFromGlobal(QCursor::pos()))) {
+            emit createChannelRequested(id);
+            return;
+        }
         const bool collapse = item->isExpanded();
         item->setExpanded(!collapse);
         if (collapse)
