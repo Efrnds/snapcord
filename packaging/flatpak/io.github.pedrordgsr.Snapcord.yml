@@ -13,6 +13,7 @@ finish-args:
   - --socket=fallback-x11
   - --socket=pulseaudio
   - --device=dri
+  # In-app .mp4/.webm uses Qt Multimedia. The KDE runtime supplies that module plus GStreamer.
   # Login token storage (GNOME Keyring, KDE Wallet...), notifications and the tray icon.
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.freedesktop.Notifications

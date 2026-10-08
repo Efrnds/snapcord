@@ -33,7 +33,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
-          modules: 'qtwebsockets qtimageformats'
+          modules: 'qtwebsockets qtimageformats qtmultimedia'
           cache: true
 
       - name: Install CMake and Ninja
@@ -45,11 +45,16 @@ jobs:
           sudo apt-get update
           # Build tools for vcpkg ports (libsodium uses autotools), libsecret for the keyring, and the
           # X11/OpenGL libraries Qt's plugins link to (linuxdeploy checks them while packaging).
+          # Qt Multimedia on this Qt build uses the FFmpeg plugin shipped with the qtmultimedia
+          # module. GStreamer is the media stack on the Flatpak runtime and on distros that select
+          # that backend, so the plugins are installed here too.
           sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config \
             dpkg-dev \
             libsecret-1-dev libgl1-mesa-dev libegl1 libxkbcommon-dev libxkbcommon-x11-0 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+            gstreamer1.0-libav gstreamer1.0-alsa gstreamer1.0-pulseaudio
 
       - name: macOS dependencies
         if: runner.os == 'macOS'

@@ -369,6 +369,49 @@
     </message>
 </context>
 <context>
+    <name>VideoViewer</name>
+    <message>
+        <source>Loading…</source>
+        <translation>Carregando…</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausar</translation>
+    </message>
+    <message>
+        <source>Mute</source>
+        <translation>Mutar</translation>
+    </message>
+    <message>
+        <source>Volume</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <source>Progress</source>
+        <translation>Progresso</translation>
+    </message>
+    <message>
+        <source>Open in browser</source>
+        <translation>Abrir no navegador</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Fechar</translation>
+    </message>
+    <message>
+        <source>Could not play this video.</source>
+        <translation>Não foi possível reproduzir este vídeo.</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Reproduzir</translation>
+    </message>
+    <message>
+        <source>Unmute</source>
+        <translation>Desmutar</translation>
+    </message>
+</context>
+<context>
     <name>IncomingCallWindow</name>
     <message>
         <location filename="../src/app/IncomingCallWindow.cpp" line="26"/>

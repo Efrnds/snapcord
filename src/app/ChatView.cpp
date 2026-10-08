@@ -4,6 +4,7 @@
 #include "EmojiPicker.h"
 #include "ImageCache.h"
 #include "ImageViewer.h"
+#include "VideoViewer.h"
 #include "MemberListView.h"
 #include "Motion.h"
 #include "MentionPopup.h"
@@ -950,12 +951,18 @@ void ChatView::openImage(const QString& url, bool video, bool web)
 {
     if (!url.startsWith(u"http://") && !url.startsWith(u"https://"))
         return;
-    // No in-app player (keeps Qt Multimedia / WebEngine out): videos and embeds open in the browser.
-    if (video || web) {
-        QDesktopServices::openUrl(QUrl(url));
+    const QUrl parsed(url);
+    // YouTube, Twitch and other page embeds always leave the app. Only a direct Discord
+    // .mp4/.webm is played here; other video files follow the same browser path.
+    if (web || (video && !VideoViewer::isDiscordFile(parsed))) {
+        QDesktopServices::openUrl(parsed);
         return;
     }
-    ImageViewer::open(QUrl(url), m_images, window());
+    if (video) {
+        VideoViewer::open(parsed, window());
+        return;
+    }
+    ImageViewer::open(parsed, m_images, window());
 }
 
 void ChatView::jumpTo(const QString& messageId)

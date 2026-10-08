@@ -59,8 +59,8 @@ public:
         QString url;
         QString messageId;
         int reactionIndex = -1;
-        bool video = false; // Discord mp4/webm — native player
-        bool web = false;   // YouTube etc. — in-app WebEngine embed
+        bool video = false; // direct video file (Discord .mp4/.webm play in-app)
+        bool web = false;   // YouTube, Twitch and other page embeds — system browser
     };
 
     MessageDelegate(Session* session, ImageCache* images, MessageModel* model, QObject* parent = nullptr);
