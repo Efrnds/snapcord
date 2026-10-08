@@ -30,6 +30,7 @@ Use at your own risk.
   per-user volume
 - **Chat:** text channels and direct messages with Discord's markdown, emojis, images, embeds, replies,
   reactions, editing and unread indicators
+- **Drafts:** unfinished messages, attachments, replies and edits stay in their channels while the app is open
 - **Notifications** for direct messages and mentions
 - Login with a **QR code** (Discord mobile app) or a token
 - Layout faithful to the official client, in **English** and **Brazilian Portuguese**

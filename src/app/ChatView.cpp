@@ -37,6 +37,7 @@
 #include <QPaintEvent>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QScopedValueRollback>
 #include <QSettings>
 #include <QTextBlock>
 #include <QToolButton>
@@ -332,7 +333,7 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
             updateMentionPopup();
     });
     connect(m_composer, &QPlainTextEdit::textChanged, this, [this] {
-        if (m_editing.isEmpty() && !m_composer->toPlainText().isEmpty())
+        if (!m_restoringDraft && m_editing.isEmpty() && !m_composer->toPlainText().isEmpty())
             m_session->sendTyping(m_channelId);
     });
     connect(m_list, &MessageListView::linkActivated, this, &ChatView::openLink);
@@ -412,6 +413,12 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
         updateMemberList();
         return;
     }
+    saveDraft();
+    // Restoring a draft is not user typing: do not send typing events or open a mention search.
+    const QScopedValueRollback<bool> restoringDraft(m_restoringDraft, true);
+    m_memberSearchTimer.stop();
+    m_memberQuery.clear();
+    m_mentionStart = -1;
     m_guildId = guildId;
     m_channelId = channelId;
     updateMemberList();
@@ -427,7 +434,40 @@ void ChatView::showChannel(const QString& guildId, const QString& channelId)
     m_session->messages()->open(channelId);
     m_model->setChannel(channelId);
     refreshHeader();
+    restoreDraft();
     m_composer->setFocus();
+}
+
+void ChatView::saveDraft()
+{
+    if (m_channelId.isEmpty())
+        return;
+    const QString text = m_composer->toPlainText();
+    if (text.isEmpty() && m_files.isEmpty() && m_replyTo.isEmpty() && m_editing.isEmpty()) {
+        m_drafts.remove(m_channelId);
+        return;
+    }
+    const QTextCursor cursor = m_composer->textCursor();
+    m_drafts.insert(m_channelId, Draft{text, m_mentionTokens, m_files, m_replyTo, m_editing,
+                                       m_modeLabel->text(), cursor.position(), cursor.anchor()});
+}
+
+void ChatView::restoreDraft()
+{
+    // The active composer owns the draft, avoiding a second retained copy after sending or clearing it.
+    const Draft draft = m_drafts.take(m_channelId);
+    m_mentionTokens = draft.mentions;
+    m_files = draft.files;
+    m_replyTo = draft.replyTo;
+    m_editing = draft.editing;
+    m_modeLabel->setText(draft.modeLabel);
+    m_modeBar->setVisible(!m_replyTo.isEmpty() || !m_editing.isEmpty());
+    m_composer->setPlainText(draft.text);
+    QTextCursor cursor = m_composer->textCursor();
+    cursor.setPosition(qBound(0, draft.anchor, static_cast<int>(draft.text.size())));
+    cursor.setPosition(qBound(0, draft.cursor, static_cast<int>(draft.text.size())), QTextCursor::KeepAnchor);
+    m_composer->setTextCursor(cursor);
+    updateAttachments();
 }
 
 void ChatView::updateMemberList()
@@ -609,6 +649,8 @@ bool ChatView::canMentionEveryone() const
 
 void ChatView::updateMentionPopup()
 {
+    if (m_restoringDraft)
+        return;
     // Find an "@" or "#" that starts a word and leads, without spaces, to the cursor.
     const QTextCursor cursor = m_composer->textCursor();
     m_mentionStart = -1;
