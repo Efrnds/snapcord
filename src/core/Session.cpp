@@ -1094,6 +1094,79 @@ void Session::leaveGuild(const QString& guildId, ResultCallback callback)
                            });
 }
 
+bool Session::canManageChannels(const QString& guildId, const QString& channelId) const
+{
+    const Guild* g = guild(guildId);
+    if (!g)
+        return false;
+    if (channelId.isEmpty())
+        return Permissions::compute(*g, Channel(), m_self.id) & Permissions::ManageChannels;
+    const Channel* c = channel(guildId, channelId);
+    if (!c)
+        return false;
+    const quint64 permissions = Permissions::compute(*g, *c, m_self.id);
+    return (permissions & Permissions::ViewChannel) && (permissions & Permissions::ManageChannels);
+}
+
+void Session::storeChannel(const QJsonObject& json)
+{
+    // The Gateway sends the same channel again (CHANNEL_CREATE / CHANNEL_UPDATE); storing the reply right
+    // away lets the interface show the change without waiting for it.
+    const Channel channel = Channel::fromJson(json, QString());
+    auto it = m_guilds.find(channel.guildId);
+    if (channel.id.isEmpty() || it == m_guilds.end())
+        return;
+    it->channels.insert(channel.id, channel);
+    emit guildChanged(channel.guildId);
+}
+
+void Session::createChannel(const QString& guildId, ChannelType type, const QString& name, const QString& parentId,
+                            ChannelCallback callback)
+{
+    // The body of the official "Create Channel" dialog (for a channel that is not private).
+    QJsonObject body{{QStringLiteral("type"), static_cast<int>(type)},
+                     {QStringLiteral("name"), name},
+                     {QStringLiteral("permission_overwrites"), QJsonArray()}};
+    if (!parentId.isEmpty())
+        body.insert(QStringLiteral("parent_id"), parentId);
+    m_rest->post(QStringLiteral("/guilds/%1/channels").arg(guildId), QJsonDocument(body),
+                 [this, callback](const RestClient::Response& response) {
+                     if (!response.ok()) {
+                         if (callback)
+                             callback(QString(), errorText(response));
+                         return;
+                     }
+                     storeChannel(response.body.object());
+                     if (callback)
+                         callback(response.body.object().value(u"id").toString(), QString());
+                 });
+}
+
+void Session::editChannel(const QString& channelId, const QJsonObject& changes, ResultCallback callback)
+{
+    m_rest->patch(QStringLiteral("/channels/") + channelId, QJsonDocument(changes),
+                  [this, callback](const RestClient::Response& response) {
+                      if (response.ok())
+                          storeChannel(response.body.object());
+                      if (callback)
+                          callback(response.ok() ? QString() : errorText(response));
+                  });
+}
+
+void Session::deleteChannel(const QString& guildId, const QString& channelId, ResultCallback callback)
+{
+    m_rest->deleteResource(QStringLiteral("/channels/") + channelId,
+                           [this, guildId, channelId, callback](const RestClient::Response& response) {
+                               if (response.ok()) {
+                                   auto it = m_guilds.find(guildId);
+                                   if (it != m_guilds.end() && it->channels.remove(channelId))
+                                       emit guildChanged(guildId);
+                               }
+                               if (callback)
+                                   callback(response.ok() ? QString() : errorText(response));
+                           });
+}
+
 void Session::patchSettings(const QJsonObject& changes)
 {
     // The legacy JSON settings endpoint still syncs status and custom status to the other clients.

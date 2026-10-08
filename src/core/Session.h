@@ -155,6 +155,17 @@ public:
     void createInvite(const QString& channelId, InviteCallback callback);
     void leaveGuild(const QString& guildId, ResultCallback callback);
 
+    // Channel management (Manage Channels permission). An empty `channelId` asks about the server as a
+    // whole; a category's own permissions decide whether channels can be created inside it.
+    bool canManageChannels(const QString& guildId, const QString& channelId = {}) const;
+    // `callback` gets the new channel's ID, or an empty ID and an error text.
+    using ChannelCallback = std::function<void(const QString& channelId, const QString& error)>;
+    void createChannel(const QString& guildId, ChannelType type, const QString& name, const QString& parentId,
+                       ChannelCallback callback);
+    // `changes` holds only the fields that changed (name, topic, nsfw, rate_limit_per_user, bitrate, user_limit).
+    void editChannel(const QString& channelId, const QJsonObject& changes, ResultCallback callback);
+    void deleteChannel(const QString& guildId, const QString& channelId, ResultCallback callback);
+
     RestClient* rest() const { return m_rest; }
 
 signals:
@@ -208,6 +219,7 @@ private:
     void patchSettings(const QJsonObject& changes);
     void forgetOwnProfile();
     void loadGuildFolders(const QList<GuildFolder>& folders);
+    void storeChannel(const QJsonObject& json);
 
     struct CachedProfile
     {

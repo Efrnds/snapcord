@@ -7,16 +7,25 @@
 #include "Theme.h"
 #include "core/Session.h"
 
+#include <QCheckBox>
 #include <QClipboard>
 #include <QColorDialog>
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMessageBox>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
+#include <QRadioButton>
+#include <QRegularExpression>
+#include <QSlider>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QTimer>
@@ -67,6 +76,38 @@ void setupDialog(QDialog* dialog, const QString& title)
 constexpr int FolderColors[] = {0x5865F2, 0x1ABC9C, 0x2ECC71, 0x3498DB, 0x9B59B6, 0xE91E63, 0xF1C40F, 0xE67E22,
                                 0xE74C3C, 0x95A5A6, 0x607D8B, 0x11806A, 0x1F8B4C, 0x206694, 0x71368A, 0xAD1457,
                                 0xC27C0E, 0xA84300, 0x992D22, 0x979C9F, 0x546E7A};
+
+// Text channel names are lowercase with dashes for spaces; the official client changes them while typing.
+void keepTextChannelName(QLineEdit* field, const std::function<bool()>& isText)
+{
+    QObject::connect(field, &QLineEdit::textEdited, field, [field, isText](const QString& text) {
+        if (!isText())
+            return;
+        static const QRegularExpression spaces(QStringLiteral("\\s+"));
+        const QString fixed = text.toLower().replace(spaces, QStringLiteral("-"));
+        if (fixed != text) {
+            const int cursor = field->cursorPosition();
+            field->setText(fixed);
+            field->setCursorPosition(std::min<int>(cursor, fixed.size()));
+        }
+    });
+}
+
+QLabel* errorLabel()
+{
+    auto* label = new QLabel;
+    label->setObjectName(QStringLiteral("profileError"));
+    label->setWordWrap(true);
+    label->hide();
+    return label;
+}
+
+QString channelLabel(const Channel& channel)
+{
+    if (channel.type == ChannelType::GuildCategory || channel.isVoice())
+        return channel.name;
+    return u'#' + channel.name;
+}
 
 } // namespace
 
@@ -429,4 +470,330 @@ void FolderSettingsDialog::selectColor(int color)
     }
     m_custom->setSwatchColor(preset ? Theme::instance().palette().surface : QColor::fromRgb(QRgb(shown)));
     m_custom->setSelectedSwatch(!preset);
+}
+
+// --- CreateChannelDialog ---------------------------------------------------------------------------
+
+CreateChannelDialog::CreateChannelDialog(Session* session, const QString& guildId, const QString& categoryId, QWidget* parent)
+    : QDialog(parent)
+    , m_session(session)
+    , m_guildId(guildId)
+    , m_categoryId(categoryId)
+    , m_text(new QRadioButton(tr("Text")))
+    , m_voice(new QRadioButton(tr("Voice")))
+    , m_name(new QLineEdit)
+    , m_error(errorLabel())
+    , m_create(button(tr("Create Channel"), "brandButton"))
+{
+    setupDialog(this, tr("Create Channel"));
+    m_text->setChecked(true);
+    m_name->setPlaceholderText(QStringLiteral("new-channel"));
+    m_name->setMaxLength(100);
+    m_create->setEnabled(false);
+    keepTextChannelName(m_name, [this] { return m_text->isChecked(); });
+
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(24, 24, 24, 20);
+    layout->setSpacing(6);
+    layout->addWidget(titleLabel(tr("Create Channel")));
+    if (const Channel* category = session->channel(guildId, categoryId))
+        layout->addWidget(hintLabel(tr("in %1").arg(category->name)));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Channel Type")));
+    layout->addWidget(m_text);
+    layout->addWidget(hintLabel(tr("Send messages, images, GIFs, emoji, opinions, and puns")));
+    layout->addSpacing(4);
+    layout->addWidget(m_voice);
+    layout->addWidget(hintLabel(tr("Hang out together with voice")));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(tr("Channel Name")));
+    layout->addWidget(m_name);
+    layout->addWidget(m_error);
+    layout->addStretch();
+    auto* cancel = button(tr("Cancel"), "secondaryButton");
+    auto* buttons = new QHBoxLayout;
+    buttons->addStretch();
+    buttons->addWidget(cancel);
+    buttons->addWidget(m_create);
+    layout->addLayout(buttons);
+    resize(440, 420);
+
+    connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_create, &QPushButton::clicked, this, &CreateChannelDialog::create);
+    connect(m_name, &QLineEdit::returnPressed, this, &CreateChannelDialog::create);
+    connect(m_name, &QLineEdit::textChanged, this, [this](const QString& text) {
+        m_create->setEnabled(!text.trimmed().isEmpty());
+    });
+    connect(m_text, &QRadioButton::toggled, this, [this](bool text) {
+        m_name->setPlaceholderText(text ? QStringLiteral("new-channel") : tr("New Voice Channel"));
+    });
+}
+
+void CreateChannelDialog::create()
+{
+    const QString name = m_name->text().trimmed();
+    if (name.isEmpty() || !m_create->isEnabled())
+        return;
+    m_error->hide();
+    m_create->setEnabled(false);
+    QPointer<CreateChannelDialog> guard(this);
+    m_session->createChannel(m_guildId, m_text->isChecked() ? ChannelType::GuildText : ChannelType::GuildVoice, name,
+                             m_categoryId, [guard](const QString& channelId, const QString& error) {
+                                 if (!guard)
+                                     return;
+                                 if (channelId.isEmpty()) {
+                                     guard->m_create->setEnabled(true);
+                                     guard->m_error->setText(error);
+                                     guard->m_error->show();
+                                     return;
+                                 }
+                                 emit guard->created(channelId);
+                                 guard->accept();
+                             });
+}
+
+// --- ChannelSettingsDialog -------------------------------------------------------------------------
+
+namespace {
+
+// Slowmode choices of the official client, in seconds.
+constexpr int SlowmodeSteps[] = {0, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 21600};
+
+QString slowmodeText(int seconds)
+{
+    if (seconds == 0)
+        return QCoreApplication::translate("ChannelSettingsDialog", "Off");
+    if (seconds < 60)
+        return QCoreApplication::translate("ChannelSettingsDialog", "%1s").arg(seconds);
+    if (seconds < 3600)
+        return QCoreApplication::translate("ChannelSettingsDialog", "%1m").arg(seconds / 60);
+    return QCoreApplication::translate("ChannelSettingsDialog", "%1h").arg(seconds / 3600);
+}
+
+// Highest voice bitrate allowed by the server's boost level, in kbps.
+int maxBitrate(int premiumTier)
+{
+    switch (premiumTier) {
+    case 1:
+        return 128;
+    case 2:
+        return 256;
+    case 3:
+        return 384;
+    default:
+        return 96;
+    }
+}
+
+} // namespace
+
+ChannelSettingsDialog::ChannelSettingsDialog(Session* session, const QString& guildId, const QString& channelId, QWidget* parent)
+    : QDialog(parent)
+    , m_session(session)
+    , m_guildId(guildId)
+    , m_channelId(channelId)
+    , m_name(new QLineEdit)
+    , m_error(errorLabel())
+    , m_save(button(tr("Save Changes"), "brandButton"))
+{
+    const Channel* found = session->channel(guildId, channelId);
+    const Channel channel = found ? *found : Channel();
+    const Guild* guild = session->guild(guildId);
+    const bool category = channel.type == ChannelType::GuildCategory;
+    const bool voice = channel.isVoice();
+    setupDialog(this, category ? tr("Edit Category") : tr("Edit Channel"));
+
+    m_name->setText(channel.name);
+    m_name->setMaxLength(100);
+    keepTextChannelName(m_name, [category, voice] { return !category && !voice; });
+
+    auto* layout = new QVBoxLayout(this);
+    layout->setContentsMargins(24, 24, 24, 20);
+    layout->setSpacing(6);
+    layout->addWidget(titleLabel(category ? tr("Edit Category") : tr("Edit Channel")));
+    layout->addWidget(hintLabel(channelLabel(channel)));
+    layout->addSpacing(12);
+    layout->addWidget(sectionLabel(category ? tr("Category Name") : tr("Channel Name")));
+    layout->addWidget(m_name);
+
+    if (!category && !voice) {
+        m_topic = new QPlainTextEdit(channel.topic);
+        m_topic->setPlaceholderText(tr("Let everyone know how to use this channel!"));
+        m_topic->setFixedHeight(90);
+        connect(m_topic, &QPlainTextEdit::textChanged, this, [this] {
+            // QPlainTextEdit has no length limit of its own.
+            constexpr int MaxTopic = 1024;
+            if (m_topic->toPlainText().size() > MaxTopic) {
+                QTextCursor cursor = m_topic->textCursor();
+                m_topic->setPlainText(m_topic->toPlainText().left(MaxTopic));
+                cursor.setPosition(MaxTopic);
+                m_topic->setTextCursor(cursor);
+            }
+        });
+        m_slowmode = new QComboBox;
+        for (const int seconds : SlowmodeSteps)
+            m_slowmode->addItem(slowmodeText(seconds), seconds);
+        if (m_slowmode->findData(channel.rateLimitPerUser) < 0)
+            m_slowmode->addItem(slowmodeText(channel.rateLimitPerUser), channel.rateLimitPerUser);
+        m_slowmode->setCurrentIndex(m_slowmode->findData(channel.rateLimitPerUser));
+        m_nsfw = new QCheckBox(tr("Age-Restricted Channel"));
+        m_nsfw->setChecked(channel.nsfw);
+
+        layout->addSpacing(8);
+        layout->addWidget(sectionLabel(tr("Channel Topic")));
+        layout->addWidget(m_topic);
+        layout->addSpacing(8);
+        layout->addWidget(sectionLabel(tr("Slowmode")));
+        layout->addWidget(m_slowmode);
+        layout->addWidget(hintLabel(tr("Members will be restricted to sending one message per this interval, unless they have Manage Channel or Manage Messages permissions.")));
+        layout->addSpacing(8);
+        layout->addWidget(m_nsfw);
+        layout->addWidget(hintLabel(tr("Users will need to confirm they are over the legal age to view the content in this channel.")));
+    } else if (voice) {
+        const int highest = maxBitrate(guild ? guild->premiumTier : 0);
+        m_bitrate = new QSlider(Qt::Horizontal);
+        m_bitrate->setRange(8, std::max(highest, channel.bitrate / 1000));
+        m_bitrate->setValue(channel.bitrate > 0 ? channel.bitrate / 1000 : 64);
+        m_userLimit = new QSlider(Qt::Horizontal);
+        m_userLimit->setRange(0, 99);
+        m_userLimit->setValue(channel.userLimit);
+        auto* bitrateValue = hintLabel({});
+        auto* limitValue = hintLabel({});
+        auto showBitrate = [bitrateValue](int kbps) { bitrateValue->setText(tr("%1 kbps").arg(kbps)); };
+        auto showLimit = [limitValue](int users) {
+            limitValue->setText(users == 0 ? tr("No limit") : tr("%n user(s)", nullptr, users));
+        };
+        showBitrate(m_bitrate->value());
+        showLimit(m_userLimit->value());
+        connect(m_bitrate, &QSlider::valueChanged, this, showBitrate);
+        connect(m_userLimit, &QSlider::valueChanged, this, showLimit);
+
+        layout->addSpacing(8);
+        layout->addWidget(sectionLabel(tr("Bitrate")));
+        auto* bitrateRow = new QHBoxLayout;
+        bitrateRow->addWidget(m_bitrate, 1);
+        bitrateRow->addWidget(bitrateValue);
+        layout->addLayout(bitrateRow);
+        layout->addWidget(hintLabel(tr("Going above 64 kbps may adversely affect people on low bandwidth connections.")));
+        layout->addSpacing(8);
+        layout->addWidget(sectionLabel(tr("User Limit")));
+        auto* limitRow = new QHBoxLayout;
+        limitRow->addWidget(m_userLimit, 1);
+        limitRow->addWidget(limitValue);
+        layout->addLayout(limitRow);
+        layout->addWidget(hintLabel(tr("Limits the number of users that can connect to this voice channel.")));
+    }
+
+    layout->addWidget(m_error);
+    layout->addStretch();
+    auto* remove = button(category ? tr("Delete Category") : tr("Delete Channel"), "dangerButton");
+    auto* cancel = button(tr("Cancel"), "secondaryButton");
+    auto* buttons = new QHBoxLayout;
+    buttons->addWidget(remove);
+    buttons->addStretch();
+    buttons->addWidget(cancel);
+    buttons->addWidget(m_save);
+    layout->addSpacing(12);
+    layout->addLayout(buttons);
+    resize(480, category ? 280 : voice ? 440 : 560);
+
+    connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(m_save, &QPushButton::clicked, this, &ChannelSettingsDialog::save);
+    connect(m_name, &QLineEdit::returnPressed, this, &ChannelSettingsDialog::save);
+    connect(m_name, &QLineEdit::textChanged, this, [this](const QString& text) { m_save->setEnabled(!text.trimmed().isEmpty()); });
+    connect(remove, &QPushButton::clicked, this, [this] {
+        QPointer<ChannelSettingsDialog> guard(this);
+        const bool deleting = confirmDeleteChannel(m_session, m_guildId, m_channelId, this, [guard](const QString& error) {
+            if (!guard)
+                return;
+            if (error.isEmpty()) {
+                guard->accept();
+                return;
+            }
+            guard->setEnabled(true);
+            guard->m_error->setText(error);
+            guard->m_error->show();
+        });
+        if (deleting)
+            setEnabled(false); // until Discord answers
+    });
+}
+
+void ChannelSettingsDialog::save()
+{
+    const Channel* channel = m_session->channel(m_guildId, m_channelId);
+    if (!channel) {
+        reject(); // deleted meanwhile
+        return;
+    }
+    const QString name = m_name->text().trimmed();
+    if (name.isEmpty() || !m_save->isEnabled())
+        return;
+
+    // Like the official settings page, only what changed is sent.
+    QJsonObject changes;
+    if (name != channel->name)
+        changes.insert(QStringLiteral("name"), name);
+    if (m_topic && m_topic->toPlainText() != channel->topic)
+        changes.insert(QStringLiteral("topic"), m_topic->toPlainText());
+    if (m_slowmode && m_slowmode->currentData().toInt() != channel->rateLimitPerUser)
+        changes.insert(QStringLiteral("rate_limit_per_user"), m_slowmode->currentData().toInt());
+    if (m_nsfw && m_nsfw->isChecked() != channel->nsfw)
+        changes.insert(QStringLiteral("nsfw"), m_nsfw->isChecked());
+    if (m_bitrate && m_bitrate->value() * 1000 != channel->bitrate)
+        changes.insert(QStringLiteral("bitrate"), m_bitrate->value() * 1000);
+    if (m_userLimit && m_userLimit->value() != channel->userLimit)
+        changes.insert(QStringLiteral("user_limit"), m_userLimit->value());
+    if (changes.isEmpty()) {
+        accept();
+        return;
+    }
+
+    m_error->hide();
+    m_save->setEnabled(false);
+    QPointer<ChannelSettingsDialog> guard(this);
+    m_session->editChannel(m_channelId, changes, [guard](const QString& error) {
+        if (!guard)
+            return;
+        if (!error.isEmpty()) {
+            guard->m_save->setEnabled(true);
+            guard->m_error->setText(error);
+            guard->m_error->show();
+            return;
+        }
+        guard->accept();
+    });
+}
+
+bool confirmDeleteChannel(Session* session, const QString& guildId, const QString& channelId, QWidget* parent,
+                          Session::ResultCallback done)
+{
+    const Channel* channel = session->channel(guildId, channelId);
+    if (!channel)
+        return false;
+    const bool category = channel->type == ChannelType::GuildCategory;
+    const QString name = channelLabel(*channel);
+    const QString action = category ? QCoreApplication::translate("ChannelSettingsDialog", "Delete Category")
+                                    : QCoreApplication::translate("ChannelSettingsDialog", "Delete Channel");
+    const QString question =
+        category ? QCoreApplication::translate("ChannelSettingsDialog",
+                                               "Are you sure you want to delete %1? The channels inside it will not be deleted.")
+                 : QCoreApplication::translate("ChannelSettingsDialog", "Are you sure you want to delete %1? This cannot be undone.");
+    QMessageBox box(QMessageBox::Warning, action, question.arg(name), QMessageBox::Cancel, parent);
+    QPushButton* confirm = box.addButton(action, QMessageBox::DestructiveRole);
+    box.exec();
+    if (box.clickedButton() != confirm)
+        return false;
+    if (!done) {
+        QPointer<QWidget> window = parent ? parent->window() : nullptr;
+        done = [window, action](const QString& error) {
+            if (error.isEmpty() || !window)
+                return;
+            auto* failure = new QMessageBox(QMessageBox::Warning, action, error, QMessageBox::Ok, window);
+            failure->setAttribute(Qt::WA_DeleteOnClose);
+            failure->show();
+        };
+    }
+    session->deleteChannel(guildId, channelId, done);
+    return true;
 }

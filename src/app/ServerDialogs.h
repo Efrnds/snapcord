@@ -1,17 +1,22 @@
 #pragma once
 
 #include "core/GuildFolders.h"
+#include "core/Session.h"
 
 #include <QDialog>
 
 class ColorSwatch;
 class ImageCache;
+class QCheckBox;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
+class QPlainTextEdit;
 class QPushButton;
+class QRadioButton;
+class QSlider;
 class QStackedWidget;
-class Session;
 
 // "Join a Server": an invite link typed by the user, or one clicked in a message (shown as a preview with an
 // "Accept Invite" button).
@@ -87,3 +92,57 @@ private:
     QList<ColorSwatch*> m_swatches;
     ColorSwatch* m_custom;
 };
+
+// "Create Channel": a text or voice channel, at the top of the server or inside a category.
+class CreateChannelDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    CreateChannelDialog(Session* session, const QString& guildId, const QString& categoryId, QWidget* parent = nullptr);
+
+signals:
+    void created(const QString& channelId);
+
+private:
+    void create();
+
+    Session* m_session;
+    QString m_guildId;
+    QString m_categoryId;
+    QRadioButton* m_text;
+    QRadioButton* m_voice;
+    QLineEdit* m_name;
+    QLabel* m_error;
+    QPushButton* m_create;
+};
+
+// "Edit Channel": name and the settings of its kind (topic, slowmode and age restriction for text channels;
+// bitrate and user limit for voice channels). Categories only have a name.
+class ChannelSettingsDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    ChannelSettingsDialog(Session* session, const QString& guildId, const QString& channelId, QWidget* parent = nullptr);
+
+private:
+    void save();
+
+    Session* m_session;
+    QString m_guildId;
+    QString m_channelId;
+    QLineEdit* m_name;
+    QPlainTextEdit* m_topic = nullptr;
+    QComboBox* m_slowmode = nullptr;
+    QCheckBox* m_nsfw = nullptr;
+    QSlider* m_bitrate = nullptr;
+    QSlider* m_userLimit = nullptr;
+    QLabel* m_error;
+    QPushButton* m_save;
+};
+
+// Asks before deleting a channel or category, then deletes it. `done` gets the result; without it, errors are
+// shown in a message box. Returns false when the user cancelled.
+bool confirmDeleteChannel(Session* session, const QString& guildId, const QString& channelId, QWidget* parent,
+                          Session::ResultCallback done = {});

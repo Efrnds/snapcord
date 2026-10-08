@@ -444,6 +444,20 @@ Pode aparecer captcha. É preciso tratar esse caso e ter um fallback.
 - **Captcha:** entrar em servidor pode pedir captcha; o app mostra o erro (sem alternativa).
 - **Falta o teste real** com uma conta.
 
+### Gerenciar canais
+
+- **Permissão:** `MANAGE_CHANNELS` (`Session::canManageChannels`): no servidor para criar fora de categoria, na
+  categoria para criar dentro dela, no próprio canal para editar/excluir. Sem permissão, as opções não aparecem.
+- **Criar:** `POST /guilds/{id}/channels` com `type`, `name`, `permission_overwrites: []` e `parent_id` (se em
+  categoria). Aberto pelo "+" que aparece ao passar o mouse numa categoria, pelo botão direito na lista de canais
+  (ou no espaço vazio) e pelo menu do servidor na barra. Canal de texto novo abre na hora.
+- **Editar:** `PATCH /channels/{id}` só com os campos alterados (`app/ChannelSettingsDialog`): nome; texto tem tópico,
+  modo lento e restrição de idade; voz tem bitrate (máximo pelo nível de boost: 96/128/256/384 kbps) e limite de
+  usuários. Categorias só têm nome. Nome de canal de texto vira minúsculo com hífens enquanto digita.
+- **Excluir:** `DELETE /channels/{id}`, sempre com confirmação. Se o canal aberto some, o app vai para outro.
+- A resposta da API já atualiza a `Session` (o evento do gateway chega depois e só confirma).
+- **Falta o teste real** com uma conta.
+
 ### Animações
 
 - **`app/Motion`** concentra tudo: transições curtas (120–180 ms) que só gastam CPU enquanto rodam; parado,

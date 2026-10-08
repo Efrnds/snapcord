@@ -18,6 +18,151 @@
     </message>
 </context>
 <context>
+    <name>ChannelSettingsDialog</name>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="565"/>
+        <source>Off</source>
+        <translation>Desativado</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="567"/>
+        <source>%1s</source>
+        <translation>%1 s</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="569"/>
+        <source>%1m</source>
+        <translation>%1 min</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="570"/>
+        <source>%1h</source>
+        <translation>%1 h</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="597"/>
+        <source>Save Changes</source>
+        <translation>Salvar alterações</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="604"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="613"/>
+        <source>Edit Category</source>
+        <translation>Editar categoria</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="604"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="613"/>
+        <source>Edit Channel</source>
+        <translation>Editar canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="616"/>
+        <source>Category Name</source>
+        <translation>Nome da categoria</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="616"/>
+        <source>Channel Name</source>
+        <translation>Nome do canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="621"/>
+        <source>Let everyone know how to use this channel!</source>
+        <translation>Diga a todos como usar este canal!</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="639"/>
+        <source>Age-Restricted Channel</source>
+        <translation>Canal com restrição de idade</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="643"/>
+        <source>Channel Topic</source>
+        <translation>Tópico do canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="646"/>
+        <source>Slowmode</source>
+        <translation>Modo lento</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="648"/>
+        <source>Members will be restricted to sending one message per this interval, unless they have Manage Channel or Manage Messages permissions.</source>
+        <translation>Os membros só poderão enviar uma mensagem a cada intervalo, a menos que tenham as permissões Gerenciar canal ou Gerenciar mensagens.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="651"/>
+        <source>Users will need to confirm they are over the legal age to view the content in this channel.</source>
+        <translation>Os usuários precisarão confirmar que são maiores de idade para ver o conteúdo deste canal.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="662"/>
+        <source>%1 kbps</source>
+        <translation>%1 kbps</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="664"/>
+        <source>No limit</source>
+        <translation>Sem limite</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/app/ServerDialogs.cpp" line="664"/>
+        <source>%n user(s)</source>
+        <translation>
+            <numerusform>%n usuário</numerusform>
+            <numerusform>%n usuários</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="672"/>
+        <source>Bitrate</source>
+        <translation>Taxa de bits</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="677"/>
+        <source>Going above 64 kbps may adversely affect people on low bandwidth connections.</source>
+        <translation>Acima de 64 kbps pode prejudicar quem tem conexão lenta.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="679"/>
+        <source>User Limit</source>
+        <translation>Limite de usuários</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="684"/>
+        <source>Limits the number of users that can connect to this voice channel.</source>
+        <translation>Limita o número de usuários que podem se conectar a este canal de voz.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="689"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="776"/>
+        <source>Delete Category</source>
+        <translation>Excluir categoria</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="689"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="777"/>
+        <source>Delete Channel</source>
+        <translation>Excluir canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="690"/>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="779"/>
+        <source>Are you sure you want to delete %1? The channels inside it will not be deleted.</source>
+        <translation>Tem certeza de que deseja excluir %1? Os canais dentro dela não serão excluídos.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="781"/>
+        <source>Are you sure you want to delete %1? This cannot be undone.</source>
+        <translation>Tem certeza de que deseja excluir %1? Isso não pode ser desfeito.</translation>
+    </message>
+</context>
+<context>
     <name>ChatView</name>
     <message>
         <location filename="../src/app/ChatView.cpp" line="250"/>
@@ -262,6 +407,61 @@
     </message>
 </context>
 <context>
+    <name>CreateChannelDialog</name>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="482"/>
+        <source>Text</source>
+        <translation>Texto</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="483"/>
+        <source>Voice</source>
+        <translation>Voz</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="486"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="488"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="498"/>
+        <source>Create Channel</source>
+        <translation>Criar canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="500"/>
+        <source>in %1</source>
+        <translation>em %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="502"/>
+        <source>Channel Type</source>
+        <translation>Tipo de canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="504"/>
+        <source>Send messages, images, GIFs, emoji, opinions, and puns</source>
+        <translation>Envie mensagens, imagens, GIFs, emojis, opiniões e trocadilhos</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="507"/>
+        <source>Hang out together with voice</source>
+        <translation>Converse com o pessoal por voz</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="509"/>
+        <source>Channel Name</source>
+        <translation>Nome do canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="513"/>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../src/app/ServerDialogs.cpp" line="528"/>
+        <source>New Voice Channel</source>
+        <translation>Novo canal de voz</translation>
+    </message>
+</context>
+<context>
     <name>CustomStatusDialog</name>
     <message>
         <location filename="../src/app/ProfileEditor.cpp" line="309"/>
@@ -340,34 +540,34 @@
 <context>
     <name>FolderSettingsDialog</name>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="357"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="400"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="398"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="441"/>
         <source>Folder Settings</source>
         <translation>Configurações da pasta</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="380"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="421"/>
         <source>Custom color</source>
         <translation>Cor personalizada</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="385"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="405"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="426"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="446"/>
         <source>Folder Color</source>
         <translation>Cor da pasta</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="390"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="431"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="391"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="432"/>
         <source>Done</source>
         <translation>Concluído</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="402"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="443"/>
         <source>Folder Name</source>
         <translation>Nome da pasta</translation>
     </message>
@@ -424,59 +624,59 @@
 <context>
     <name>InviteDialog</name>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="260"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="295"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="301"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="336"/>
         <source>Copy</source>
         <translation>Copiar</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="261"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="302"/>
         <source>Creating invite…</source>
         <translation>Criando convite…</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="265"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="306"/>
         <source>Invite People</source>
         <translation>Convidar pessoas</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="267"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="308"/>
         <source>Search for friends</source>
         <translation>Buscar amigos</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="282"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="323"/>
         <source>Invite friends to %1</source>
         <translation>Convide amigos para %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="286"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="327"/>
         <source>Or, send a server invite link to a friend</source>
         <translation>Ou envie um link de convite do servidor para um amigo</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="294"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="335"/>
         <source>Copied</source>
         <translation>Copiado</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="305"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="346"/>
         <source>Could not create an invite: %1</source>
         <translation>Não foi possível criar um convite: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="311"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="352"/>
         <source>Your invite link expires in 7 days.</source>
         <translation>Seu link de convite expira em 7 dias.</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="327"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="340"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="368"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="381"/>
         <source>Sent</source>
         <translation>Enviado</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="327"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="368"/>
         <source>Invite</source>
         <translation>Convidar</translation>
     </message>
@@ -484,64 +684,64 @@
 <context>
     <name>JoinServerDialog</name>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="82"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="123"/>
         <source>Join Server</source>
         <translation>Entrar no servidor</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="87"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="217"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="128"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="258"/>
         <source>Accept Invite</source>
         <translation>Aceitar convite</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="89"/>
-        <location filename="../src/app/ServerDialogs.cpp" line="97"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="130"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="138"/>
         <source>Join a Server</source>
         <translation>Entrar em um servidor</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="96"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="137"/>
         <source>Enter an invite below to join an existing server</source>
         <translation>Insira um convite abaixo para entrar em um servidor existente</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="101"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="142"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="112"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="153"/>
         <source>Invite link</source>
         <translation>Link de convite</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="115"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="156"/>
         <source>Invites should look like</source>
         <translation>Os convites devem ser assim</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="139"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="180"/>
         <source>Loading invite…</source>
         <translation>Carregando convite…</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="181"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="222"/>
         <source>Please enter a valid invite link or invite code.</source>
         <translation>Insira um link ou código de convite válido.</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="207"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="248"/>
         <source>You&apos;ve been invited to join</source>
         <translation>Você foi convidado para entrar em</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="208"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="249"/>
         <source>%1 invited you to join</source>
         <translation>%1 convidou você para entrar em</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/ServerDialogs.cpp" line="212"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="253"/>
         <source>%n Online</source>
         <translation>
             <numerusform>%n online</numerusform>
@@ -549,7 +749,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/ServerDialogs.cpp" line="214"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="255"/>
         <source>%n Members</source>
         <translation>
             <numerusform>%n membro</numerusform>
@@ -557,7 +757,7 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/app/ServerDialogs.cpp" line="217"/>
+        <location filename="../src/app/ServerDialogs.cpp" line="258"/>
         <source>Go to Server</source>
         <translation>Ir para o servidor</translation>
     </message>
@@ -769,58 +969,84 @@
     <name>MainWindow</name>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="77"/>
-        <location filename="../src/app/MainWindow.cpp" line="414"/>
-        <location filename="../src/app/MainWindow.cpp" line="463"/>
-        <location filename="../src/app/MainWindow.cpp" line="554"/>
+        <location filename="../src/app/MainWindow.cpp" line="470"/>
+        <location filename="../src/app/MainWindow.cpp" line="519"/>
+        <location filename="../src/app/MainWindow.cpp" line="610"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
     <message>
         <location filename="../src/app/MainWindow.cpp" line="93"/>
-        <location filename="../src/app/MainWindow.cpp" line="615"/>
+        <location filename="../src/app/MainWindow.cpp" line="671"/>
         <source>Connecting…</source>
         <translation>Conectando…</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="238"/>
+        <location filename="../src/app/MainWindow.cpp" line="248"/>
         <source>Voice</source>
         <translation>Voz</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="335"/>
+        <location filename="../src/app/MainWindow.cpp" line="344"/>
+        <location filename="../src/app/MainWindow.cpp" line="421"/>
+        <source>Create Channel</source>
+        <translation>Criar canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MainWindow.cpp" line="352"/>
         <source>Invite People</source>
         <translation>Convidar pessoas</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="344"/>
-        <location filename="../src/app/MainWindow.cpp" line="349"/>
-        <location filename="../src/app/MainWindow.cpp" line="356"/>
+        <location filename="../src/app/MainWindow.cpp" line="361"/>
+        <location filename="../src/app/MainWindow.cpp" line="366"/>
+        <location filename="../src/app/MainWindow.cpp" line="373"/>
         <source>Leave Server</source>
         <translation>Sair do servidor</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="345"/>
+        <location filename="../src/app/MainWindow.cpp" line="362"/>
         <source>Leave &apos;%1&apos;</source>
         <translation>Sair de &apos;%1&apos;</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="346"/>
+        <location filename="../src/app/MainWindow.cpp" line="363"/>
         <source>Are you sure you want to leave %1? You won&apos;t be able to rejoin this server unless you are re-invited.</source>
         <translation>Tem certeza de que deseja sair de %1? Você só poderá voltar a este servidor se for convidado de novo.</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="369"/>
+        <location filename="../src/app/MainWindow.cpp" line="386"/>
         <source>Folder Settings</source>
         <translation>Configurações da pasta</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="452"/>
-        <location filename="../src/app/MainWindow.cpp" line="530"/>
+        <location filename="../src/app/MainWindow.cpp" line="425"/>
+        <source>Edit Category</source>
+        <translation>Editar categoria</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MainWindow.cpp" line="425"/>
+        <source>Edit Channel</source>
+        <translation>Editar canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MainWindow.cpp" line="429"/>
+        <source>Delete Category</source>
+        <translation>Excluir categoria</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MainWindow.cpp" line="429"/>
+        <source>Delete Channel</source>
+        <translation>Excluir canal</translation>
+    </message>
+    <message>
+        <location filename="../src/app/MainWindow.cpp" line="508"/>
+        <location filename="../src/app/MainWindow.cpp" line="586"/>
         <source>Unknown user</source>
         <translation>Usuário desconhecido</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="637"/>
+        <location filename="../src/app/MainWindow.cpp" line="693"/>
         <source>Profile</source>
         <translation>Perfil</translation>
     </message>
@@ -830,7 +1056,7 @@
         <translation>Escolha uma conversa à esquerda.</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="538"/>
+        <location filename="../src/app/MainWindow.cpp" line="594"/>
         <source>Join Voice</source>
         <translation>Entrar na voz</translation>
     </message>
@@ -839,12 +1065,12 @@
         <translation type="vanished">Online</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="649"/>
+        <location filename="../src/app/MainWindow.cpp" line="705"/>
         <source>User Volume</source>
         <translation>Volume do usuário</translation>
     </message>
     <message>
-        <location filename="../src/app/MainWindow.cpp" line="672"/>
+        <location filename="../src/app/MainWindow.cpp" line="728"/>
         <source>Mute</source>
         <translation>Silenciar</translation>
     </message>
@@ -1380,12 +1606,12 @@
 <context>
     <name>ServerRail</name>
     <message>
-        <location filename="../src/app/ServerRail.cpp" line="445"/>
+        <location filename="../src/app/ServerRail.cpp" line="456"/>
         <source>Direct Messages</source>
         <translation>Mensagens diretas</translation>
     </message>
     <message>
-        <location filename="../src/app/ServerRail.cpp" line="469"/>
+        <location filename="../src/app/ServerRail.cpp" line="480"/>
         <source>Add a Server</source>
         <translation>Adicionar um servidor</translation>
     </message>

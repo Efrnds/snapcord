@@ -51,6 +51,9 @@ private:
     void showUserMenu(const QString& userId, const QPoint& globalPosition);
     void showServerMenu(const QString& guildId, const QPoint& globalPosition);
     void showFolderMenu(const QString& folderId, const QPoint& globalPosition);
+    // Right click in the channel list: create, edit or delete channels (an empty `channelId` = empty space).
+    void showChannelMenu(const QString& channelId, const QPoint& globalPosition);
+    void openCreateChannel(const QString& categoryId);
     void openJoinDialog(const QString& code);
     // Goes to a server or conversation, waiting for it to arrive when it was just joined.
     void goTo(const QString& guildId, const QString& channelId);

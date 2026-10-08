@@ -57,6 +57,9 @@ struct Channel
     ChannelType type = ChannelType::GuildText;
     int position = 0;
     int userLimit = 0;
+    int bitrate = 0;          // voice channels, bits per second
+    int rateLimitPerUser = 0; // slowmode, seconds
+    bool nsfw = false;
     QList<PermissionOverwrite> overwrites;
 
     bool isVoice() const { return type == ChannelType::GuildVoice || type == ChannelType::GuildStageVoice; }
