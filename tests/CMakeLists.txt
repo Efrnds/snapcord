@@ -27,7 +27,7 @@ snapcord_add_test(snapcord_composer_tests ComposerTest.cpp snapcord_core)
 
 # Exercise the real composer and channel switching with an offline session.
 set(chat_draft_sources ChatDraftTest.cpp)
-foreach(component AttachmentTray Avatar ChatView EmojiPicker ImageCache ImageViewer MemberListView
+foreach(component AttachmentTray Avatar ChatView DiscordVideo EmojiPicker ImageCache ImageViewer MemberListView
                   MentionPopup MessageView Motion Theme VoiceController)
     list(APPEND chat_draft_sources "${PROJECT_SOURCE_DIR}/src/app/${component}.cpp"
                                   "${PROJECT_SOURCE_DIR}/src/app/${component}.h")
