@@ -11,6 +11,7 @@
 #include <QStyledItemDelegate>
 
 #include <memory>
+#include <utility>
 
 class ImageCache;
 class MessageStore;
@@ -74,6 +75,26 @@ public:
     void invalidate(const QString& messageId);
     void invalidateAll();
     void revealSpoilers(const QString& messageId);
+
+    // Text selection across message bodies: a position inside one message's text.
+    struct TextPoint
+    {
+        QString messageId;
+        int position = -1;
+        bool isValid() const { return position >= 0; }
+        bool operator==(const TextPoint&) const = default;
+    };
+    // The text position under `position`, clamped to the start/end of the message's text when the point
+    // is above/below it. Invalid for messages without text.
+    TextPoint textPointAt(const QModelIndex& index, const QRect& itemRect, const QPoint& position) const;
+    // True when `position` is over the message's text itself (for the I-beam cursor).
+    bool isOverText(const QModelIndex& index, const QRect& itemRect, const QPoint& position) const;
+    // The word around a text point, as a selection.
+    std::pair<TextPoint, TextPoint> wordAt(const QModelIndex& index, const TextPoint& point) const;
+    void setSelection(const TextPoint& anchor, const TextPoint& focus);
+    void clearSelection() { setSelection({}, {}); }
+    bool hasSelection() const;
+    QString selectedText() const;
     // Messages span the whole viewport; its width decides wrapping and therefore row heights.
     void setViewWidth(int width) { m_viewWidth = width; }
 
@@ -83,6 +104,8 @@ private:
     QString systemText(const Message& message) const;
     QPixmap avatar(const User& user, int size) const;
     void paintInvite(QPainter* painter, const QFont& base, const QRect& box, const QRect& button, const QString& code) const;
+    // The selected character range of a row, or {-1, -1} when it has none.
+    std::pair<int, int> selectionRange(int row, int length) const;
 
     Session* m_session;
     ImageCache* m_images;
@@ -91,6 +114,8 @@ private:
     mutable QHash<QString, QPixmap> m_avatars; // by user ID + size
     QSet<QString> m_revealedSpoilers;
     int m_viewWidth = 600;
+    TextPoint m_selectionAnchor;
+    TextPoint m_selectionFocus;
     mutable QSet<QString> m_requestedInvites; // looked up once per code, even when it fails
 };
 
@@ -104,6 +129,8 @@ public:
     MessageListView(MessageDelegate* delegate, QWidget* parent = nullptr);
 
     bool isAtBottom() const;
+    bool hasSelection() const { return m_delegate->hasSelection(); }
+    void copySelection() const;
 
 signals:
     void linkActivated(const QString& url);
@@ -115,8 +142,12 @@ signals:
     void userClicked(const QString& userId, const QPoint& globalPosition);
     void messageContextMenuRequested(const QString& messageId, const QPoint& globalPosition);
     void topReached();
+    // The user started selecting message text (the composer drops its own selection then).
+    void selectionStarted();
 
 protected:
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -126,6 +157,10 @@ protected:
 
 private:
     MessageDelegate::Hit hitAt(const QPoint& position) const;
+    MessageDelegate::TextPoint textPointAt(const QPoint& position) const;
 
     MessageDelegate* m_delegate;
+    MessageDelegate::TextPoint m_pressPoint; // where a left-button drag may start a selection
+    QPoint m_pressPosition;
+    bool m_selecting = false;
 };

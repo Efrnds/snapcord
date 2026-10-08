@@ -9,6 +9,7 @@
 
 #include <QTest>
 
+#include <opus.h>
 #include <zlib.h>
 
 #include <cmath>
@@ -28,6 +29,7 @@ private slots:
     void jitterBufferReordersAndConceals();
     void jitterBufferHandlesSequenceWrap();
     void opusRoundTrip();
+    void opusDecodesLongPackets();
     void zlibStreamDecodesSyncFlushedMessages();
     void davePassthroughWhenDisabled();
     void noiseSuppressionReducesNoise();
@@ -271,6 +273,28 @@ void VoicePipelineTest::opusRoundTrip()
     }
     QVERIFY(outputEnergy > inputEnergy * 0.5);
     QCOMPARE(decoder.conceal(output.data(), OpusFormat::FrameSamples), OpusFormat::FrameSamples);
+}
+
+void VoicePipelineTest::opusDecodesLongPackets()
+{
+    // Music bots often send 60 or 120 ms packets instead of 20 ms ones; the receiver must play them whole.
+    int error = OPUS_OK;
+    OpusEncoder* encoder = opus_encoder_create(OpusFormat::SampleRate, OpusFormat::Channels, OPUS_APPLICATION_AUDIO, &error);
+    QCOMPARE(error, OPUS_OK);
+    std::vector<float> input(static_cast<size_t>(OpusFormat::MaxFrameSamples) * OpusFormat::Channels);
+    for (size_t i = 0; i < input.size() / 2; ++i)
+        input[2 * i] = input[2 * i + 1] = 0.3f * static_cast<float>(std::sin(2.0 * std::numbers::pi * 440.0 * i / OpusFormat::SampleRate));
+    std::vector<uint8_t> packet(4000);
+    const int size = opus_encode_float(encoder, input.data(), OpusFormat::MaxFrameSamples, packet.data(),
+                                       static_cast<opus_int32>(packet.size()));
+    opus_encoder_destroy(encoder);
+    QVERIFY(size > 0);
+
+    QCOMPARE(OpusDecoderWrapper::packetSamples(packet.data(), size), OpusFormat::MaxFrameSamples);
+    OpusDecoderWrapper decoder;
+    std::vector<float> output(input.size());
+    QCOMPARE(decoder.decode(packet.data(), size, output.data(), OpusFormat::MaxFrameSamples), OpusFormat::MaxFrameSamples);
+    QCOMPARE(decoder.conceal(output.data(), OpusFormat::MaxFrameSamples), OpusFormat::MaxFrameSamples);
 }
 
 void VoicePipelineTest::zlibStreamDecodesSyncFlushedMessages()

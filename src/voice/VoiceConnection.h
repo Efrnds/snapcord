@@ -88,9 +88,13 @@ private:
     void sendFrame(const uint8_t* opus, size_t size, bool endToEndEncrypt);
     void renderPlayback(float* output, int frameCount);
     void mixNextFrame();
+    // Puts the stream's next 20 ms (or less, when it runs dry) in m_decodeFrame; returns the samples per channel.
+    size_t readStream(Stream& stream, int64_t now);
+    bool decodeNext(Stream& stream);
     void limitMix();
     void receiveLoop();
     void handlePacket(const uint8_t* data, size_t size);
+    void identifySender(uint32_t ssrc, const uint8_t* payload, size_t size);
 
     VoiceGateway m_gateway;
     AudioEngine m_audio;
@@ -153,6 +157,7 @@ private:
     std::unordered_map<quint32, std::shared_ptr<Stream>> m_streams; // by SSRC
     QHash<QString, float> m_userVolumes;                            // main thread copy
     std::vector<std::shared_ptr<Stream>> m_mixStreams;              // playback thread scratch
+    std::unordered_map<quint32, int64_t> m_identifyAttempts;        // receive thread: unmapped SSRC -> last try
     std::vector<float> m_mixFrame;
     std::vector<float> m_decodeFrame;
     size_t m_mixReadOffset = 0;

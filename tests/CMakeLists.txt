@@ -7,7 +7,7 @@ function(snapcord_add_test name source)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_voice ZLIB::ZLIB)
+snapcord_add_test(snapcord_tests VoicePipelineTest.cpp snapcord_core snapcord_voice ZLIB::ZLIB Opus::opus)
 snapcord_add_test(snapcord_markdown_tests MarkdownTest.cpp snapcord_core)
 snapcord_add_test(snapcord_member_list_tests MemberListTest.cpp snapcord_core)
 snapcord_add_test(snapcord_game_detector_tests GameDetectorTest.cpp snapcord_core)

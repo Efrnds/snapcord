@@ -24,6 +24,7 @@ enum Opcode {
     Hello = 8,
     Resumed = 9,
     ClientsConnect = 11,
+    Video = 12,
     ClientDisconnect = 13,
 };
 
@@ -191,6 +192,13 @@ void VoiceGateway::onTextMessage(const QString& message)
         for (const QJsonValue& id : data.value(u"user_ids").toArray())
             ids.append(id.toString());
         emit clientsConnected(ids);
+        break;
+    }
+    case Video: {
+        // Sent for everyone with a video state when we connect; it also names their audio SSRC.
+        const auto audioSsrc = static_cast<quint32>(data.value(u"audio_ssrc").toInteger());
+        if (audioSsrc != 0)
+            emit speaking(data.value(u"user_id").toString(), audioSsrc, 0);
         break;
     }
     case ClientDisconnect:

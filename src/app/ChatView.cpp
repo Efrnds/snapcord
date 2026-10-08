@@ -107,6 +107,8 @@ void Composer::keyPressEvent(QKeyEvent* event)
 {
     if (m_popup && m_popup->handleKey(event))
         return;
+    if (event->matches(QKeySequence::Copy) && !textCursor().hasSelection() && m_copyFallback && m_copyFallback())
+        return;
     if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) && !(event->modifiers() & Qt::ShiftModifier)) {
         // May be empty: a message can be only attachments; the chat view decides.
         emit submitted(toPlainText().trimmed());
@@ -348,6 +350,17 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
         emit profileRequested(userId, m_guildId, position);
     });
     connect(m_list, &MessageListView::messageContextMenuRequested, this, &ChatView::showMessageMenu);
+    connect(m_list, &MessageListView::selectionStarted, this, [this] {
+        QTextCursor cursor = m_composer->textCursor();
+        cursor.clearSelection();
+        m_composer->setTextCursor(cursor);
+    });
+    m_composer->setCopyFallback([this] {
+        if (!m_list->hasSelection())
+            return false;
+        m_list->copySelection();
+        return true;
+    });
     connect(m_list, &MessageListView::topReached, this, [this] {
         if (!m_channelId.isEmpty() && m_session->messages()->hasOlder(m_channelId))
             m_session->messages()->loadOlder(m_channelId);
@@ -907,6 +920,8 @@ void ChatView::showMessageMenu(const QString& messageId, const QPoint& globalPos
     if (own && !message->isSystemMessage())
         menu.addAction(tr("Edit Message"), this, [this, messageId] { startEdit(messageId); });
     menu.addSeparator();
+    if (m_list->hasSelection())
+        menu.addAction(tr("Copy"), this, [this] { m_list->copySelection(); });
     if (!message->content.isEmpty())
         menu.addAction(tr("Copy Text"), this, [content = message->content] { QApplication::clipboard()->setText(content); });
     menu.addAction(tr("Copy Message Link"), this, [this, messageId] {

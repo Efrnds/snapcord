@@ -64,6 +64,12 @@ public:
     bool encrypt(uint32_t ssrc, const uint8_t* frame, size_t size, std::vector<uint8_t>& out);
     // Decrypts an Opus frame received from `userId`.
     bool decrypt(const QString& userId, const uint8_t* frame, size_t size, std::vector<uint8_t>& out);
+    // Finds who sent a frame from an SSRC no Speaking event has mapped yet (e.g. a music bot that was
+    // already playing when we joined). Only users outside `mappedUsers` are tried: an encrypted frame
+    // authenticates against exactly one sender's key, while an unencrypted (passthrough) frame is only
+    // attributed when a single candidate is left. Returns an empty string when the sender is unknown.
+    QString identifySender(const uint8_t* frame, size_t size, const std::set<QString>& mappedUsers,
+                           std::vector<uint8_t>& out);
 
     // True once outgoing audio is end-to-end encrypted (a media key is set and the call is not in passthrough).
     bool isEncrypting();

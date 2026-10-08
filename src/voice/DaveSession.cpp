@@ -193,6 +193,46 @@ bool DaveSession::decrypt(const QString& userId, const uint8_t* frame, size_t si
     return true;
 }
 
+QString DaveSession::identifySender(const uint8_t* frame, size_t size, const std::set<QString>& mappedUsers,
+                                   std::vector<uint8_t>& out)
+{
+    // DAVE frames end with the 0xFAFA marker; anything else can only be passthrough audio.
+    const bool encrypted = size >= 2 && frame[size - 1] == 0xFA && frame[size - 2] == 0xFA;
+
+    std::lock_guard lock(m_mediaMutex);
+    QString match;
+    int candidates = 0;
+    for (const auto& [userId, decryptor] : m_decryptors) {
+        if (mappedUsers.count(userId))
+            continue;
+        ++candidates;
+        if (!encrypted) {
+            match = userId;
+            continue;
+        }
+        out.resize(decryptor->GetMaxPlaintextByteSize(dave::MediaType::Audio, size));
+        size_t written = 0;
+        if (decryptor->Decrypt(dave::MediaType::Audio, dave::MakeArrayView(frame, size),
+                               dave::MakeArrayView(out.data(), out.size()), &written)
+            == dave::IDecryptor::Success) {
+            out.resize(written);
+            return userId;
+        }
+    }
+    if (encrypted || candidates != 1)
+        return {};
+    // A lone candidate in passthrough: its decryptor still decides whether plain frames are allowed.
+    auto it = m_decryptors.find(match);
+    out.resize(it->second->GetMaxPlaintextByteSize(dave::MediaType::Audio, size));
+    size_t written = 0;
+    if (it->second->Decrypt(dave::MediaType::Audio, dave::MakeArrayView(frame, size),
+                            dave::MakeArrayView(out.data(), out.size()), &written)
+        != dave::IDecryptor::Success)
+        return {};
+    out.resize(written);
+    return match;
+}
+
 bool DaveSession::isEncrypting()
 {
     std::lock_guard lock(m_mediaMutex);

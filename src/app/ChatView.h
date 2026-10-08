@@ -8,6 +8,8 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <functional>
+
 class AttachmentTray;
 class ImageCache;
 class MemberListView;
@@ -33,6 +35,8 @@ public:
 
     // While the mention list is open, the navigation keys go to it.
     void setMentionPopup(MentionPopup* popup) { m_popup = popup; }
+    // Ctrl+C with nothing selected here copies this instead (the text selected in the messages).
+    void setCopyFallback(std::function<bool()> fallback) { m_copyFallback = std::move(fallback); }
 
 signals:
     void submitted(const QString& text);
@@ -50,6 +54,7 @@ private:
     void adjustHeight();
 
     MentionPopup* m_popup = nullptr;
+    std::function<bool()> m_copyFallback;
 };
 
 // A text channel or direct message: header, message history and the message composer.
