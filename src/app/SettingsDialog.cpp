@@ -718,34 +718,6 @@ QWidget* SettingsDialog::buildAppearancePage()
     m_customizedLabel = new QLabel;
     m_customizedLabel->setObjectName(QStringLiteral("settingsHint"));
     layout->addWidget(m_customizedLabel);
-    auto* resetAll = new QPushButton(tr("Reset all customization"));
-    resetAll->setObjectName(QStringLiteral("secondaryButton"));
-    resetAll->setCursor(Qt::PointingHandCursor);
-    layout->addWidget(resetAll, 0, Qt::AlignLeft);
-    connect(resetAll, &QPushButton::clicked, this, [this] {
-        // Sync widgets first so any stray applyAppearance cannot re-write old slider values
-        // on top of the cleared theme (that left the dialog looking washed-out / broken).
-        m_syncingAppearance = true;
-        if (m_brightness)
-            m_brightness->setValue(0);
-        if (m_saturation)
-            m_saturation->setValue(0);
-        if (m_uiScale)
-            m_uiScale->setValue(100);
-        if (m_radius)
-            m_radius->setValue(4);
-        if (m_brightnessLabel)
-            m_brightnessLabel->setText(QStringLiteral("0"));
-        if (m_saturationLabel)
-            m_saturationLabel->setText(QStringLiteral("0"));
-        if (m_uiScaleLabel)
-            m_uiScaleLabel->setText(QStringLiteral("100%"));
-        if (m_radiusLabel)
-            m_radiusLabel->setText(QStringLiteral("4 px"));
-        m_syncingAppearance = false;
-        Theme::instance().clearCustomization();
-        refreshAppearanceControls();
-    });
 
     layout->addSpacing(12);
     layout->addWidget(sectionLabel(tr("Tone & scale")));
@@ -1425,7 +1397,7 @@ void SettingsDialog::updateModeWidgets()
 void SettingsDialog::applyDialogChrome()
 {
     // Fusion QDialog keeps a light Window brush across stylesheet swaps; paint + palette
-    // keep the modal on the active theme even after "Reset all customization".
+    // keep the modal on the active theme.
     const Theme::Palette& c = Theme::instance().palette();
     auto tint = [&](QWidget* widget, const QColor& background) {
         if (!widget)

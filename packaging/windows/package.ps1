@@ -18,13 +18,27 @@ if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 New-Item -ItemType Directory -Force $stage | Out-Null
 
 # The executable plus the Qt libraries, plugins and the Visual C++ runtime it needs.
-Copy-Item (Join-Path $BuildDir 'Snapcord.exe') $stage
+function Resolve-BuiltExe([string]$name) {
+    foreach ($path in @(
+            (Join-Path $BuildDir $name),
+            (Join-Path $BuildDir "src\app\$name"),
+            (Join-Path $BuildDir "src\app\Release\$name"),
+            (Join-Path $BuildDir "Release\$name"))) {
+        if (Test-Path $path) { return $path }
+    }
+    throw "Could not find $name under $BuildDir"
+}
+Copy-Item (Resolve-BuiltExe 'Snapcord.exe') $stage
+Copy-Item (Resolve-BuiltExe 'snapcord-video.exe') $stage
 $windeployqt = Get-Command windeployqt -ErrorAction SilentlyContinue
 $windeployqt = if ($windeployqt) { $windeployqt.Source } else { Join-Path $env:QT_ROOT_DIR 'bin\windeployqt.exe' }
 # Windows PowerShell treats anything a tool prints on stderr (windeployqt warnings) as an error; rely on exit codes.
 $ErrorActionPreference = 'Continue'
 & $windeployqt --release --compiler-runtime --no-translations --no-opengl-sw --no-system-d3d-compiler (Join-Path $stage 'Snapcord.exe') 2>&1 | Out-Host
 if ($LASTEXITCODE) { throw 'windeployqt failed.' }
+# Multimedia plugins come from the video player, not from Snapcord.exe.
+& $windeployqt --release --compiler-runtime --no-translations --no-opengl-sw --no-system-d3d-compiler (Join-Path $stage 'snapcord-video.exe') 2>&1 | Out-Host
+if ($LASTEXITCODE) { throw 'windeployqt failed for snapcord-video.' }
 $ErrorActionPreference = 'Stop'
 Copy-Item (Join-Path $root 'LICENSE') (Join-Path $stage 'LICENSE.txt')
 

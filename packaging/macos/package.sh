@@ -26,8 +26,20 @@ if [ ! -d "$app" ]; then
 fi
 cp -R "$app" "$stage/"
 
+# The video player sits beside Snapcord inside the bundle. macdeployqt only inspects the
+# main executable unless told about this one, and that is what pulls in Qt Multimedia.
+player="$stage/Snapcord.app/Contents/MacOS/snapcord-video"
+if [ ! -x "$player" ]; then
+    src_player="$build_dir/src/app/snapcord-video"
+    if [ ! -x "$src_player" ]; then
+        src_player="$build_dir/snapcord-video"
+    fi
+    cp "$src_player" "$player"
+fi
+
 # Qt frameworks and plugins inside the bundle.
-"$QT_ROOT_DIR/bin/macdeployqt" "$stage/Snapcord.app" -always-overwrite
+"$QT_ROOT_DIR/bin/macdeployqt" "$stage/Snapcord.app" -always-overwrite \
+    -executable="$player"
 
 # Without a developer certificate the app gets an ad-hoc signature: Apple Silicon refuses to run unsigned code.
 codesign --force --deep --sign - "$stage/Snapcord.app"

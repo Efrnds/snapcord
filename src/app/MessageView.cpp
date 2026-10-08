@@ -75,7 +75,7 @@ QSize fitInto(int width, int height, int maxWidth, int maxHeight)
     return {std::max(1, int(width * scale)), std::max(1, int(height * scale))};
 }
 
-// QMediaPlayer can play real files (Discord uploads, gifv mp4). YouTube/page URLs use WebEngine.
+// Direct video files get a still poster. Discord .mp4/.webm play in-app; other videos open in the browser.
 bool isDirectVideoFile(const QString& url)
 {
     const QString path = QUrl(url).path().toLower();
@@ -281,7 +281,7 @@ struct MessageDelegate::Layout
         QString imageUrl; // full-resolution URL for the in-app viewer
         QString openUrl;  // browser / download link (files, embed pages)
         bool file = false;
-        bool video = false;     // playable in the native player (mp4/webm/…)
+        bool video = false;     // direct file; Discord .mp4/.webm play in-app
         bool webEmbed = false;  // YouTube etc. — opened in the browser
         QString name;
         QString detail;

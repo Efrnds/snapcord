@@ -24,6 +24,10 @@ icon_dir="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/scalable/apps"
 mkdir -p "$bin_dir" "$app_dir" "$icon_dir"
 
 install -m 755 "$built" "$bin_dir/Snapcord"
+helper="$(dirname "$built")/snapcord-video"
+if [[ -x "$helper" ]]; then
+  install -m 755 "$helper" "$bin_dir/snapcord-video"
+fi
 install -m 644 "$root/resources/icons/snapcord.svg" "$icon_dir/snapcord.svg"
 
 cat > "$app_dir/snapcord.desktop" <<EOF

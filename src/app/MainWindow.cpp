@@ -69,6 +69,12 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     , m_notifier(new Notifier(session, voice->sounds(), this, this))
 {
     setWindowTitle(QStringLiteral("Snapcord"));
+    const QColor background = Theme::instance().palette().bg2;
+    QPalette colors = palette();
+    colors.setColor(QPalette::Window, background);
+    colors.setColor(QPalette::WindowText, Theme::instance().palette().text);
+    setPalette(colors);
+    setAutoFillBackground(true);
     resize(1280, 720);
     setMinimumSize(940, 500);
 
