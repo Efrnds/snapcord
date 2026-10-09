@@ -96,6 +96,9 @@ public:
     QList<Relationship> relationships() const;
     // Roles Discord has sent for this member. Empty optional means they are not known yet.
     std::optional<QStringList> memberRoleIds(const QString& guildId, const QString& userId) const;
+    // Color of the member's highest colored role (0xRRGGBB), or 0 for none. `fallbackRoleIds` are used when the
+    // member's roles are not known yet (the roles a message carried, for example).
+    int memberColor(const QString& guildId, const QString& userId, const QStringList& fallbackRoleIds = {}) const;
     // Asks the Gateway for members whose name starts with `query`; they arrive later (usersChanged).
     void searchGuildMembers(const QString& guildId, const QString& query);
 

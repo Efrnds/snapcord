@@ -13,6 +13,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QShowEvent>
 #include <QStackedWidget>
 #include <QVBoxLayout>
@@ -159,12 +160,12 @@ FriendsView::FriendsView(Session* session, ImageCache* images, QWidget* parent)
     m_rebuildTimer.setSingleShot(true);
     m_rebuildTimer.setInterval(50);
     connect(&m_rebuildTimer, &QTimer::timeout, this, &FriendsView::rebuild);
-    connect(m_session, &Session::relationshipsChanged, this, &FriendsView::rebuild);
+    // Hidden, nothing is rebuilt: showEvent catches up.
+    connect(m_session, &Session::relationshipsChanged, this, &FriendsView::scheduleRebuild);
     connect(m_session, &Session::presenceChanged, this, &FriendsView::scheduleRebuild);
     connect(m_session, &Session::usersChanged, this, &FriendsView::scheduleRebuild);
-    connect(m_session, &Session::ready, this, &FriendsView::rebuild);
+    connect(m_session, &Session::ready, this, &FriendsView::scheduleRebuild);
     connect(m_images, &ImageCache::imageLoaded, this, &FriendsView::scheduleRebuild);
-    rebuild();
 }
 
 void FriendsView::showEvent(QShowEvent* event)
@@ -181,6 +182,8 @@ void FriendsView::scheduleRebuild()
 
 void FriendsView::setTab(Tab tab)
 {
+    if (tab != m_tab)
+        m_scroll->verticalScrollBar()->setValue(0);
     m_tab = tab;
     m_stack->setCurrentWidget(tab == Tab::Add ? static_cast<QWidget*>(m_addPage) : m_scroll);
     if (tab != Tab::Add)
@@ -368,5 +371,8 @@ void FriendsView::rebuild()
             addRow(relationship);
     }
     layout->addStretch();
+    // A presence change rebuilds the list; keep the reader where they were.
+    const int scroll = m_scroll->verticalScrollBar()->value();
     m_scroll->setWidget(content);
+    m_scroll->verticalScrollBar()->setValue(scroll);
 }

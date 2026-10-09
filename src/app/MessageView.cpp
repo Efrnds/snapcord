@@ -639,23 +639,11 @@ QSize MessageDelegate::sizeHint(const QStyleOptionViewItem&, const QModelIndex& 
     return {m_viewWidth, layout(index, m_viewWidth).height};
 }
 
-QColor memberNameColor(Session* session, const QString& guildId, const QString& userId, const QStringList& onMessage)
+static QColor memberNameColor(Session* session, const QString& guildId, const QString& userId,
+                              const QStringList& onMessage)
 {
-    if (!session || guildId.isEmpty() || userId.isEmpty())
-        return {};
-    const Guild* guild = session->guild(guildId);
-    if (!guild)
-        return {};
-    QStringList roleIds = onMessage;
-    if (const std::optional<QStringList> known = session->memberRoleIds(guildId, userId))
-        roleIds = *known;
-    const Role* best = nullptr;
-    for (const QString& id : roleIds) {
-        const auto it = guild->roles.constFind(id);
-        if (it != guild->roles.cend() && it->color != 0 && (!best || it->position > best->position))
-            best = &*it;
-    }
-    return best ? QColor::fromRgb(QRgb(best->color)) : QColor();
+    const int color = session ? session->memberColor(guildId, userId, onMessage) : 0;
+    return color ? QColor::fromRgb(QRgb(color)) : QColor();
 }
 
 void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const

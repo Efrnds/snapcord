@@ -723,21 +723,8 @@ void MainWindow::onSpeakingChanged(const QString& userId, bool speaking)
 
 QColor MainWindow::roleColor(const QString& userId) const
 {
-    if (m_guildId.isEmpty() || userId.isEmpty())
-        return {};
-    const Guild* guild = m_session->guild(m_guildId);
-    if (!guild)
-        return {};
-    QStringList roleIds;
-    if (const std::optional<QStringList> known = m_session->memberRoleIds(m_guildId, userId))
-        roleIds = *known;
-    const Role* best = nullptr;
-    for (const QString& id : roleIds) {
-        const auto it = guild->roles.constFind(id);
-        if (it != guild->roles.cend() && it->color != 0 && (!best || it->position > best->position))
-            best = &*it;
-    }
-    return best ? QColor::fromRgb(QRgb(best->color)) : QColor();
+    const int color = m_session->memberColor(m_guildId, userId);
+    return color ? QColor::fromRgb(QRgb(color)) : QColor();
 }
 
 void MainWindow::reportModeration(const QString& error)
@@ -793,12 +780,14 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
     });
 
     const QString displayName = m_session->user(userId).displayName();
-    QAction* block = menu.addAction(tr("Block"));
-    connect(block, &QAction::triggered, this, [this, userId, displayName] {
-        if (QMessageBox::question(this, tr("Block"), tr("Block %1?").arg(displayName)) != QMessageBox::Yes)
-            return;
-        m_session->blockUser(userId, [this](const QString& error) { reportModeration(error); });
-    });
+    if (userId != m_session->self().id) {
+        QAction* block = menu.addAction(tr("Block"));
+        connect(block, &QAction::triggered, this, [this, userId, displayName] {
+            if (QMessageBox::question(this, tr("Block"), tr("Block %1?").arg(displayName)) != QMessageBox::Yes)
+                return;
+            m_session->blockUser(userId, [this](const QString& error) { reportModeration(error); });
+        });
+    }
 
     const Guild* guild = m_guildId.isEmpty() ? nullptr : m_session->guild(m_guildId);
     if (!guild) {
@@ -845,8 +834,8 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
             {QT_TR_NOOP("1 week"), 7 * 24 * 60 * 60},
         };
         for (const auto& choice : choices) {
-            QAction* action = timeout->addAction(tr(choice.label));
-            connect(action, &QAction::triggered, this, [this, userId, viewed, seconds = choice.seconds] {
+            QAction* choiceAction = timeout->addAction(tr(choice.label));
+            connect(choiceAction, &QAction::triggered, this, [this, userId, viewed, seconds = choice.seconds] {
                 m_session->setTimeout(m_guildId, userId, viewed, seconds, [this](const QString& error) { reportModeration(error); });
             });
         }
@@ -870,13 +859,14 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
                 continue;
             if (!(Permissions::compute(*guild, candidate, m_session->self().id) & Permissions::Connect))
                 continue;
-            QAction* action = move->addAction(candidate.name);
-            connect(action, &QAction::triggered, this, [this, userId, viewed, channelId = candidate.id] {
+            QAction* moveAction = move->addAction(candidate.name);
+            connect(moveAction, &QAction::triggered, this, [this, userId, viewed, channelId = candidate.id] {
                 m_session->moveMember(m_guildId, userId, viewed, channelId, [this](const QString& error) { reportModeration(error); });
             });
         }
     }
-    if (outranks && (guildPerms & Permissions::ManageRoles)) {
+    // The role checkboxes need the member's current roles; until Discord sends them the menu stays hidden.
+    if (outranks && knownRoles && (guildPerms & Permissions::ManageRoles)) {
         QList<Role> assignable;
         const int ceiling = owner ? std::numeric_limits<int>::max() : topPosition(selfRoles);
         for (const Role& role : guild->roles) {
@@ -888,10 +878,10 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
             std::sort(assignable.begin(), assignable.end(), [](const Role& a, const Role& b) { return a.position > b.position; });
             QMenu* roles = menu.addMenu(tr("Roles"));
             for (const Role& role : assignable) {
-                QAction* action = roles->addAction(role.name);
-                action->setCheckable(true);
-                action->setChecked(targetRoles.contains(role.id));
-                connect(action, &QAction::toggled, this, [this, userId, viewed, roleId = role.id](bool on) {
+                QAction* roleAction = roles->addAction(role.name);
+                roleAction->setCheckable(true);
+                roleAction->setChecked(targetRoles.contains(role.id));
+                connect(roleAction, &QAction::toggled, this, [this, userId, viewed, roleId = role.id](bool on) {
                     m_session->setMemberRole(m_guildId, userId, viewed, roleId, on, [this](const QString& error) { reportModeration(error); });
                 });
             }

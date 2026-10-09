@@ -1514,6 +1514,21 @@ std::optional<QStringList> Session::memberRoleIds(const QString& guildId, const 
     return *member;
 }
 
+int Session::memberColor(const QString& guildId, const QString& userId, const QStringList& fallbackRoleIds) const
+{
+    const Guild* guild = this->guild(guildId);
+    if (!guild || userId.isEmpty())
+        return 0;
+    const QStringList roleIds = memberRoleIds(guildId, userId).value_or(fallbackRoleIds);
+    const Role* best = nullptr;
+    for (const QString& id : roleIds) {
+        const auto it = guild->roles.constFind(id);
+        if (it != guild->roles.cend() && it->color != 0 && (!best || it->position > best->position))
+            best = &*it;
+    }
+    return best ? best->color : 0;
+}
+
 void Session::finishAction(const RestClient::Response& response, ResultCallback callback)
 {
     if (callback)
