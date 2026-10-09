@@ -93,6 +93,9 @@ public:
 
     // Guild members seen so far (user ID -> nickname, empty when none), for mention suggestions.
     QHash<QString, QString> knownMembers(const QString& guildId) const { return m_guildMembers.value(guildId); }
+    QList<Relationship> relationships() const;
+    // Roles Discord has sent for this member. Empty optional means they are not known yet.
+    std::optional<QStringList> memberRoleIds(const QString& guildId, const QString& userId) const;
     // Asks the Gateway for members whose name starts with `query`; they arrive later (usersChanged).
     void searchGuildMembers(const QString& guildId, const QString& query);
 
@@ -123,11 +126,33 @@ public:
     // `error` is empty on success.
     using ResultCallback = std::function<void(const QString& error)>;
     void updateProfile(const ProfileChanges& changes, ResultCallback callback);
+    // Send a friend request to a username. `error` is empty on success.
+    void addFriend(const QString& username, ResultCallback callback);
+    void acceptFriend(const QString& userId, ResultCallback callback);
+    // Removes a friend, a block, or a pending request.
+    void removeRelationship(const QString& userId, ResultCallback callback);
+    // Opens the existing direct message, or asks Discord for one. `channelId` is empty on failure.
+    using DirectMessageCallback = std::function<void(const QString& channelId, const QString& error)>;
+    void openDirectMessage(const QString& userId, DirectMessageCallback callback);
     void setStatus(UserStatus status);
     void setCustomStatus(const CustomStatus& status);
     // Activities this client detects itself (the game being played, the Spotify song), shared with the
     // status. `source` keeps them apart ("game", "spotify"); an empty activity removes that source's one.
     void setLocalActivity(const QString& source, const QJsonObject& activity);
+
+    // Moderation. `viewedChannelId` is only the page the request claims to come from. `error` is empty on success.
+    // Timeout `seconds` <= 0 removes it. An empty `channelId` disconnects the member from voice.
+    void setServerMute(const QString& guildId, const QString& userId, const QString& viewedChannelId, bool mute,
+                       ResultCallback callback);
+    void setTimeout(const QString& guildId, const QString& userId, const QString& viewedChannelId, int seconds,
+                    ResultCallback callback);
+    void kickMember(const QString& guildId, const QString& userId, const QString& viewedChannelId, ResultCallback callback);
+    void banMember(const QString& guildId, const QString& userId, const QString& viewedChannelId, ResultCallback callback);
+    void blockUser(const QString& userId, ResultCallback callback);
+    void setMemberRole(const QString& guildId, const QString& userId, const QString& viewedChannelId, const QString& roleId,
+                       bool grant, ResultCallback callback);
+    void moveMember(const QString& guildId, const QString& userId, const QString& viewedChannelId, const QString& channelId,
+                    ResultCallback callback);
 
     // Invites. Looking one up is cached for a few minutes (also when it fails), so the same link in many
     // messages is asked for once; `invite` is null on failure, with an error text.
@@ -179,6 +204,7 @@ signals:
     void guildChanged(const QString& guildId);
     void voiceStatesChanged(const QString& guildId);
     void privateChannelsChanged();
+    void relationshipsChanged();
     void callChanged(const QString& channelId);
     void usersChanged();
     void ownVoiceStateChanged(const VoiceState& state);
@@ -209,7 +235,11 @@ private:
     QString lastMessageId(const QString& guildId, const QString& channelId) const;
     void loadCall(const QJsonObject& data);
     void storeUser(const QJsonObject& json);
+    void storeRelationship(const QJsonObject& json);
     void storeMember(const QString& guildId, const QJsonObject& member);
+    void patchGuildMember(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                          const QJsonObject& body, ResultCallback callback);
+    void finishAction(const RestClient::Response& response, ResultCallback callback);
     void requestMissingUsers();
     void storePresence(const QJsonObject& json);
     void onMemberListUpdate(const QJsonObject& data);
@@ -270,6 +300,8 @@ private:
     };
     QHash<QString, GuildMemberLists> m_memberLists; // by guild ID
     QHash<QString, QHash<QString, QString>> m_guildMembers; // guild ID -> user ID -> nickname
+    QHash<QString, int> m_relationships; // user ID -> Relationship::Type
+    QHash<QString, QHash<QString, QStringList>> m_memberRoles; // guild ID -> user ID -> role IDs
     QString m_listGuildId;   // the channel on screen
     QString m_listChannelId;
     QJsonArray m_listRanges;

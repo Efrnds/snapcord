@@ -8,6 +8,7 @@ qt_add_executable(snapcord WIN32 MACOSX_BUNDLE
     ConnectionInfoPopup.cpp ConnectionInfoPopup.h
     Demo.cpp Demo.h
     EmojiPicker.cpp EmojiPicker.h
+    FriendsView.cpp FriendsView.h
     ImageCache.cpp ImageCache.h
     DiscordVideo.cpp DiscordVideo.h
     ImageViewer.cpp ImageViewer.h

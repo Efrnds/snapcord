@@ -79,6 +79,7 @@ struct Message
     QString guildId;
     int type = Default;
     User author;
+    QStringList memberRoleIds; // roles on this message's guild member, when Discord sent them
     QString content;
     QDateTime timestamp;
     QDateTime editedTimestamp;
@@ -93,6 +94,7 @@ struct Message
     // Replies keep a copy of the message they answer.
     QString referencedMessageId;
     User referencedAuthor;
+    QStringList referencedMemberRoleIds;
     QString referencedContent;
     bool referencedDeleted = false;
 

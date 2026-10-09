@@ -286,7 +286,16 @@ QJsonObject readyJson()
             {QStringLiteral("user_settings"), settings},
             {QStringLiteral("guilds"), guilds},
             {QStringLiteral("private_channels"), privateChannels},
-            {QStringLiteral("read_state"), readStates}};
+            {QStringLiteral("read_state"), readStates},
+            {QStringLiteral("relationships"), QJsonArray{
+                QJsonObject{{QStringLiteral("type"), 1}, {QStringLiteral("user"), userJson(QStringLiteral("Alex"))}},
+                QJsonObject{{QStringLiteral("type"), 1}, {QStringLiteral("user"), userJson(QStringLiteral("Bia"))}},
+                QJsonObject{{QStringLiteral("type"), 1}, {QStringLiteral("user"), userJson(QStringLiteral("Kenji"))}},
+                QJsonObject{{QStringLiteral("type"), 1}, {QStringLiteral("user"), userJson(QStringLiteral("Marina"))}},
+                QJsonObject{{QStringLiteral("type"), 1}, {QStringLiteral("user"), userJson(QStringLiteral("Theo"))}},
+                QJsonObject{{QStringLiteral("type"), 3}, {QStringLiteral("user"), userJson(QStringLiteral("Lina"))}},
+                QJsonObject{{QStringLiteral("type"), 4}, {QStringLiteral("user"), userJson(QStringLiteral("Rafa"))}},
+            }}};
 }
 
 QJsonObject presenceJson(const QString& name, const QString& status, const QJsonArray& activities = {})

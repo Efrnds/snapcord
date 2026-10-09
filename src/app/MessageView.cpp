@@ -639,6 +639,25 @@ QSize MessageDelegate::sizeHint(const QStyleOptionViewItem&, const QModelIndex& 
     return {m_viewWidth, layout(index, m_viewWidth).height};
 }
 
+QColor memberNameColor(Session* session, const QString& guildId, const QString& userId, const QStringList& onMessage)
+{
+    if (!session || guildId.isEmpty() || userId.isEmpty())
+        return {};
+    const Guild* guild = session->guild(guildId);
+    if (!guild)
+        return {};
+    QStringList roleIds = onMessage;
+    if (const std::optional<QStringList> known = session->memberRoleIds(guildId, userId))
+        roleIds = *known;
+    const Role* best = nullptr;
+    for (const QString& id : roleIds) {
+        const auto it = guild->roles.constFind(id);
+        if (it != guild->roles.cend() && it->color != 0 && (!best || it->position > best->position))
+            best = &*it;
+    }
+    return best ? QColor::fromRgb(QRgb(best->color)) : QColor();
+}
+
 void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
     const Message& message = m_model->message(index.row());
@@ -697,7 +716,9 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         int x = l.replyRect.left();
         painter->setFont(messageFont(base, 13, QFont::DemiBold));
         if (!l.replyName.isEmpty()) {
-            painter->setPen(colors.textBright);
+            const QColor replyColor = memberNameColor(m_session, message.guildId, message.referencedAuthor.id,
+                                                      message.referencedMemberRoleIds);
+            painter->setPen(replyColor.isValid() ? replyColor : colors.textBright);
             const QString name = u'@' + l.replyName;
             painter->drawText(QRect(x, l.replyRect.top(), 300, 20), Qt::AlignVCenter, name);
             x += painter->fontMetrics().horizontalAdvance(name) + 6;
@@ -711,7 +732,8 @@ void MessageDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     if (l.groupStart) {
         painter->drawPixmap(l.avatarRect, avatar(message.author, AvatarSize));
         painter->setFont(messageFont(base, 16, QFont::DemiBold));
-        painter->setPen(colors.textBright);
+        const QColor authorColor = memberNameColor(m_session, message.guildId, message.author.id, message.memberRoleIds);
+        painter->setPen(authorColor.isValid() ? authorColor : colors.textBright);
         painter->drawText(l.nameRect, Qt::AlignVCenter, l.name);
         painter->setFont(messageFont(base, 12));
         painter->setPen(colors.textMuted);

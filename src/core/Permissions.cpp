@@ -4,6 +4,19 @@
 
 namespace Permissions {
 
+quint64 guildPermissions(const Guild& guild, const QString& userId, const QStringList& roleIds)
+{
+    if (guild.ownerId == userId)
+        return All;
+
+    quint64 permissions = guild.roles.value(guild.id).permissions;
+    for (const QString& roleId : roleIds)
+        permissions |= guild.roles.value(roleId).permissions;
+    if (permissions & Administrator)
+        return All;
+    return permissions;
+}
+
 quint64 compute(const Guild& guild, const Channel& channel, const QString& userId)
 {
     if (guild.ownerId == userId)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QPixmap>
+#include <QPushButton>
 #include <QSet>
 #include <QWidget>
 
@@ -23,6 +24,7 @@ public:
     {
         QString userId;
         QString name;
+        QColor nameColor;
         QPixmap avatar;
         bool speaking = false;
         bool muted = false;
@@ -46,6 +48,9 @@ public:
     void endRebuild();
 
     void setSelectedChannel(const QString& channelId);
+    // The Friends entry above the direct-message list. Hidden while a server is open.
+    void setFriendsVisible(bool visible);
+    void setFriendsSelected(bool selected);
     // Updates one member row in place (cheaper than a rebuild, since speaking changes are frequent).
     void setMemberSpeaking(const QString& userId, bool speaking);
 
@@ -54,6 +59,7 @@ public:
 
 signals:
     void channelClicked(const QString& channelId, ChannelSidebar::ItemKind kind);
+    void friendsSelected();
     void memberContextMenuRequested(const QString& userId, const QPoint& globalPosition);
     void memberClicked(const QString& userId, const QPoint& globalPosition);
     // Right click on a category or channel; an empty `id` means the empty space below the list.
@@ -65,6 +71,7 @@ private:
     void onItemClicked(QTreeWidgetItem* item);
 
     QLabel* m_title;
+    QPushButton* m_friends;
     QTreeWidget* m_tree;
     VoicePanel* m_voicePanel;
     UserPanel* m_userPanel;

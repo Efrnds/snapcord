@@ -52,6 +52,11 @@ void RestClient::put(const QString& path, Callback callback)
     send({"PUT", path, {}, false, std::move(callback), 0});
 }
 
+void RestClient::put(const QString& path, const QJsonDocument& body, Callback callback)
+{
+    send({"PUT", path, body.toJson(QJsonDocument::Compact), true, std::move(callback), 0});
+}
+
 void RestClient::deleteResource(const QString& path, Callback callback)
 {
     send({"DELETE", path, {}, false, std::move(callback), 0});

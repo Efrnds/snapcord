@@ -1,10 +1,12 @@
 #pragma once
 
+#include <QColor>
 #include <QMainWindow>
 #include <QPointer>
 #include <QTimer>
 
 class ChannelSidebar;
+class FriendsView;
 class ChatView;
 class ImageCache;
 class IncomingCallWindow;
@@ -49,6 +51,8 @@ private:
     void refreshUserPanel();
     void onSpeakingChanged(const QString& userId, bool speaking);
     void showUserMenu(const QString& userId, const QPoint& globalPosition);
+    QColor roleColor(const QString& userId) const;
+    void reportModeration(const QString& error);
     void showServerMenu(const QString& guildId, const QPoint& globalPosition);
     void showFolderMenu(const QString& folderId, const QPoint& globalPosition);
     // Right click in the channel list: create, edit or delete channels (an empty `channelId` = empty space).
@@ -79,6 +83,7 @@ private:
     ChannelSidebar* m_sidebar;
     QStackedWidget* m_pages;
     QWidget* m_homePage;
+    FriendsView* m_friendsPage = nullptr;
     ChatView* m_chatView;
     VoiceChannelView* m_voiceView;
     IncomingCallWindow* m_incomingCall;

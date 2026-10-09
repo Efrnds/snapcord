@@ -432,6 +432,66 @@ QCheckBox {
     background: @button;
     color: @textMuted;
 }
+#friendsView, #friendsHeader {
+    background: @bg2;
+}
+#friendsTitle {
+    color: @textBright;
+    font-size: @fontSizeLg;
+    font-weight: 700;
+}
+#friendsTab, #friendsAddTab, #friendsButton {
+    background: transparent;
+    color: @text;
+    border: none;
+    border-radius: @rSm;
+    padding: 6px 10px;
+    font-weight: 600;
+}
+#friendsButton {
+    text-align: left;
+    margin: 8px 8px 0 8px;
+}
+#friendsTab:hover, #friendsAddTab:hover, #friendsButton:hover {
+    background: @hover;
+    color: @textBright;
+}
+#friendsTab:checked, #friendsButton:checked {
+    background: @selected;
+    color: @textBright;
+}
+#friendsAddTab:checked {
+    background: @accent;
+    color: @onAccent;
+}
+#friendsSection {
+    color: @textMuted;
+    font-size: @fontSizeSm;
+    font-weight: 700;
+    padding: 8px 8px 4px 8px;
+}
+#friendRow {
+    background: transparent;
+    border-radius: @rSm;
+}
+#friendRow:hover {
+    background: @hover;
+}
+#friendName {
+    color: @textBright;
+    font-weight: 600;
+}
+#accentButton {
+    background: @accent;
+    color: @onAccent;
+    border: none;
+    border-radius: @rSm;
+    padding: 8px 16px;
+    font-weight: 600;
+}
+#accentButton:hover {
+    background: @accentHover;
+}
 #secondaryButton {
     background: @button;
     color: @textBright;

@@ -334,6 +334,12 @@ void Session::onDispatch(const QString& event, const QJsonObject& data)
     } else if (event == u"CHANNEL_DELETE" && guildId.isEmpty()) {
         if (m_privateChannels.remove(data.value(u"id").toString()))
             emit privateChannelsChanged();
+    } else if (event == u"RELATIONSHIP_ADD" || event == u"RELATIONSHIP_UPDATE") {
+        storeRelationship(data);
+        emit relationshipsChanged();
+    } else if (event == u"RELATIONSHIP_REMOVE") {
+        if (m_relationships.remove(data.value(u"id").toString()))
+            emit relationshipsChanged();
     } else if (event == u"CHANNEL_RECIPIENT_ADD" || event == u"CHANNEL_RECIPIENT_REMOVE") {
         auto it = m_privateChannels.find(data.value(u"channel_id").toString());
         if (it != m_privateChannels.end()) {
@@ -444,6 +450,8 @@ void Session::loadReady(const QJsonObject& data)
     m_listChannelId.clear();
     m_memberLists.clear();
     m_guildMembers.clear();
+    m_memberRoles.clear();
+    m_relationships.clear();
     m_guilds.clear();
     m_guildOrder.clear();
     m_privateChannels.clear();
@@ -460,6 +468,8 @@ void Session::loadReady(const QJsonObject& data)
 
     for (const QJsonValue& value : data.value(u"users").toArray())
         storeUser(value.toObject());
+    for (const QJsonValue& value : data.value(u"relationships").toArray())
+        storeRelationship(value.toObject());
 
     m_presences.clear();
     m_requestedPresences.clear();
@@ -841,7 +851,7 @@ void Session::fetchProfile(const QString& userId, const QString& guildId, Profil
     QString path = QStringLiteral("/users/%1/profile?with_mutual_guilds=true&with_mutual_friends_count=false").arg(userId);
     if (!guildId.isEmpty())
         path += QStringLiteral("&guild_id=") + guildId;
-    m_rest->get(path, [this, key, guildId, callback](const RestClient::Response& response) {
+    m_rest->get(path, [this, key, guildId, userId, callback](const RestClient::Response& response) {
         if (!response.ok()) {
             callback(nullptr, errorText(response));
             return;
@@ -851,6 +861,8 @@ void Session::fetchProfile(const QString& userId, const QString& guildId, Profil
             profile.guildId = guildId;
         if (!profile.user.id.isEmpty() && profile.user.id != m_self.id)
             m_users.insert(profile.user.id, profile.user); // the freshest name and picture
+        if (!guildId.isEmpty() && (profile.joinedAt.isValid() || !profile.roleIds.isEmpty()))
+            m_memberRoles[guildId].insert(profile.user.id.isEmpty() ? userId : profile.user.id, profile.roleIds);
         // Profiles are only kept while a popup might reopen them; this bounds the cache.
         if (m_profiles.size() > 64)
             m_profiles.clear();
@@ -1360,6 +1372,13 @@ bool Session::mentionsSelf(const Message& message) const
 void Session::onMessageCreate(const QJsonObject& data)
 {
     const Message message = Message::fromJson(data);
+    if (data.contains(u"member") && !message.guildId.isEmpty()) {
+        QJsonObject member = data.value(u"member").toObject();
+        const QJsonObject author = data.value(u"author").toObject();
+        if (!author.isEmpty())
+            member.insert(QStringLiteral("user"), author);
+        storeMember(message.guildId, member);
+    }
     const QString channelId = message.channelId;
     const bool isPrivate = message.guildId.isEmpty();
 
@@ -1484,14 +1503,216 @@ void Session::storeUser(const QJsonObject& json)
         m_users.insert(user.id, user);
 }
 
+std::optional<QStringList> Session::memberRoleIds(const QString& guildId, const QString& userId) const
+{
+    const auto guild = m_memberRoles.constFind(guildId);
+    if (guild == m_memberRoles.cend())
+        return std::nullopt;
+    const auto member = guild->constFind(userId);
+    if (member == guild->cend())
+        return std::nullopt;
+    return *member;
+}
+
+void Session::finishAction(const RestClient::Response& response, ResultCallback callback)
+{
+    if (callback)
+        callback(response.ok() ? QString() : errorText(response));
+}
+
+void Session::patchGuildMember(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                               const QJsonObject& body, ResultCallback callback)
+{
+    const QString previous = m_rest->referer();
+    const QString page = viewedChannelId.isEmpty() ? guildId : viewedChannelId;
+    m_rest->setReferer(QStringLiteral("https://discord.com/channels/%1/%2").arg(guildId, page));
+    m_rest->patch(QStringLiteral("/guilds/%1/members/%2").arg(guildId, userId), QJsonDocument(body),
+                  [this, callback](const RestClient::Response& response) { finishAction(response, callback); });
+    m_rest->setReferer(previous);
+}
+
+void Session::setServerMute(const QString& guildId, const QString& userId, const QString& viewedChannelId, bool mute,
+                            ResultCallback callback)
+{
+    patchGuildMember(guildId, userId, viewedChannelId, QJsonObject{{QStringLiteral("mute"), mute}}, std::move(callback));
+}
+
+void Session::setTimeout(const QString& guildId, const QString& userId, const QString& viewedChannelId, int seconds,
+                         ResultCallback callback)
+{
+    QJsonObject body;
+    if (seconds <= 0)
+        body.insert(QStringLiteral("communication_disabled_until"), QJsonValue());
+    else
+        body.insert(QStringLiteral("communication_disabled_until"),
+                    QDateTime::currentDateTimeUtc().addSecs(seconds).toString(Qt::ISODateWithMs));
+    patchGuildMember(guildId, userId, viewedChannelId, body, std::move(callback));
+}
+
+void Session::kickMember(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                         ResultCallback callback)
+{
+    const QString previous = m_rest->referer();
+    const QString page = viewedChannelId.isEmpty() ? guildId : viewedChannelId;
+    m_rest->setReferer(QStringLiteral("https://discord.com/channels/%1/%2").arg(guildId, page));
+    m_rest->deleteResource(QStringLiteral("/guilds/%1/members/%2").arg(guildId, userId),
+                           [this, callback](const RestClient::Response& response) { finishAction(response, callback); });
+    m_rest->setReferer(previous);
+}
+
+void Session::banMember(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                        ResultCallback callback)
+{
+    const QString previous = m_rest->referer();
+    const QString page = viewedChannelId.isEmpty() ? guildId : viewedChannelId;
+    m_rest->setReferer(QStringLiteral("https://discord.com/channels/%1/%2").arg(guildId, page));
+    m_rest->put(QStringLiteral("/guilds/%1/bans/%2").arg(guildId, userId),
+                QJsonDocument(QJsonObject{{QStringLiteral("delete_message_seconds"), 0}}),
+                [this, callback](const RestClient::Response& response) { finishAction(response, callback); });
+    m_rest->setReferer(previous);
+}
+
+void Session::blockUser(const QString& userId, ResultCallback callback)
+{
+    m_rest->put(QStringLiteral("/users/@me/relationships/%1").arg(userId),
+                QJsonDocument(QJsonObject{{QStringLiteral("type"), Relationship::Blocked}}),
+                [this, userId, callback](const RestClient::Response& response) {
+                    if (response.ok()) {
+                        m_relationships.insert(userId, Relationship::Blocked);
+                        emit relationshipsChanged();
+                    }
+                    finishAction(response, callback);
+                });
+}
+
+QList<Relationship> Session::relationships() const
+{
+    QList<Relationship> list;
+    list.reserve(m_relationships.size());
+    for (auto it = m_relationships.cbegin(); it != m_relationships.cend(); ++it)
+        list.append({it.key(), it.value()});
+    return list;
+}
+
+void Session::storeRelationship(const QJsonObject& json)
+{
+    const QJsonObject user = json.value(u"user").toObject();
+    if (!user.isEmpty())
+        storeUser(user);
+    const QString id = user.isEmpty() ? json.value(u"id").toString() : user.value(u"id").toString();
+    if (!id.isEmpty())
+        m_relationships.insert(id, json.value(u"type").toInt());
+}
+
+void Session::addFriend(const QString& username, ResultCallback callback)
+{
+    const QString name = username.trimmed();
+    if (name.isEmpty()) {
+        if (callback)
+            callback(tr("Enter a username."));
+        return;
+    }
+    // The official client sends discriminator as null now that usernames are unique.
+    const QJsonObject body{{QStringLiteral("username"), name}, {QStringLiteral("discriminator"), QJsonValue()}};
+    m_rest->post(QStringLiteral("/users/@me/relationships"), QJsonDocument(body),
+                 [this, callback](const RestClient::Response& response) {
+                     if (response.ok() && response.body.isObject())
+                         storeRelationship(response.body.object());
+                     if (response.ok())
+                         emit relationshipsChanged();
+                     finishAction(response, callback);
+                 });
+}
+
+void Session::acceptFriend(const QString& userId, ResultCallback callback)
+{
+    m_rest->put(QStringLiteral("/users/@me/relationships/%1").arg(userId),
+                QJsonDocument(QJsonObject{{QStringLiteral("type"), Relationship::Friend}}),
+                [this, userId, callback](const RestClient::Response& response) {
+                    if (response.ok()) {
+                        m_relationships.insert(userId, Relationship::Friend);
+                        emit relationshipsChanged();
+                    }
+                    finishAction(response, callback);
+                });
+}
+
+void Session::removeRelationship(const QString& userId, ResultCallback callback)
+{
+    m_rest->deleteResource(QStringLiteral("/users/@me/relationships/%1").arg(userId),
+                           [this, userId, callback](const RestClient::Response& response) {
+                               if (response.ok()) {
+                                   m_relationships.remove(userId);
+                                   emit relationshipsChanged();
+                               }
+                               finishAction(response, callback);
+                           });
+}
+
+void Session::openDirectMessage(const QString& userId, DirectMessageCallback callback)
+{
+    for (const PrivateChannel& channel : privateChannels()) {
+        if (!channel.isGroup() && channel.recipientIds.size() == 1 && channel.recipientIds.first() == userId) {
+            if (callback)
+                callback(channel.id, QString());
+            return;
+        }
+    }
+    m_rest->post(QStringLiteral("/users/@me/channels"),
+                 QJsonDocument(QJsonObject{{QStringLiteral("recipients"), QJsonArray{userId}}}),
+                 [this, callback](const RestClient::Response& response) {
+                     if (!response.ok()) {
+                         if (callback)
+                             callback(QString(), errorText(response));
+                         return;
+                     }
+                     const PrivateChannel channel = PrivateChannel::fromJson(response.body.object());
+                     if (!channel.id.isEmpty())
+                         m_privateChannels.insert(channel.id, channel);
+                     emit privateChannelsChanged();
+                     if (callback)
+                         callback(channel.id, channel.id.isEmpty() ? tr("Could not open the conversation.") : QString());
+                 });
+}
+
+void Session::setMemberRole(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                            const QString& roleId, bool grant, ResultCallback callback)
+{
+    const QString previous = m_rest->referer();
+    const QString page = viewedChannelId.isEmpty() ? guildId : viewedChannelId;
+    m_rest->setReferer(QStringLiteral("https://discord.com/channels/%1/%2").arg(guildId, page));
+    const QString path = QStringLiteral("/guilds/%1/members/%2/roles/%3").arg(guildId, userId, roleId);
+    const auto done = [this, callback](const RestClient::Response& response) { finishAction(response, callback); };
+    if (grant)
+        m_rest->put(path, done);
+    else
+        m_rest->deleteResource(path, done);
+    m_rest->setReferer(previous);
+}
+
+void Session::moveMember(const QString& guildId, const QString& userId, const QString& viewedChannelId,
+                         const QString& channelId, ResultCallback callback)
+{
+    QJsonObject body;
+    body.insert(QStringLiteral("channel_id"), channelId.isEmpty() ? QJsonValue() : QJsonValue(channelId));
+    patchGuildMember(guildId, userId, viewedChannelId, body, std::move(callback));
+}
+
 void Session::storeMember(const QString& guildId, const QJsonObject& member)
 {
     const QJsonObject userJson = member.value(u"user").toObject();
     if (!userJson.isEmpty())
         storeUser(userJson);
     const QString userId = userJson.isEmpty() ? member.value(u"user_id").toString() : userJson.value(u"id").toString();
-    if (!guildId.isEmpty() && !userId.isEmpty())
+    if (!guildId.isEmpty() && !userId.isEmpty()) {
         m_guildMembers[guildId].insert(userId, member.value(u"nick").toString());
+        if (member.contains(u"roles")) {
+            QStringList roles;
+            for (const QJsonValue& role : member.value(u"roles").toArray())
+                roles.append(role.toString());
+            m_memberRoles[guildId].insert(userId, roles);
+        }
+    }
     if (userId == m_self.id && !m_self.id.isEmpty()) {
         auto it = m_guilds.find(guildId);
         if (it != m_guilds.end() && member.contains(u"roles")) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QImage>
 #include <QList>
 #include <QWidget>
@@ -21,6 +22,7 @@ public:
     {
         QString userId;
         QString name;
+        QColor nameColor;
         QImage picture;
         bool speaking = false;
         bool muted = false;

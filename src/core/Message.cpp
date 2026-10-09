@@ -95,6 +95,14 @@ Emoji Emoji::fromJson(const QJsonObject& json)
     return emoji;
 }
 
+QStringList roleIdsOf(const QJsonObject& member)
+{
+    QStringList ids;
+    for (const QJsonValue& role : member.value(u"roles").toArray())
+        ids.append(role.toString());
+    return ids;
+}
+
 Message Message::fromJson(const QJsonObject& json)
 {
     Message message;
@@ -105,11 +113,15 @@ Message Message::fromJson(const QJsonObject& json)
                                                      : QString::number(json.value(u"nonce").toInteger());
     message.author = User::fromJson(json.value(u"author").toObject());
     message.update(json);
+    if (json.contains(u"member"))
+        message.memberRoleIds = roleIdsOf(json.value(u"member").toObject());
 
     const QJsonObject referenced = json.value(u"referenced_message").toObject();
     if (!referenced.isEmpty()) {
         message.referencedMessageId = string(referenced, u"id");
         message.referencedAuthor = User::fromJson(referenced.value(u"author").toObject());
+        if (referenced.contains(u"member"))
+            message.referencedMemberRoleIds = roleIdsOf(referenced.value(u"member").toObject());
         message.referencedContent = string(referenced, u"content");
         if (message.referencedContent.isEmpty() && !referenced.value(u"attachments").toArray().isEmpty())
             message.referencedContent = QStringLiteral("📎");
@@ -127,6 +139,8 @@ void Message::update(const QJsonObject& json)
         type = json.value(u"type").toInt();
     if (json.contains(u"content"))
         content = string(json, u"content");
+    if (json.contains(u"member"))
+        memberRoleIds = roleIdsOf(json.value(u"member").toObject());
     if (json.contains(u"timestamp"))
         timestamp = ::timestamp(json.value(u"timestamp"));
     if (json.contains(u"edited_timestamp"))

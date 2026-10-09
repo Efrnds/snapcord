@@ -82,7 +82,7 @@ void ParticipantTile::paintEvent(QPaintEvent*)
     const QRectF tag(tile.left() + 8, tile.bottom() - 32, painter.fontMetrics().horizontalAdvance(name) + 16, 24);
     painter.setBrush(QColor(0, 0, 0, 120));
     painter.drawRoundedRect(tag, 4, 4);
-    painter.setPen(Qt::white);
+    painter.setPen(m_participant.nameColor.isValid() ? m_participant.nameColor : Qt::white);
     painter.drawText(tag, Qt::AlignCenter, name);
 
     // Mute and deafen indicators in the bottom-right corner.
