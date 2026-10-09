@@ -96,6 +96,8 @@ public:
     QList<Relationship> relationships() const;
     // Roles Discord has sent for this member. Empty optional means they are not known yet.
     std::optional<QStringList> memberRoleIds(const QString& guildId, const QString& userId) const;
+    // Asks Discord for the roles of message authors that are not in the member list yet.
+    void ensureAuthorRoles(const QString& guildId, const QString& channelId);
     // Asks the Gateway for members whose name starts with `query`; they arrive later (usersChanged).
     void searchGuildMembers(const QString& guildId, const QString& query);
 
@@ -241,6 +243,7 @@ private:
                           const QJsonObject& body, ResultCallback callback);
     void finishAction(const RestClient::Response& response, ResultCallback callback);
     void requestMissingUsers();
+    void requestMissingRoles();
     void storePresence(const QJsonObject& json);
     void onMemberListUpdate(const QJsonObject& data);
     MemberListItem memberListItem(const QString& guildId, const QJsonObject& json);
@@ -282,6 +285,9 @@ private:
     QHash<QString, User> m_users;
     QHash<QString, QSet<QString>> m_missingUsers; // guild ID -> user IDs to request
     QTimer m_missingUsersTimer;
+    QHash<QString, QSet<QString>> m_missingRoles; // guild ID -> authors whose role color is still unknown
+    QSet<QString> m_rolesRequested; // "guildId/userId" already asked this session
+    QTimer m_missingRolesTimer;
     QHash<QString, Presence> m_presences; // by user ID
     QSet<QString> m_requestedPresences;
     UserStatus m_selfStatus = UserStatus::Online;
