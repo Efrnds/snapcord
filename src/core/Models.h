@@ -8,6 +8,15 @@
 #include <QString>
 #include <QStringList>
 
+// A friend, a block, or a pending request. `type` matches Discord: 1 friend, 2 blocked, 3 incoming, 4 outgoing.
+struct Relationship
+{
+    enum Type { Friend = 1, Blocked = 2, Incoming = 3, Outgoing = 4 };
+
+    QString userId;
+    int type = 0;
+};
+
 struct User
 {
     QString id;
@@ -74,6 +83,7 @@ struct Role
     int position = 0;
     int color = 0; // 0xRRGGBB, 0 = no color
     bool mentionable = false;
+    bool managed = false; // integration or bot role; Discord does not let members assign it
 
     static Role fromJson(const QJsonObject& json);
 };

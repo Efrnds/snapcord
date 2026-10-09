@@ -336,6 +336,8 @@ ChatView::ChatView(Session* session, ImageCache* images, VoiceController* voice,
         if (m_mentionPopup->isVisible())
             updateMentionPopup();
     });
+    connect(m_session, &Session::memberListChanged, m_list->viewport(), qOverload<>(&QWidget::update));
+    connect(m_session, &Session::guildChanged, m_list->viewport(), qOverload<>(&QWidget::update));
     connect(m_composer, &QPlainTextEdit::textChanged, this, [this] {
         if (!m_restoringDraft && m_editing.isEmpty() && !m_composer->toPlainText().isEmpty())
             m_session->sendTyping(m_channelId);

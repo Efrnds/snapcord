@@ -9,6 +9,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPushButton>
 #include <QPainter>
 #include <QScrollBar>
 #include <QStyledItemDelegate>
@@ -246,6 +247,7 @@ private:
 ChannelSidebar::ChannelSidebar(QWidget* parent)
     : QWidget(parent)
     , m_title(new QLabel)
+    , m_friends(new QPushButton(tr("Friends")))
     , m_tree(new QTreeWidget)
     , m_voicePanel(new VoicePanel)
     , m_userPanel(new UserPanel)
@@ -261,6 +263,16 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
     auto* headerLayout = new QHBoxLayout(header);
     headerLayout->setContentsMargins(16, 0, 16, 0);
     headerLayout->addWidget(m_title);
+
+    m_friends->setObjectName(QStringLiteral("friendsButton"));
+    m_friends->setCursor(Qt::PointingHandCursor);
+    m_friends->setCheckable(true);
+    m_friends->hide();
+    connect(m_friends, &QPushButton::clicked, this, [this] {
+        m_friends->setChecked(true);
+        setSelectedChannel(QString());
+        emit friendsSelected();
+    });
 
     m_tree->setObjectName(QStringLiteral("channelTree"));
     m_tree->setHeaderHidden(true);
@@ -292,6 +304,7 @@ ChannelSidebar::ChannelSidebar(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     layout->addWidget(header);
+    layout->addWidget(m_friends);
     layout->addWidget(m_tree, 1);
     layout->addWidget(m_voicePanel);
     layout->addWidget(m_userPanel);
@@ -360,6 +373,8 @@ void ChannelSidebar::addVoiceMember(const Member& member)
         return;
     auto* item = new QTreeWidgetItem(m_currentVoiceChannel, {member.name});
     item->setFlags(Qt::ItemIsEnabled);
+    if (member.nameColor.isValid())
+        item->setForeground(0, member.nameColor);
     item->setData(0, IdRole, member.userId);
     item->setData(0, KindRole, static_cast<int>(ItemKind::VoiceMember));
     item->setData(0, Qt::DecorationRole, member.avatar);
@@ -382,8 +397,20 @@ void ChannelSidebar::endRebuild()
 void ChannelSidebar::setSelectedChannel(const QString& channelId)
 {
     m_selectedChannel = channelId;
+    if (!channelId.isEmpty())
+        m_friends->setChecked(false);
     for (QTreeWidgetItemIterator it(m_tree); *it; ++it)
         (*it)->setSelected((*it)->data(0, IdRole).toString() == channelId);
+}
+
+void ChannelSidebar::setFriendsVisible(bool visible)
+{
+    m_friends->setVisible(visible);
+}
+
+void ChannelSidebar::setFriendsSelected(bool selected)
+{
+    m_friends->setChecked(selected);
 }
 
 void ChannelSidebar::setMemberSpeaking(const QString& userId, bool speaking)

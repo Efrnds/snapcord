@@ -3,6 +3,7 @@
 #include "Avatar.h"
 #include "ChannelSidebar.h"
 #include "ChatView.h"
+#include "FriendsView.h"
 #include "ConnectionInfoPopup.h"
 #include "ImageCache.h"
 #include "Motion.h"
@@ -19,6 +20,7 @@
 #include "VoiceChannelView.h"
 #include "VoiceController.h"
 #include "VoicePanel.h"
+#include "core/Permissions.h"
 #include "core/Session.h"
 
 #include <QDesktopServices>
@@ -35,6 +37,9 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 #include <QWidgetAction>
+
+#include <algorithm>
+#include <limits>
 
 namespace {
 
@@ -81,7 +86,17 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
     setMinimumSize(940, 500);
 
     m_homePage = buildPlaceholderPage(tr("Direct Messages"), tr("Pick a conversation on the left."));
+    m_friendsPage = new FriendsView(session, m_images);
     m_pages->addWidget(m_homePage);
+    m_pages->addWidget(m_friendsPage);
+    connect(m_friendsPage, &FriendsView::conversationRequested, this, [this](const QString& userId) {
+        m_session->openDirectMessage(userId, [this](const QString& channelId, const QString& error) {
+            if (!error.isEmpty())
+                reportModeration(error);
+            else if (!channelId.isEmpty())
+                showChannel(QString(), channelId);
+        });
+    });
     m_pages->addWidget(m_chatView);
     m_pages->addWidget(m_voiceView);
 
@@ -199,6 +214,14 @@ MainWindow::MainWindow(Session* session, VoiceController* voice, QWidget* parent
 
     connect(m_rail, &ServerRail::serverSelected, this, &MainWindow::selectGuild);
     connect(m_rail, &ServerRail::homeSelected, this, [this] { selectGuild(QString()); });
+    connect(m_sidebar, &ChannelSidebar::friendsSelected, this, [this] {
+        if (!m_guildId.isEmpty())
+            return;
+        m_channelId.clear();
+        m_sidebar->setSelectedChannel(QString());
+        m_sidebar->setFriendsSelected(true);
+        refreshCenter();
+    });
     connect(m_rail, &ServerRail::foldersChanged, m_session, &Session::setGuildFolders);
     connect(m_rail, &ServerRail::addServerRequested, this, [this] { openJoinDialog({}); });
     connect(m_rail, &ServerRail::serverContextMenuRequested, this, &MainWindow::showServerMenu);
@@ -473,9 +496,9 @@ void MainWindow::selectGuild(const QString& guildId)
         m_channelId = m_voice->channelId();
 
     if (guildId.isEmpty()) {
+        // Home opens the friends list. A conversation opens only when one is clicked.
         m_sidebar->setTitle(tr("Direct Messages"));
-        if (!m_session->privateChannel(m_channelId))
-            m_channelId.clear();
+        m_channelId.clear();
     } else {
         const Guild* guild = m_session->guild(guildId);
         m_sidebar->setTitle(guild ? guild->name : QString());
@@ -491,6 +514,8 @@ void MainWindow::selectGuild(const QString& guildId)
         }
     }
     m_sidebar->setSelectedChannel(m_channelId);
+    m_sidebar->setFriendsVisible(guildId.isEmpty());
+    m_sidebar->setFriendsSelected(guildId.isEmpty());
     refreshChannels();
     refreshCenter();
 }
@@ -516,6 +541,7 @@ void MainWindow::refreshChannels()
             member.muted = state.selfMute || state.mute;
             member.deafened = state.selfDeaf || state.deaf;
             member.avatar = memberAvatar(state.userId);
+            member.nameColor = roleColor(state.userId);
             m_sidebar->addVoiceMember(member);
         }
     };
@@ -564,7 +590,8 @@ void MainWindow::refreshCenter()
     });
     if (m_guildId.isEmpty()) {
         if (!m_session->privateChannel(m_channelId)) {
-            m_pages->setCurrentWidget(m_homePage);
+            m_sidebar->setFriendsSelected(true);
+            m_pages->setCurrentWidget(m_friendsPage);
             return;
         }
         m_chatView->showChannel(QString(), m_channelId);
@@ -594,6 +621,7 @@ void MainWindow::refreshCenter()
         participant.speaking = m_voice->isSpeaking(state.userId);
         participant.muted = state.selfMute || state.mute;
         participant.deafened = state.selfDeaf || state.deaf;
+        participant.nameColor = roleColor(state.userId);
         participants.append(participant);
     }
     m_voiceView->setChannelName(channel->name);
@@ -693,6 +721,31 @@ void MainWindow::onSpeakingChanged(const QString& userId, bool speaking)
     m_voiceView->setSpeaking(userId, speaking);
 }
 
+QColor MainWindow::roleColor(const QString& userId) const
+{
+    if (m_guildId.isEmpty() || userId.isEmpty())
+        return {};
+    const Guild* guild = m_session->guild(m_guildId);
+    if (!guild)
+        return {};
+    QStringList roleIds;
+    if (const std::optional<QStringList> known = m_session->memberRoleIds(m_guildId, userId))
+        roleIds = *known;
+    const Role* best = nullptr;
+    for (const QString& id : roleIds) {
+        const auto it = guild->roles.constFind(id);
+        if (it != guild->roles.cend() && it->color != 0 && (!best || it->position > best->position))
+            best = &*it;
+    }
+    return best ? QColor::fromRgb(QRgb(best->color)) : QColor();
+}
+
+void MainWindow::reportModeration(const QString& error)
+{
+    if (!error.isEmpty())
+        QMessageBox::warning(this, tr("Couldn't do that"), error);
+}
+
 void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPosition)
 {
     QMenu menu(this);
@@ -731,13 +784,135 @@ void MainWindow::showUserMenu(const QString& userId, const QPoint& globalPositio
     action->setDefaultWidget(widget);
     menu.addAction(action);
     menu.addSeparator();
-    QAction* mute = menu.addAction(tr("Mute"));
+    QAction* mute = menu.addAction(tr("Mute for me"));
     mute->setCheckable(true);
     mute->setChecked(m_voice->userVolume(userId) <= 0.0f);
     connect(mute, &QAction::toggled, this, [this, userId, slider](bool muted) {
         slider->setValue(muted ? 0 : 100);
         m_voice->setUserVolume(userId, muted ? 0.0f : 1.0f);
     });
+
+    const QString displayName = m_session->user(userId).displayName();
+    QAction* block = menu.addAction(tr("Block"));
+    connect(block, &QAction::triggered, this, [this, userId, displayName] {
+        if (QMessageBox::question(this, tr("Block"), tr("Block %1?").arg(displayName)) != QMessageBox::Yes)
+            return;
+        m_session->blockUser(userId, [this](const QString& error) { reportModeration(error); });
+    });
+
+    const Guild* guild = m_guildId.isEmpty() ? nullptr : m_session->guild(m_guildId);
+    if (!guild) {
+        menu.exec(globalPosition);
+        return;
+    }
+
+    const QStringList selfRoles = guild->selfRoleIds;
+    const std::optional<QStringList> knownRoles = m_session->memberRoleIds(m_guildId, userId);
+    const QStringList targetRoles = knownRoles.value_or(QStringList());
+    const bool owner = guild->ownerId == m_session->self().id;
+    auto topPosition = [guild](const QStringList& roleIds) {
+        int best = guild->roles.value(guild->id).position;
+        for (const QString& id : roleIds) {
+            const auto it = guild->roles.constFind(id);
+            if (it != guild->roles.cend())
+                best = std::max(best, it->position);
+        }
+        return best;
+    };
+    const bool outranks = userId != m_session->self().id && guild->ownerId != userId
+        && (owner || topPosition(selfRoles) > topPosition(targetRoles));
+    const quint64 guildPerms = Permissions::guildPermissions(*guild, m_session->self().id, selfRoles);
+    const QString viewed = m_channelId;
+
+    const VoiceState* voice = nullptr;
+    if (const auto it = guild->voiceStates.constFind(userId); it != guild->voiceStates.cend())
+        voice = &*it;
+
+    if (outranks && (guildPerms & Permissions::MuteMembers)) {
+        const bool serverMuted = voice && voice->mute;
+        QAction* serverMute = menu.addAction(serverMuted ? tr("Server Unmute") : tr("Server Mute"));
+        connect(serverMute, &QAction::triggered, this, [this, userId, viewed, serverMuted] {
+            m_session->setServerMute(m_guildId, userId, viewed, !serverMuted, [this](const QString& error) { reportModeration(error); });
+        });
+    }
+    if (outranks && (guildPerms & Permissions::ModerateMembers)) {
+        QMenu* timeout = menu.addMenu(tr("Timeout"));
+        const struct { const char* label; int seconds; } choices[] = {
+            {QT_TR_NOOP("60 seconds"), 60},
+            {QT_TR_NOOP("5 minutes"), 5 * 60},
+            {QT_TR_NOOP("1 hour"), 60 * 60},
+            {QT_TR_NOOP("1 day"), 24 * 60 * 60},
+            {QT_TR_NOOP("1 week"), 7 * 24 * 60 * 60},
+        };
+        for (const auto& choice : choices) {
+            QAction* action = timeout->addAction(tr(choice.label));
+            connect(action, &QAction::triggered, this, [this, userId, viewed, seconds = choice.seconds] {
+                m_session->setTimeout(m_guildId, userId, viewed, seconds, [this](const QString& error) { reportModeration(error); });
+            });
+        }
+        timeout->addSeparator();
+        QAction* clear = timeout->addAction(tr("Remove timeout"));
+        connect(clear, &QAction::triggered, this, [this, userId, viewed] {
+            m_session->setTimeout(m_guildId, userId, viewed, 0, [this](const QString& error) { reportModeration(error); });
+        });
+    }
+    if (outranks && (guildPerms & Permissions::MoveMembers)) {
+        QMenu* move = menu.addMenu(tr("Move to"));
+        if (voice && !voice->channelId.isEmpty()) {
+            QAction* disconnect = move->addAction(tr("Disconnect"));
+            connect(disconnect, &QAction::triggered, this, [this, userId, viewed] {
+                m_session->moveMember(m_guildId, userId, viewed, QString(), [this](const QString& error) { reportModeration(error); });
+            });
+            move->addSeparator();
+        }
+        for (const Channel& candidate : m_session->visibleChannels(m_guildId)) {
+            if (!candidate.isVoice() || (voice && candidate.id == voice->channelId))
+                continue;
+            if (!(Permissions::compute(*guild, candidate, m_session->self().id) & Permissions::Connect))
+                continue;
+            QAction* action = move->addAction(candidate.name);
+            connect(action, &QAction::triggered, this, [this, userId, viewed, channelId = candidate.id] {
+                m_session->moveMember(m_guildId, userId, viewed, channelId, [this](const QString& error) { reportModeration(error); });
+            });
+        }
+    }
+    if (outranks && (guildPerms & Permissions::ManageRoles)) {
+        QList<Role> assignable;
+        const int ceiling = owner ? std::numeric_limits<int>::max() : topPosition(selfRoles);
+        for (const Role& role : guild->roles) {
+            if (role.id == guild->id || role.managed || role.position >= ceiling)
+                continue;
+            assignable.append(role);
+        }
+        if (!assignable.isEmpty()) {
+            std::sort(assignable.begin(), assignable.end(), [](const Role& a, const Role& b) { return a.position > b.position; });
+            QMenu* roles = menu.addMenu(tr("Roles"));
+            for (const Role& role : assignable) {
+                QAction* action = roles->addAction(role.name);
+                action->setCheckable(true);
+                action->setChecked(targetRoles.contains(role.id));
+                connect(action, &QAction::toggled, this, [this, userId, viewed, roleId = role.id](bool on) {
+                    m_session->setMemberRole(m_guildId, userId, viewed, roleId, on, [this](const QString& error) { reportModeration(error); });
+                });
+            }
+        }
+    }
+    if (outranks && (guildPerms & Permissions::KickMembers)) {
+        QAction* kick = menu.addAction(tr("Kick"));
+        connect(kick, &QAction::triggered, this, [this, userId, viewed, displayName] {
+            if (QMessageBox::question(this, tr("Kick"), tr("Kick %1 from the server?").arg(displayName)) != QMessageBox::Yes)
+                return;
+            m_session->kickMember(m_guildId, userId, viewed, [this](const QString& error) { reportModeration(error); });
+        });
+    }
+    if (outranks && (guildPerms & Permissions::BanMembers)) {
+        QAction* ban = menu.addAction(tr("Ban"));
+        connect(ban, &QAction::triggered, this, [this, userId, viewed, displayName] {
+            if (QMessageBox::question(this, tr("Ban"), tr("Ban %1 from the server?").arg(displayName)) != QMessageBox::Yes)
+                return;
+            m_session->banMember(m_guildId, userId, viewed, [this](const QString& error) { reportModeration(error); });
+        });
+    }
     menu.exec(globalPosition);
 }
 

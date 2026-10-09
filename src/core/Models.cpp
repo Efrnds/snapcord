@@ -84,7 +84,14 @@ Role Role::fromJson(const QJsonObject& json)
     role.permissions = permissionBits(json.value(u"permissions"));
     role.position = json.value(u"position").toInt();
     role.color = json.value(u"color").toInt();
+    // Newer roles keep the display color in colors.primary_color and leave `color` at 0.
+    if (role.color == 0) {
+        const QJsonValue primary = json.value(u"colors").toObject().value(u"primary_color");
+        if (primary.isDouble())
+            role.color = primary.toInt();
+    }
     role.mentionable = json.value(u"mentionable").toBool();
+    role.managed = json.value(u"managed").toBool();
     return role;
 }
 

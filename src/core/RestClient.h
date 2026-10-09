@@ -46,6 +46,8 @@ public:
     void post(const QString& path, const QJsonDocument& body, Callback callback, const OrderedJson* contextProperties = nullptr);
     void patch(const QString& path, const QJsonDocument& body, Callback callback);
     void put(const QString& path, Callback callback);
+    void put(const QString& path, const QJsonDocument& body, Callback callback);
+    QString referer() const { return m_referer; }
     void deleteResource(const QString& path, Callback callback);
     void deleteResource(const QString& path, const QJsonDocument& body, Callback callback);
     // Uploads a file's bytes to a storage URL handed out by the API, without the API's headers. `device`
